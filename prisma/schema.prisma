@@ -1,0 +1,656 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  SELLER
+  ADMIN
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ListingStatus {
+  ACTIVE
+  PAUSED
+  SOLD
+  REMOVED
+}
+
+enum PurchaseRequestStatus {
+  OPEN
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CRYPTO
+  PAYPAL
+  VENMO
+  ZELLE
+}
+
+enum WithdrawMethod {
+  BTC
+  ETH
+  SOL
+  PAYPAL
+  VENMO
+  ZELLE
+}
+
+enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum RaffleStatus {
+  UPCOMING
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+enum TradeStatus {
+  OPEN
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum TradeSide {
+  OFFER
+  REQUEST
+}
+
+enum TradeAddonType {
+  ROBUX
+  ADDS
+  UPGRADE
+  DOWNGRADE
+}
+
+enum TradeRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum ReportType {
+  BRAINROT_VALUE
+  TRAIT_MULTIPLIER
+  MUTATION_MULTIPLIER
+  CALCULATION_FORMULA
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+model User {
+  id              String   @id @default(cuid())
+  robloxUsername  String   @unique
+  robloxUserId    String?
+  robloxAvatarUrl String?  // Cached Roblox profile picture URL
+  shopName        String?  @unique // Seller's shop name (set during seller application)
+  passwordHash    String?  // Password for shop login (sellers only)
+  role            UserRole @default(USER)
+  isBanned        Boolean  @default(false)
+  isFrozen        Boolean  @default(false) // Frozen accounts can login but cannot perform any actions
+  lastIpAddress   String?  // Last known IP address for ban enforcement
+
+  // Seller balance (in USD cents, e.g., 1000 = $10.00)
+  balanceCents    BigInt   @default(0)
+
+  // Trading gems (for creating trade listings)
+  gems            Int      @default(20)
+  lastGemRefresh  DateTime @default(now()) // Last time user received daily gems
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  sessions            Session[]
+  sellerApplication   SellerApplication?
+  inventoryItems      InventoryItem[]       @relation("SellerInventoryItems")
+  listings            Listing[]
+  purchaseRequests    PurchaseRequest[]    @relation("BuyerRequests")
+  sellerRequests      PurchaseRequest[]    @relation("SellerRequests")
+  auditLogs           AuditLog[]
+  sales               Sale[]                @relation("SellerSales")
+  purchases           Sale[]                @relation("BuyerPurchases")
+  withdrawalRequests  WithdrawalRequest[]
+  processedWithdrawals WithdrawalRequest[] @relation("ProcessedWithdrawals")
+  cartItems           CartItem[]
+  raffleEntries       RaffleEntry[]
+  wonRaffles          Raffle[]          @relation("RaffleWinner")
+  createdRaffles      Raffle[]          @relation("RaffleCreator")
+  trades              Trade[]           @relation("UserTrades")
+  verifiedTrades      Trade[]           @relation("VerifiedByUser")
+  tradeRequests       TradeRequest[]
+  reports             Report[]          @relation("UserReports")
+  resolvedReports     Report[]          @relation("ResolvedReports")
+
+  @@index([robloxUsername])
+  @@index([shopName])
+  @@index([role])
+}
+
+model AuthChallenge {
+  id                    String   @id @default(cuid())
+  robloxUsername        String
+  challengePlainPreview String?
+  challengeHash         String
+  expiresAt             DateTime
+  createdAt             DateTime @default(now())
+
+  @@index([robloxUsername, expiresAt])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Brainrot {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  slug       String   @unique
+  imageUrl   String
+  localImage String?  // Local path to downloaded image
+  baseCost   BigInt   // Base cost from JSON
+  baseIncome BigInt   // Base income ($/sec) from JSON
+  rarity     String?  // Rarity tier (Common, Rare, Epic, etc.)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  inventoryItems InventoryItem[]
+  raffles        Raffle[]
+  tradeItems     TradeItem[]
+  reports        Report[]
+
+  @@index([slug])
+  @@index([isActive])
+  @@index([rarity])
+}
+
+model Trait {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  imageUrl   String
+  localImage String?  // Local path to downloaded image
+  multiplier Float    // Multipliers ADD together, not multiply
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  inventoryItemTraits InventoryItemTrait[]
+  tradeItemTraits     TradeItemTrait[]
+  reports             Report[]
+
+  @@index([name])
+}
+
+model Event {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  imageUrl  String?
+  localImage String?  // Local path to downloaded image
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inventoryItems InventoryItem[]
+  tradeItems     TradeItem[]
+
+  @@index([name])
+}
+
+model Mutation {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  multiplier Float
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  inventoryItems InventoryItem[]
+  tradeItems     TradeItem[]
+  reports        Report[]
+
+  @@index([name])
+}
+
+model SellerApplication {
+  id              String            @id @default(cuid())
+  userId          String            @unique
+  status          ApplicationStatus @default(PENDING)
+  message         String            @db.Text
+  discordUsername String?
+  proofImageUrl   String?           @db.Text // Base64 encoded proof of inventory image
+  adminNote       String?           @db.Text
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+// Individual brainrot instance with custom properties
+model InventoryItem {
+  id           String   @id @default(cuid())
+  sellerId     String
+  brainrotId   String
+  mutationId   String?
+  eventId      String?
+  calculatedIncome BigInt   // Auto-calculated: (trait sum) * mutation * base_income
+  calculatedCost   BigInt   // Auto-calculated from base_cost and multipliers
+  isListed     Boolean  @default(false)
+  isVerified   Boolean  @default(false) // For future verification system
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  seller   User       @relation("SellerInventoryItems", fields: [sellerId], references: [id], onDelete: Cascade)
+  brainrot Brainrot   @relation(fields: [brainrotId], references: [id], onDelete: Cascade)
+  mutation Mutation?  @relation(fields: [mutationId], references: [id], onDelete: SetNull)
+  event    Event?     @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  traits   InventoryItemTrait[]
+  listing  Listing?
+
+  @@index([sellerId])
+  @@index([brainrotId])
+  @@index([isListed])
+  @@index([isVerified])
+}
+
+// Many-to-many relation for inventory items and traits
+model InventoryItemTrait {
+  id              String        @id @default(cuid())
+  inventoryItemId String
+  traitId         String
+  createdAt       DateTime      @default(now())
+
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  trait         Trait         @relation(fields: [traitId], references: [id], onDelete: Cascade)
+
+  @@unique([inventoryItemId, traitId])
+  @@index([inventoryItemId])
+  @@index([traitId])
+}
+
+model Listing {
+  id              String        @id @default(cuid())
+  sellerId        String
+  inventoryItemId String        @unique // One-to-one: each listing is for ONE inventory item
+  price           BigInt        // Listing price in USD cents (e.g., 1000 = $10.00)
+  status          ListingStatus @default(ACTIVE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  seller          User              @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  inventoryItem   InventoryItem     @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  purchaseRequests PurchaseRequest[]
+  cartItems       CartItem[]
+
+  @@index([sellerId, status])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PurchaseRequest {
+  id        String                 @id @default(cuid())
+  buyerId   String
+  listingId String
+  message   String?                @db.Text
+  status    PurchaseRequestStatus  @default(OPEN)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  buyer   User    @relation("BuyerRequests", fields: [buyerId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  seller  User    @relation("SellerRequests", fields: [sellerId], references: [id], onDelete: Cascade)
+  sellerId String
+
+  @@index([buyerId])
+  @@index([listingId])
+  @@index([sellerId])
+  @@index([status])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  action    String
+  targetType String?
+  targetId  String?
+  details   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([createdAt])
+}
+
+// Banned IP addresses
+model BannedIP {
+  id          String   @id @default(cuid())
+  ipAddress   String   @unique
+  reason      String?  @db.Text
+  bannedBy    String   // Admin ID who created the ban
+  userId      String?  // Optional: associated user if ban was from user action
+  createdAt   DateTime @default(now())
+
+  @@index([ipAddress])
+}
+
+// Completed sales/transactions
+model Sale {
+  id              String        @id @default(cuid())
+  sellerId        String
+  buyerId         String
+  listingId       String?       // May be null if listing was deleted
+  inventoryItemId String?       // May be null if item was deleted
+
+  // Snapshot of item details at time of sale
+  itemName        String        // Brainrot name
+  itemMutation    String?       // Mutation name
+  itemEvent       String?       // Event name
+  itemTraits      String[]      // Array of trait names
+
+  // Transaction details
+  priceCents      BigInt        // Sale price in USD cents
+  paymentMethod   PaymentMethod // How buyer paid
+
+  createdAt       DateTime      @default(now())
+
+  seller          User          @relation("SellerSales", fields: [sellerId], references: [id], onDelete: Cascade)
+  buyer           User          @relation("BuyerPurchases", fields: [buyerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+  @@index([buyerId])
+  @@index([createdAt])
+}
+
+// Withdrawal requests from sellers
+model WithdrawalRequest {
+  id              String           @id @default(cuid())
+  sellerId        String
+  amountCents     BigInt           // Amount in USD cents
+  withdrawMethod  WithdrawMethod   // BTC, ETH, SOL, PAYPAL, VENMO, ZELLE
+  withdrawAddress String           // Address/email/handle to send to
+  status          WithdrawalStatus @default(PENDING)
+  adminNote       String?          @db.Text
+  txid            String?          // For crypto: blockchain transaction ID
+  paymentProof    String?          @db.Text // For fiat: payment confirmation text
+  processedById   String?          // Admin who processed the payout
+  processedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  seller          User             @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  processedBy     User?            @relation("ProcessedWithdrawals", fields: [processedById], references: [id], onDelete: SetNull)
+
+  @@index([sellerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Shopping cart items
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  listingId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId]) // User can only add a listing once
+  @@index([userId])
+  @@index([listingId])
+}
+
+// Rotating proxies for external API calls
+model Proxy {
+  id           String   @id @default(cuid())
+  host         String
+  port         Int
+  username     String
+  password     String
+  failureCount Int      @default(0)
+  lastUsed     DateTime?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([host, port, username])
+  @@index([isActive])
+}
+
+// Currency exchange rates (cached daily to avoid API calls)
+model CurrencyRate {
+  id           String   @id @default(cuid())
+  currency     String   @unique // USD, EUR, GBP, MXN, CNY (RMB)
+  rateFromUSD  Float    // How many of this currency per 1 USD
+  updatedAt    DateTime @updatedAt
+
+  @@index([currency])
+}
+
+// Raffle events for brainrots
+model Raffle {
+  id              String       @id @default(cuid())
+  title           String
+  description     String?      @db.Text
+  imageUrl        String?      // Custom image or uses brainrot image
+
+  // Prize details
+  prizeType       String       @default("brainrot") // "brainrot", "robux", "custom"
+  brainrotId      String?      // If prize is a brainrot
+  listingId       String?      // If prize is from marketplace (for future autobuy)
+  prizeValue      String?      // Description of prize (e.g., "500 Robux", "Rainbow Skibidi")
+
+  // Raffle settings
+  maxEntries      Int?         // Max entries per user (null = 1)
+  totalSlots      Int?         // Total available slots (null = unlimited)
+  entryCost       Int          @default(0) // Cost in cents (0 = free) - DEPRECATED, use entryType
+
+  // Entry requirements
+  entryType       String       @default("free") // "free", "min_spend", "spend_per_ticket"
+  minSpendCents   Int?         // Minimum spend required (in cents) - for "min_spend" type
+  spendPerTicket  Int?         // Cents spent per ticket earned - for "spend_per_ticket" type (e.g., 100 = $1 = 1 ticket)
+
+  // Timing
+  startsAt        DateTime
+  endsAt          DateTime
+
+  // Status
+  status          RaffleStatus @default(UPCOMING)
+
+  // Winner
+  winnerId        String?
+  winnerSelectedAt DateTime?
+
+  // Admin
+  createdById     String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  brainrot        Brainrot?    @relation(fields: [brainrotId], references: [id], onDelete: SetNull)
+  winner          User?        @relation("RaffleWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+  createdBy       User         @relation("RaffleCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  entries         RaffleEntry[]
+
+  @@index([status])
+  @@index([startsAt])
+  @@index([endsAt])
+}
+
+model RaffleEntry {
+  id        String   @id @default(cuid())
+  raffleId  String
+  userId    String
+  entries   Int      @default(1) // Number of entries this user has
+  createdAt DateTime @default(now())
+
+  raffle    Raffle   @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([raffleId, userId]) // One entry record per user per raffle
+  @@index([raffleId])
+  @@index([userId])
+}
+
+// Trading system models
+model Trade {
+  id              String      @id @default(cuid())
+  userId          String      // Owner of the trade
+  status          TradeStatus @default(OPEN)
+  isVerified      Boolean     @default(false)
+  verifiedByUserId String?
+  verifiedAt      DateTime?
+  parentTradeId   String?     // If this is a counter offer, points to original trade
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user            User        @relation("UserTrades", fields: [userId], references: [id], onDelete: Cascade)
+  verifiedBy      User?       @relation("VerifiedByUser", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
+  parentTrade     Trade?      @relation("CounterOffers", fields: [parentTradeId], references: [id], onDelete: Cascade)
+  counterOffers   Trade[]     @relation("CounterOffers")
+  items           TradeItem[]
+  requests        TradeRequest[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([isVerified])
+  @@index([parentTradeId])
+  @@index([createdAt])
+}
+
+model TradeItem {
+  id          String          @id @default(cuid())
+  tradeId     String
+  side        TradeSide       // OFFER or REQUEST
+  brainrotId  String?         // Nullable for addon items
+  addonType   TradeAddonType? // Set when item is an addon (Robux, Adds, Upgrade, Downgrade)
+  mutationId  String?
+  eventId     String?
+  quantity    Int             @default(1)
+  // Store calculated income for display
+  calculatedIncome BigInt?
+  createdAt   DateTime        @default(now())
+
+  trade       Trade           @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  brainrot    Brainrot?       @relation(fields: [brainrotId], references: [id], onDelete: Cascade)
+  mutation    Mutation?       @relation(fields: [mutationId], references: [id], onDelete: SetNull)
+  event       Event?          @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  traits      TradeItemTrait[]
+
+  @@index([tradeId])
+  @@index([brainrotId])
+  @@index([side])
+}
+
+model TradeItemTrait {
+  id          String    @id @default(cuid())
+  tradeItemId String
+  traitId     String
+  createdAt   DateTime  @default(now())
+
+  tradeItem   TradeItem @relation(fields: [tradeItemId], references: [id], onDelete: Cascade)
+  trait       Trait     @relation(fields: [traitId], references: [id], onDelete: Cascade)
+
+  @@unique([tradeItemId, traitId])
+  @@index([tradeItemId])
+  @@index([traitId])
+}
+
+model TradeRequest {
+  id          String             @id @default(cuid())
+  tradeId     String             // Original trade
+  requesterId String             // User who sent the request
+  status      TradeRequestStatus @default(PENDING)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  trade       Trade              @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  requester   User               @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([tradeId])
+  @@index([requesterId])
+  @@index([status])
+}
+
+// System configuration (rate limits, etc.)
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @db.Text  // JSON stringified value
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}
+
+// Reports for incorrect values/calculations
+model Report {
+  id            String       @id @default(cuid())
+  type          ReportType
+  status        ReportStatus @default(OPEN)
+
+  brainrotId    String?
+  traitId       String?
+  mutationId    String?
+
+  reporterId    String
+  description   String       @db.Text
+  expectedValue String?
+  actualValue   String?
+
+  resolvedById  String?
+  adminNote     String?      @db.Text
+  resolvedAt    DateTime?
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  reporter      User         @relation("UserReports", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolvedBy    User?        @relation("ResolvedReports", fields: [resolvedById], references: [id], onDelete: SetNull)
+  brainrot      Brainrot?    @relation(fields: [brainrotId], references: [id], onDelete: SetNull)
+  trait         Trait?       @relation(fields: [traitId], references: [id], onDelete: SetNull)
+  mutation      Mutation?    @relation(fields: [mutationId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([reporterId])
+}
+

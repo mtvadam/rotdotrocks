@@ -1,0 +1,364 @@
+@import 'tailwindcss';
+
+/* Comic Sans font for branding */
+.font-comic {
+  font-family: 'Comic Sans MS', 'Comic Sans', cursive;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+.dark {
+  --background: rgb(33, 39, 57);
+  --foreground: #ededed;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Hide page scrollbar */
+html, body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mutation text styles */
+.mutation-gold {
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.mutation-diamond {
+  color: #00ffff;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.mutation-rainbow {
+  background: linear-gradient(90deg, #ff0000, #ff8000, #ffff00, #00ff00, #00ffff, #0080ff, #8000ff, #ff0080);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbow-shift 3s linear infinite;
+}
+
+@keyframes rainbow-shift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.mutation-bloodrot {
+  color: #fe2c23;
+  text-shadow: 0 0 10px rgba(254, 44, 35, 0.5);
+}
+
+.mutation-candy {
+  color: #ff00e6;
+  text-shadow: 0 0 10px rgba(255, 0, 230, 0.5);
+}
+
+.mutation-lava {
+  color: #ff6200;
+  text-shadow: 0 0 10px rgba(255, 98, 0, 0.5);
+}
+
+.mutation-galaxy {
+  background: linear-gradient(180deg, magenta, purple);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 10px rgba(208, 0, 255, 0.3);
+}
+
+.mutation-yinyang {
+  background: linear-gradient(90deg, #000, #fff, #000);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: yinyang-shift 3s linear infinite;
+}
+
+.dark .mutation-yinyang {
+  background: linear-gradient(90deg, #fff, #000, #fff);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@keyframes yinyang-shift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.mutation-radioactive {
+  color: #00ff00;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+/* Rarity text styles */
+:root {
+  --typical-loop: 3s;
+  --safe-loop: 4s;
+  --legendary: #ffff00;
+}
+
+.rarity-common {
+  color: #008000;
+  font-weight: 700;
+}
+
+.rarity-rare {
+  color: #00ffff;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+  font-weight: 700;
+}
+
+.rarity-epic {
+  color: #800080;
+  text-shadow: 0 0 8px rgba(128, 0, 128, 0.4);
+  font-weight: 700;
+}
+
+.rarity-legendary {
+  color: #ffff00;
+  text-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+  font-weight: 700;
+}
+
+.rarity-mythic {
+  color: #ff0000;
+  text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+  font-weight: 700;
+}
+
+.rarity-god {
+  background: linear-gradient(90deg, #ff0000, #ff8000, #ffff00, #00ff00, #00ffff, #0080ff, #8000ff, #ff0080);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 700;
+  animation: rainbow-shift 3s linear infinite;
+}
+
+.rarity-secret {
+  background: linear-gradient(180deg,
+    white 0%, white 25%,
+    black 25%, black 50%,
+    white 50%, white 75%,
+    black 75%, black 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 100% 200%;
+  font-weight: 700;
+  animation: basicWave2 var(--typical-loop) linear infinite reverse;
+}
+
+.rarity-festive {
+  background: linear-gradient(to right, red 0%, lime 5%, green 35%, red 40%, red 50%, lime 55%, green 85%, red 90%, red 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 100%;
+  font-weight: 700;
+  animation: basicWave1 var(--safe-loop) linear infinite reverse;
+}
+
+.rarity-og {
+  background: linear-gradient(180deg,
+    var(--legendary) 0%, var(--legendary) 25%,
+    black 25%, black 50%,
+    var(--legendary) 50%, var(--legendary) 75%,
+    black 75%, black 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 100% 200%;
+  font-weight: 700;
+  animation: basicWave2 var(--typical-loop) linear infinite reverse;
+}
+
+.rarity-admin {
+  background: linear-gradient(to left, red 0%, gold 50%, red 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 100%;
+  font-weight: 700;
+  animation: basicWave1 var(--typical-loop) linear infinite reverse;
+}
+
+@keyframes basicWave1 {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes basicWave2 {
+  0% { background-position: 50% 0%; }
+  100% { background-position: 50% 100%; }
+}
+
+/* Animated border cards */
+.card-border-animated {
+  position: relative;
+  background: transparent !important;
+  isolation: isolate;
+}
+
+.card-border-animated::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 50;
+}
+
+.card-border-animated::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: calc(1rem - 1px);
+  background: rgb(30, 36, 52);
+  z-index: -1;
+}
+
+.card-border-animated:hover::before {
+  opacity: 1;
+}
+
+.card-border-animated:hover {
+  border-color: transparent !important;
+}
+
+.card-border-god::before {
+  background: linear-gradient(90deg, #ff0000, #ff8000, #ffff00, #00ff00, #00ffff, #0080ff, #8000ff, #ff0080, #ff0000);
+  background-size: 200% 100%;
+  animation: rainbow-shift 3s linear infinite;
+}
+
+.card-border-secret::before {
+  background: linear-gradient(180deg, white 0%, white 25%, black 25%, black 50%, white 50%, white 75%, black 75%, black 100%);
+  background-size: 100% 200%;
+  animation: basicWave2 var(--typical-loop) linear infinite reverse;
+}
+
+.card-border-festive::before {
+  background: linear-gradient(to right, red 0%, lime 5%, green 35%, red 40%, red 50%, lime 55%, green 85%, red 90%, red 100%);
+  background-size: 200% 100%;
+  animation: basicWave1 var(--safe-loop) linear infinite reverse;
+}
+
+.card-border-og::before {
+  background: linear-gradient(180deg, var(--legendary) 0%, var(--legendary) 25%, black 25%, black 50%, var(--legendary) 50%, var(--legendary) 75%, black 75%, black 100%);
+  background-size: 100% 200%;
+  animation: basicWave2 var(--typical-loop) linear infinite;
+}
+
+.card-border-admin::before {
+  background: linear-gradient(to left, red 0%, gold 50%, red 100%);
+  background-size: 200% 100%;
+  animation: basicWave1 var(--typical-loop) linear infinite reverse;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Modern green scrollbar for picker */
+.scrollbar-green {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(34, 197, 94) transparent;
+}
+
+.scrollbar-green::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-green::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-green::-webkit-scrollbar-thumb {
+  background: rgb(34, 197, 94);
+  border-radius: 3px;
+}
+
+.scrollbar-green::-webkit-scrollbar-thumb:hover {
+  background: rgb(22, 163, 74);
+}
+
+/* Animation utilities */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Skeleton shimmer effect */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgb(45, 52, 72);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Keep animations running even when parent is not visible */
+.animation-always-running,
+.animation-always-running * {
+  animation-play-state: running !important;
+}
