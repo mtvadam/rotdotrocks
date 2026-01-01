@@ -6,7 +6,9 @@
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(npx tsc:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm view:*)",
+      "Bash(npm install:*)"
     ]
   }
 }
