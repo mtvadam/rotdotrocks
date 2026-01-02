@@ -318,7 +318,7 @@ function IPadEnhancedItem({ item }: { item: TradeCardProps['trade']['items'][0] 
 }
 
 // Income display with tooltip
-function IncomeDisplay({ income, align = 'left' }: { income: string; align?: 'left' | 'right' }) {
+function IncomeDisplay({ income, align = 'left' }: { income: string; align?: 'left' | 'center' | 'right' }) {
   const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
   const incomeRef = useRef<HTMLSpanElement>(null)
@@ -333,8 +333,10 @@ function IncomeDisplay({ income, align = 'left' }: { income: string; align?: 'le
     }
   }, [showTooltip])
 
+  const justifyClass = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'
+
   return (
-    <div className={`mt-1.5 flex ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
+    <div className={`mt-1.5 flex ${justifyClass}`}>
       <span
         ref={incomeRef}
         onMouseEnter={() => setShowTooltip(true)}
@@ -449,7 +451,7 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
           <div className="flex items-start gap-3">
             {/* Offer Side */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-start gap-2">
+              <div className="flex items-start justify-center gap-2">
                 {visibleOffersCompact.map((item) => (
                   <CompactItem key={item.id} item={item} />
                 ))}
@@ -462,7 +464,7 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
                   </div>
                 )}
               </div>
-              {offerIncome && <IncomeDisplay income={offerIncome} />}
+              {offerIncome && <IncomeDisplay income={offerIncome} align="center" />}
             </div>
 
             {/* Arrow */}
@@ -472,7 +474,7 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
 
             {/* Request Side */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-end gap-2">
+              <div className="flex items-start justify-center gap-2">
                 {visibleRequestsCompact.map((item) => (
                   <CompactItem key={item.id} item={item} />
                 ))}
@@ -485,7 +487,7 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
                   </div>
                 )}
               </div>
-              {requestIncome && <IncomeDisplay income={requestIncome} align="right" />}
+              {requestIncome && <IncomeDisplay income={requestIncome} align="center" />}
             </div>
           </div>
         </div>
