@@ -127,9 +127,9 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
         </div>
 
         {/* Trade Content - Stack on mobile, side-by-side on md+ */}
-        <div className="flex flex-col gap-3 md:grid md:grid-cols-[1fr_auto_1fr] md:gap-2 md:items-start">
+        <div className="flex flex-col gap-3 md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-2 md:items-start overflow-hidden">
           {/* Offer Side */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
               Offering
             </p>
@@ -139,7 +139,7 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
           </div>
 
           {/* Arrow - horizontal on mobile, vertical on md+ */}
-          <div className="flex items-center justify-center py-1 md:py-0 md:h-full md:px-2">
+          <div className="flex items-center justify-center py-1 md:py-0 md:h-full md:px-2 flex-shrink-0">
             <motion.div
               animate={{ x: [0, 4, 0] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
@@ -150,7 +150,7 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
           </div>
 
           {/* Request Side */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
               Looking For
             </p>

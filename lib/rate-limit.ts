@@ -53,6 +53,8 @@ export type RateLimitEndpoint =
   | 'trades-create'
   | 'auth-challenge'
   | 'auth-verify'
+  | 'admin-abuse'
+  | 'admin-abuse-fresh'
 
 // Default rate limits (used if not configured in DB)
 export const DEFAULT_RATE_LIMITS: Record<RateLimitEndpoint, RateLimitConfig> = {
@@ -67,6 +69,8 @@ export const DEFAULT_RATE_LIMITS: Record<RateLimitEndpoint, RateLimitConfig> = {
   'trades-create': { max: 5, windowMs: 60 * 1000 },      // 5 per min
   'auth-challenge': { max: 5, windowMs: 15 * 60 * 1000 }, // 5 per 15 min
   'auth-verify': { max: 10, windowMs: 15 * 60 * 1000 },  // 10 per 15 min
+  'admin-abuse': { max: 30, windowMs: 60 * 1000 },       // 30 per min (cached)
+  'admin-abuse-fresh': { max: 2, windowMs: 60 * 1000 },  // 2 per min (hits external API)
 }
 
 // Human-readable descriptions for admin UI
@@ -82,6 +86,8 @@ export const RATE_LIMIT_DESCRIPTIONS: Record<RateLimitEndpoint, string> = {
   'trades-create': 'Trade creations (per user)',
   'auth-challenge': 'Login challenge requests (per IP)',
   'auth-verify': 'Login verification attempts (per IP)',
+  'admin-abuse': 'Admin abuse event fetches (per IP)',
+  'admin-abuse-fresh': 'Admin abuse fresh fetches (per IP)',
 }
 
 // In-memory cache for rate limit configs

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRightLeft, Calculator, Sparkles, ExternalLink } from 'lucide-react'
+import { ArrowRightLeft, Calculator, Sparkles, ExternalLink, HelpCircle } from 'lucide-react'
 
 function DiscordIcon({ className }: { className?: string }) {
   return (
@@ -44,7 +44,7 @@ export function Footer() {
                 <DiscordIcon className="w-5 h-5" />
               </a>
               <a
-                href="https://twitter.com/rotrocks"
+                href="https://x.com/rotdotrocks"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 bg-darkbg-800 hover:bg-gray-500/20 hover:border-gray-500/50 border border-darkbg-700 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-all"
@@ -76,6 +76,12 @@ export function Footer() {
                   Calculator
                 </Link>
               </li>
+              <li>
+                <Link href="/faq" className="text-gray-500 hover:text-green-400 text-sm flex items-center gap-2 transition-colors">
+                  <HelpCircle className="w-3.5 h-3.5" />
+                  FAQ
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -85,7 +91,7 @@ export function Footer() {
             <ul className="space-y-2">
               <li>
                 <a
-                  href="https://www.roblox.com/games/18361608066/Steal-a-Brainrot"
+                  href="https://www.roblox.com/games/109983668079237/Steal-a-Brainrot"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-500 hover:text-green-400 text-sm flex items-center gap-2 transition-colors"
@@ -114,9 +120,17 @@ export function Footer() {
           <p className="text-gray-600 text-xs">
             made for the community, by someone who got scammed one too many times
           </p>
-          <p className="text-gray-600 text-xs">
-            not affiliated with roblox or steal a brainrot
-          </p>
+          <div className="flex items-center gap-4">
+            <Link href="/terms" className="text-gray-600 hover:text-gray-400 text-xs transition-colors">
+              Terms
+            </Link>
+            <Link href="/privacy" className="text-gray-600 hover:text-gray-400 text-xs transition-colors">
+              Privacy
+            </Link>
+            <p className="text-gray-600 text-xs">
+              not affiliated with roblox or sab.
+            </p>
+          </div>
         </div>
       </div>
     </footer>

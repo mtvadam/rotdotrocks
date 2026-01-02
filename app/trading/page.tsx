@@ -6,6 +6,7 @@ import { Search, Plus, BadgeCheck, Loader2 } from 'lucide-react'
 import { TradeCard, TradeCardSkeleton, TradeBuilderModal } from '@/components/trading'
 import { useAuth } from '@/components/Providers'
 import { PageTransition, Select } from '@/components/ui'
+import { AdminAbuseCard, LiveEventCard, UpcomingEventCard } from '@/components/AdminAbuseCard'
 import { easeOut, staggerContainer } from '@/lib/animations'
 
 const INITIAL_LIMIT = 12
@@ -149,16 +150,45 @@ export default function TradingPage() {
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: easeOut }}
-          className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8"
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8"
         >
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white">
-              Trading Hub
-            </h1>
-            <p className="text-gray-400">
+          <div className="flex-1">
+            {/* Title row - narrow mobile: with live event */}
+            <div className="flex items-center justify-between sm:block">
+              <h1 className="text-2xl md:text-3xl font-bold text-white">
+                Trading Hub
+              </h1>
+              <div className="sm:hidden">
+                <LiveEventCard />
+              </div>
+            </div>
+            <p className="text-gray-400 mt-1">
               Browse and post Brainrot trades
             </p>
+            {/* Narrow mobile: upcoming event below description */}
+            <div className="sm:hidden mt-2">
+              <UpcomingEventCard />
+            </div>
           </div>
+          {/* sm+: both events + button together */}
+          <div className="hidden sm:flex items-center gap-3">
+            <AdminAbuseCard />
+            {user && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2, delay: 0.1 }}
+                whileHover={{ scale: 1.02, y: -1 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowBuilder(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-green-500/25"
+              >
+                <Plus className="w-5 h-5" />
+                New Trade
+              </motion.button>
+            )}
+          </div>
+          {/* Narrow mobile: New Trade button */}
           {user && (
             <motion.button
               initial={{ opacity: 0, scale: 0.9 }}
@@ -167,7 +197,7 @@ export default function TradingPage() {
               whileHover={{ scale: 1.02, y: -1 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setShowBuilder(true)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-green-500/25"
+              className="sm:hidden inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-green-500/25"
             >
               <Plus className="w-5 h-5" />
               New Trade
@@ -190,7 +220,7 @@ export default function TradingPage() {
                   key={t.id}
                   onClick={() => setTab(t.id)}
                   className={`
-                    relative px-3 md:px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex-shrink-0
+                    relative px-3 md:px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex-shrink-0 flex items-center justify-center
                     ${tab === t.id
                       ? 'text-white'
                       : 'text-gray-400 hover:text-white'
@@ -204,7 +234,7 @@ export default function TradingPage() {
                       transition={{ duration: 0.2, ease: easeOut }}
                     />
                   )}
-                  <span className="relative z-10 inline-flex items-center gap-1.5 text-sm md:text-base">
+                  <span className="relative z-10 flex items-center gap-1.5 text-sm md:text-base">
                     {t.icon}
                     {t.label}
                   </span>

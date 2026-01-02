@@ -211,48 +211,42 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
 
   return (
     <>
-      <AnimatePresence>
+      <motion.div
+        variants={backdropVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        onClick={onClose}
+        className="fixed inset-0 z-40 flex items-start md:items-center justify-center pt-4 md:pt-0 bg-black/40 backdrop-blur-sm will-change-[opacity] overflow-y-auto"
+      >
         <motion.div
-          variants={backdropVariants}
+          variants={modalVariants}
           initial="initial"
           animate="animate"
           exit="exit"
-          onClick={onClose}
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm will-change-[opacity]"
+          onClick={(e) => e.stopPropagation()}
+          className="bg-darkbg-900/95 backdrop-blur-xl rounded-2xl w-full max-w-3xl max-h-[calc(100dvh-2rem)] md:max-h-[85vh] mx-3 md:mx-4 mb-4 md:mb-0 overflow-hidden flex flex-col shadow-2xl border border-darkbg-700 flex-shrink-0"
         >
-          <motion.div
-            variants={modalVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            onClick={(e) => e.stopPropagation()}
-            className="bg-darkbg-900/95 backdrop-blur-xl rounded-2xl w-full max-w-3xl max-h-[90vh] mx-4 overflow-hidden flex flex-col shadow-2xl border border-darkbg-700"
-          >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-darkbg-700">
-              <div>
-                <h2 className="text-lg font-bold text-white">
-                  {isCounterOffer ? 'Create Counter Offer' : 'Create Trade'}
+            <div className="flex items-center justify-between p-3 md:p-4 border-b border-darkbg-700 flex-shrink-0">
+              <div className="flex items-center gap-2 md:block">
+                <h2 className="text-base md:text-lg font-bold text-white">
+                  {isCounterOffer ? 'Counter Offer' : 'Create Trade'}
                 </h2>
                 {!isCounterOffer && (
-                  <motion.p
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="text-sm text-gray-500 flex items-center gap-1"
-                  >
-                    <Gem className="w-4 h-4 text-amber-500" />
-                    Costs 5 gems
-                  </motion.p>
+                  <span className="text-xs md:text-sm text-gray-500 flex items-center gap-1">
+                    <Gem className="w-3 h-3 md:w-4 md:h-4 text-amber-500" />
+                    <span className="hidden md:inline">Costs</span> 5 gems
+                  </span>
                 )}
               </div>
               <motion.button
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
-                className="p-2 rounded-lg hover:bg-darkbg-800 transition-colors"
+                className="p-2 rounded-xl bg-darkbg-800 hover:bg-darkbg-700 transition-colors"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-gray-400" />
               </motion.button>
             </div>
 
@@ -472,7 +466,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25, delay: 0.1, ease: easeOut }}
-              className="p-4 border-t border-darkbg-700"
+              className="p-3 md:p-4 border-t border-darkbg-700 flex-shrink-0"
             >
               <motion.button
                 whileHover={canSubmit ? { scale: 1.01, y: -1 } : {}}
@@ -480,7 +474,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                 onClick={handleSubmit}
                 disabled={!canSubmit}
                 className={`
-                  w-full py-3 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2
+                  w-full py-2.5 md:py-3 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 text-sm md:text-base
                   ${canSubmit
                     ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/25'
                     : 'bg-darkbg-700 text-gray-500 cursor-not-allowed'
@@ -504,7 +498,6 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
             </motion.div>
           </motion.div>
         </motion.div>
-      </AnimatePresence>
 
       {/* Brainrot Picker */}
       <AnimatePresence>

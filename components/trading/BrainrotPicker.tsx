@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { Search, X, Plus, Check, ArrowDownUp, ArrowLeft, Flag, Send, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
@@ -211,6 +211,9 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
   const [traitSearch, setTraitSearch] = useState('')
   const [traitSortAsc, setTraitSortAsc] = useState(false)
   const [showTraitsFade, setShowTraitsFade] = useState(true)
+  const [showGridTopShadow, setShowGridTopShadow] = useState(false)
+  const [showGridBottomShadow, setShowGridBottomShadow] = useState(false)
+  const gridRef = useRef<HTMLDivElement>(null)
   const [view, setView] = useState<'picker' | 'report'>('picker')
   const [reportType, setReportType] = useState('CALCULATION_FORMULA')
   const [reportDescription, setReportDescription] = useState('')
@@ -227,6 +230,27 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 10
     setShowTraitsFade(!isAtBottom)
   }
+
+  const handleGridScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
+    const isAtTop = scrollTop < 10
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 10
+    const hasOverflow = scrollHeight > clientHeight
+    setShowGridTopShadow(!isAtTop && hasOverflow)
+    setShowGridBottomShadow(!isAtBottom && hasOverflow)
+  }
+
+  // Check if grid has overflow on mount and when content changes
+  const checkGridOverflow = useCallback(() => {
+    if (gridRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = gridRef.current
+      const hasOverflow = scrollHeight > clientHeight
+      const isAtTop = scrollTop < 10
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 10
+      setShowGridTopShadow(!isAtTop && hasOverflow)
+      setShowGridBottomShadow(!isAtBottom && hasOverflow)
+    }
+  }, [])
 
   const calculatedIncome = selectedBrainrot
     ? (() => {
@@ -317,6 +341,13 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
     b.name.toLowerCase().includes(search.toLowerCase())
   )
 
+  // Check grid overflow when filtered results change
+  useEffect(() => {
+    // Small delay to let the DOM update
+    const timer = setTimeout(checkGridOverflow, 50)
+    return () => clearTimeout(timer)
+  }, [filteredBrainrots.length, loading, checkGridOverflow])
+
   // Filter and sort traits by multiplier
   const sortedTraits = traits
     .filter((t) => t.name.toLowerCase().includes(traitSearch.toLowerCase()))
@@ -390,23 +421,22 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
   ]
 
   return (
-    <AnimatePresence>
+    <motion.div
+      variants={backdropVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md"
+    >
       <motion.div
-        variants={backdropVariants}
+        variants={modalVariants}
         initial="initial"
         animate="animate"
         exit="exit"
-        onClick={onClose}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md"
+        onClick={(e) => e.stopPropagation()}
+        className="bg-darkbg-900/90 backdrop-blur-xl rounded-2xl w-full max-w-2xl h-[80vh] mx-4 overflow-hidden flex flex-col shadow-2xl border border-darkbg-700"
       >
-        <motion.div
-          variants={modalVariants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-          onClick={(e) => e.stopPropagation()}
-          className="bg-darkbg-900/90 backdrop-blur-xl rounded-2xl w-full max-w-2xl h-[80vh] mx-4 overflow-hidden flex flex-col shadow-2xl border border-darkbg-700"
-        >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-darkbg-700">
             <div className="flex items-center gap-2">
@@ -450,7 +480,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
             </div>
           ) : view === 'picker' && !selectedBrainrot ? (
             <div className="flex-1 overflow-hidden flex flex-col">
-              <div className="p-4">
+              <div className="p-4 pb-2">
                 <motion.div
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -467,12 +497,31 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                   />
                 </motion.div>
               </div>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.2 }}
-                className="flex-1 overflow-y-auto overflow-x-hidden p-4 pt-2 grid grid-cols-3 sm:grid-cols-4 gap-3 scrollbar-hide"
-              >
+              <div className="relative flex-1">
+                {/* Top scroll shadow */}
+                <div
+                  className="absolute top-0 left-0 right-0 h-8 z-10 pointer-events-none transition-opacity duration-300"
+                  style={{
+                    background: 'linear-gradient(to bottom, rgb(8, 8, 8) 0%, rgba(23, 27, 38, 0) 100%)',
+                    opacity: showGridTopShadow ? 1 : 0,
+                  }}
+                />
+                {/* Bottom scroll shadow */}
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-[37px] z-10 pointer-events-none transition-opacity duration-300"
+                  style={{
+                    background: 'linear-gradient(to top, rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0.4) 40%, rgba(0, 0, 0, 0) 100%)',
+                    opacity: showGridBottomShadow ? 1 : 0,
+                  }}
+                />
+                <motion.div
+                  ref={gridRef}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
+                  onScroll={handleGridScroll}
+                  className="absolute inset-0 overflow-y-auto overflow-x-hidden p-4 pt-2 grid grid-cols-3 sm:grid-cols-4 gap-3 content-start scrollbar-hide"
+                >
                 {filteredBrainrots.map((brainrot, index) => (
                   <motion.button
                     key={brainrot.id}
@@ -519,7 +568,8 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                     )}
                   </motion.button>
                 ))}
-              </motion.div>
+                </motion.div>
+              </div>
             </div>
           ) : view === 'picker' && selectedBrainrot ? (
             <motion.div
@@ -1056,6 +1106,5 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
           </AnimatePresence>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
   )
 }

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from './Providers'
 import { GemDisplay, RobloxAvatar } from './ui'
-import { Menu, X, Calculator, ArrowRightLeft, LogOut, User, Sparkles, Shield } from 'lucide-react'
+import { Menu, X, Calculator, ArrowRightLeft, LogOut, User, Sparkles, Shield, HelpCircle } from 'lucide-react'
 import { prefetchBrainrots } from '@/lib/prefetch'
 
 function DiscordIcon({ className }: { className?: string }) {
@@ -68,6 +68,13 @@ export function NavBar() {
             >
               <Calculator className="w-4 h-4" />
               Calculator
+            </Link>
+            <Link
+              href="/faq"
+              className="flex items-center gap-2 text-gray-300 hover:text-green-400 transition-colors"
+            >
+              <HelpCircle className="w-4 h-4" />
+              FAQ
             </Link>
             <a
               href="https://discord.gg/rotrocks"
@@ -173,6 +180,14 @@ export function NavBar() {
                 >
                   <Calculator className="w-5 h-5" />
                   Calculator
+                </Link>
+                <Link
+                  href="/faq"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-gray-200 hover:bg-darkbg-800 active:bg-darkbg-700 rounded-xl transition-colors text-base"
+                >
+                  <HelpCircle className="w-5 h-5" />
+                  FAQ
                 </Link>
                 <a
                   href="https://discord.gg/rotrocks"

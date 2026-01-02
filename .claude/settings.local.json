@@ -8,7 +8,11 @@
       "Bash(npx tsc:*)",
       "Bash(npm run build:*)",
       "Bash(npm view:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npx tsx:*)",
+      "WebFetch(domain:abusetime.dev)",
+      "Bash(curl:*)",
+      "Bash(ls:*)"
     ]
   }
 }

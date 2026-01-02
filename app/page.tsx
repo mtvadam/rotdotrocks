@@ -226,7 +226,8 @@ export default function HomePage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full text-white/90 text-sm font-medium mb-6 backdrop-blur-sm"
             >
               <Users className="w-4 h-4" />
-              join the traders who aren't getting finessed
+              <span className="hidden sm:inline">join the traders who aren&apos;t getting finessed</span>
+              <span className="sm:hidden">no more L trades</span>
             </motion.div>
 
             <h2 className="text-3xl md:text-4xl font-black text-white mb-4">

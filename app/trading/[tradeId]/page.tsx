@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ArrowRightLeft, BadgeCheck, MessageSquare, Clock, Send, Trash2, Check, X } from 'lucide-react'
+import { ArrowLeft, ArrowRightLeft, BadgeCheck, MessageSquare, Clock, Send, Trash2, Check, X, ExternalLink } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { TradeItemDisplay, TradeBuilderModal } from '@/components/trading'
 import { useAuth } from '@/components/Providers'
@@ -260,9 +260,15 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
                 username={trade.user.robloxUsername}
                 size="md"
               />
-              <span className="text-lg font-bold text-white">
+              <a
+                href={`https://www.roblox.com/users/${trade.user.robloxUserId}/profile`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-lg font-bold text-white hover:text-green-400 transition-colors inline-flex items-center gap-1.5 group"
+              >
                 {trade.user.robloxUsername}
-              </span>
+                <ExternalLink className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+              </a>
               {trade.isVerified && (
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-900/30 text-green-400 text-sm font-medium rounded-lg">
                   <BadgeCheck className="w-4 h-4" />
@@ -402,9 +408,15 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
                           username={counter.user.robloxUsername}
                           size="sm"
                         />
-                        <span className="font-semibold text-white">
+                        <a
+                          href={`https://www.roblox.com/users/${counter.user.robloxUserId}/profile`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-white hover:text-green-400 transition-colors inline-flex items-center gap-1 group"
+                        >
                           {counter.user.robloxUsername}
-                        </span>
+                          <ExternalLink className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
+                        </a>
                       </div>
                       <span className="text-sm text-gray-500">
                         {formatDistanceToNow(new Date(counter.createdAt), { addSuffix: true })}
@@ -462,9 +474,15 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
                       size="sm"
                     />
                     <div>
-                      <p className="font-semibold text-white">
+                      <a
+                        href={`https://www.roblox.com/users/${request.requester.robloxUserId}/profile`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-white hover:text-green-400 transition-colors inline-flex items-center gap-1 group"
+                      >
                         {request.requester.robloxUsername}
-                      </p>
+                        <ExternalLink className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
+                      </a>
                       {request.message && (
                         <p className="text-sm text-gray-500">{request.message}</p>
                       )}

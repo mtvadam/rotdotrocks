@@ -194,9 +194,17 @@ export function TradeItemDisplay({
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className={`font-semibold text-white truncate ${size === 'sm' ? 'text-sm' : ''}`}>
-          {item.brainrot.name}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className={`font-semibold text-white truncate ${size === 'sm' ? 'text-sm' : ''}`}>
+            {item.brainrot.name}
+          </p>
+          {/* Income - inline on smaller screens, separate on xl+ */}
+          {item.calculatedIncome && (
+            <span className={`xl:hidden font-bold text-green-500 flex-shrink-0 ${size === 'sm' ? 'text-xs' : 'text-sm'}`}>
+              {formatIncome(item.calculatedIncome)}
+            </span>
+          )}
+        </div>
         {item.mutation && (
           <p className={`animation-always-running text-xs font-bold ${getMutationClass(item.mutation.name)}`}>
             {item.mutation.name}
@@ -213,9 +221,9 @@ export function TradeItemDisplay({
         )}
       </div>
 
-      {/* Income */}
+      {/* Income - separate column on xl+ */}
       {item.calculatedIncome && (
-        <div className="text-right flex-shrink-0">
+        <div className="hidden xl:block text-right flex-shrink-0">
           <p className={`font-bold text-green-500 ${size === 'sm' ? 'text-sm' : ''}`}>
             {formatIncome(item.calculatedIncome)}
           </p>
@@ -306,7 +314,7 @@ export function TradeItemDisplay({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, delay: index * 0.03, ease: easeOut }}
-      className={`flex items-center gap-3 ${size === 'sm' ? 'p-2' : 'p-3'} bg-darkbg-800 rounded-xl`}
+      className={`flex items-center gap-3 ${size === 'sm' ? 'p-2' : 'p-3'} bg-darkbg-800 rounded-xl overflow-hidden`}
     >
       {content}
     </motion.div>
