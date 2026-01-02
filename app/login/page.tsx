@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -36,7 +36,7 @@ function RobloxIcon({ className }: { className?: string }) {
   )
 }
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading: authLoading, refreshUser } = useAuth()
@@ -554,5 +554,17 @@ export default function LoginPage() {
         </motion.div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[calc(100vh-64px)] bg-darkbg-950 flex items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 text-green-500 animate-spin" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }
