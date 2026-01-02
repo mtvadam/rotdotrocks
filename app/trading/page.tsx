@@ -281,7 +281,7 @@ export default function TradingPage() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, delay: 0.05, ease: easeOut }}
-          className="bg-darkbg-900 rounded-2xl border border-darkbg-700 p-3 md:p-4 mb-6"
+          className="bg-darkbg-900/90 backdrop-blur-sm rounded-2xl border border-darkbg-700 p-3 md:p-4 mb-6"
         >
           <div className="flex flex-col gap-3 lg:flex-row lg:gap-4">
             {/* Tabs - full width on mobile/tablet */}

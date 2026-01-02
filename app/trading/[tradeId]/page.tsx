@@ -196,7 +196,7 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
       <div className="min-h-[calc(100vh-64px)] bg-darkbg-950">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
           <div className="h-5 w-32 skeleton rounded mb-6" />
-          <div className="bg-darkbg-900 rounded-2xl border border-darkbg-700 p-6">
+          <div className="bg-darkbg-900/90 backdrop-blur-sm rounded-2xl border border-darkbg-700 p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 skeleton rounded-full" />
               <div className="h-5 w-32 skeleton rounded" />
@@ -399,7 +399,7 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
                 return (
                   <div
                     key={counter.id}
-                    className="bg-darkbg-900 rounded-xl border border-darkbg-700 p-4"
+                    className="bg-darkbg-900/90 backdrop-blur-sm rounded-xl border border-darkbg-700 p-4"
                   >
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">

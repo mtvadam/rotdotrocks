@@ -21,7 +21,7 @@ function TwitterIcon({ className }: { className?: string }) {
 
 export function Footer() {
   return (
-    <footer className="bg-darkbg-900 border-t border-darkbg-800">
+    <footer className="relative z-[10] bg-darkbg-900 border-t border-darkbg-800">
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
@@ -32,7 +32,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-gray-500 text-sm max-w-sm mb-4">
-              The community trading hub for Steal a Brainrot. Fair trades, no scams, just vibes.
+              The community trading hub for Steal a Brainrot. Find trades, check values, connect with players.
             </p>
             <div className="flex gap-3">
               <a
@@ -118,7 +118,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-10 pt-6 border-t border-darkbg-800 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-gray-600 text-xs">
-            made for the community, by someone who got scammed one too many times
+            made for the community, by the community
           </p>
           <div className="flex items-center gap-4">
             <Link href="/terms" className="text-gray-600 hover:text-gray-400 text-xs transition-colors">

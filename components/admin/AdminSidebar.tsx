@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, Flag, ScrollText, ArrowLeft, Database, Gauge } from 'lucide-react'
+import { LayoutDashboard, Users, Flag, ScrollText, ArrowLeft, Database, Gauge, Settings } from 'lucide-react'
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -10,6 +10,7 @@ const navItems = [
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/reports', label: 'Reports', icon: Flag },
   { href: '/admin/rate-limits', label: 'Rate Limits', icon: Gauge },
+  { href: '/admin/settings', label: 'Site Settings', icon: Settings },
   { href: '/admin/audit-logs', label: 'Audit Logs', icon: ScrollText },
 ]
 

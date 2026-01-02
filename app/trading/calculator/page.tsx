@@ -229,7 +229,7 @@ export default function CalculatorPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1, ease: easeOut }}
-          className="bg-darkbg-900 rounded-2xl border border-darkbg-700 p-6 max-w-5xl mx-auto shadow-xl shadow-black/20"
+          className="bg-darkbg-900/90 backdrop-blur-sm rounded-2xl border border-darkbg-700 p-6 max-w-5xl mx-auto shadow-xl shadow-black/20"
         >
           <div className="grid md:grid-cols-[1fr_auto_1fr] gap-6">
             {/* Left Side */}

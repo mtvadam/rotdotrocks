@@ -21,6 +21,8 @@ export async function GET() {
           baseIncome: true,
           rarity: true,
           isActive: true,
+          isNew: true,
+          newDisplayOrder: true,
           localImage: true,
         },
       }),

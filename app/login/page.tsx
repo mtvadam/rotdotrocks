@@ -249,9 +249,6 @@ function LoginContent() {
         ))}
       </div>
 
-      {/* Gradient Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl" />
 
       <div className="w-full max-w-md relative z-10">
         {/* Back Link */}
@@ -308,7 +305,7 @@ function LoginContent() {
                 <button
                   onClick={handleOAuthLogin}
                   disabled={loading}
-                  className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-3 shadow-lg shadow-green-500/25 disabled:opacity-50 active:scale-[0.98]"
+                  className="w-full py-4 bg-white hover:bg-gray-100 text-gray-900 font-semibold rounded-xl transition-colors flex items-center justify-center gap-3 disabled:opacity-50 active:scale-[0.98]"
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -413,7 +410,7 @@ function LoginContent() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-[0.98]"
+                    className="w-full py-3 bg-green-600 hover:bg-green-500 disabled:bg-gray-600 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 active:scale-[0.98]"
                   >
                     {loading ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
@@ -502,7 +499,7 @@ function LoginContent() {
                     <p className="text-sm text-red-500 text-center">Challenge expired. Please try again.</p>
                     <button
                       onClick={handleStartOver}
-                      className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors active:scale-[0.98]"
+                      className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-xl transition-colors active:scale-[0.98]"
                     >
                       Start Over
                     </button>
@@ -511,7 +508,7 @@ function LoginContent() {
                   <div className="space-y-3">
                     <button
                       onClick={handleVerify}
-                      className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors active:scale-[0.98]"
+                      className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-xl transition-colors active:scale-[0.98]"
                     >
                       Verify
                     </button>

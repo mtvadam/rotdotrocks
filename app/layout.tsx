@@ -4,6 +4,7 @@ import './globals.css'
 import { NavBar } from '@/components/NavBar'
 import { Footer } from '@/components/Footer'
 import { Providers } from '@/components/Providers'
+import SeasonalEffects from '@/components/effects/SeasonalEffects'
 
 const spaceGrotesk = Space_Grotesk({ subsets: ['latin'] })
 
@@ -25,8 +26,9 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`${spaceGrotesk.className} bg-darkbg-950 min-h-screen flex flex-col`}>
         <Providers>
+          <SeasonalEffects />
           <NavBar />
-          <main className="flex-1">
+          <main className="relative z-[10] flex-1">
             {children}
           </main>
           <Footer />

@@ -180,17 +180,19 @@ model Session {
 }
 
 model Brainrot {
-  id         String   @id @default(cuid())
-  name       String   @unique
-  slug       String   @unique
-  imageUrl   String
-  localImage String?  // Local path to downloaded image
-  baseCost   BigInt   // Base cost from JSON
-  baseIncome BigInt   // Base income ($/sec) from JSON
-  rarity     String?  // Rarity tier (Common, Rare, Epic, etc.)
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String   @unique
+  slug            String   @unique
+  imageUrl        String
+  localImage      String?  // Local path to downloaded image
+  baseCost        BigInt   // Base cost from JSON
+  baseIncome      BigInt   // Base income ($/sec) from JSON
+  rarity          String?  // Rarity tier (Common, Rare, Epic, etc.)
+  isActive        Boolean  @default(true)
+  isNew           Boolean  @default(false) // Show in "New Brainrots" section on homepage
+  newDisplayOrder Int?     // Order in "New Brainrots" section (lower = first)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   inventoryItems InventoryItem[]
   raffles        Raffle[]
@@ -200,6 +202,7 @@ model Brainrot {
   @@index([slug])
   @@index([isActive])
   @@index([rarity])
+  @@index([isNew, newDisplayOrder])
 }
 
 model Trait {

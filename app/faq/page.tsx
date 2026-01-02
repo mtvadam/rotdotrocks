@@ -160,7 +160,7 @@ function FAQAccordion({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boole
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-darkbg-900 rounded-xl border border-darkbg-700 overflow-hidden"
+      className="bg-darkbg-900/90 backdrop-blur-sm rounded-xl border border-darkbg-700 overflow-hidden"
     >
       <button
         onClick={onToggle}

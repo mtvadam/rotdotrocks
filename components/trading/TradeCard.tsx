@@ -427,7 +427,7 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
         }}
         whileTap={{ scale: 0.98 }}
         className="
-          bg-darkbg-900 rounded-xl
+          bg-darkbg-900/90 backdrop-blur-sm rounded-xl
           p-3 md:p-5 lg:p-3
           border border-darkbg-700
           hover:border-green-500/50

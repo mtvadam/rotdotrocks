@@ -23,6 +23,8 @@ interface Brainrot extends DataItem {
   baseIncome: string
   rarity: string | null
   localImage: string | null
+  isNew: boolean
+  newDisplayOrder: number | null
 }
 
 interface Trait extends DataItem {
@@ -505,6 +507,8 @@ export default function DataManagementPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Base Cost</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Base Income</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Active</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">New</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Order</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Actions</th>
                   </tr>
                 </thead>
@@ -577,6 +581,39 @@ export default function DataManagementPage() {
                                 : 'translate-x-0'
                             }`} />
                           </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => setEditedBrainrots(prev => ({
+                              ...prev,
+                              [brainrot.id]: { ...prev[brainrot.id], isNew: !(edits.isNew !== undefined ? edits.isNew : brainrot.isNew) }
+                            }))}
+                            className={`w-10 h-6 rounded-full transition-colors ${
+                              (edits.isNew !== undefined ? edits.isNew : brainrot.isNew)
+                                ? 'bg-amber-500'
+                                : 'bg-darkbg-600'
+                            }`}
+                          >
+                            <div className={`w-4 h-4 bg-white rounded-full transition-transform mx-1 ${
+                              (edits.isNew !== undefined ? edits.isNew : brainrot.isNew)
+                                ? 'translate-x-4'
+                                : 'translate-x-0'
+                            }`} />
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="-"
+                            value={edits.newDisplayOrder !== undefined ? (edits.newDisplayOrder ?? '') : (brainrot.newDisplayOrder ?? '')}
+                            onChange={(e) => setEditedBrainrots(prev => ({
+                              ...prev,
+                              [brainrot.id]: { ...prev[brainrot.id], newDisplayOrder: e.target.value === '' ? null : parseInt(e.target.value) }
+                            }))}
+                            disabled={!(edits.isNew !== undefined ? edits.isNew : brainrot.isNew)}
+                            className="w-16 px-2 py-1 bg-darkbg-700 border border-darkbg-600 rounded text-white text-sm font-mono focus:outline-none focus:border-amber-500 disabled:opacity-50"
+                          />
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">

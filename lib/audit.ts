@@ -15,6 +15,7 @@ export const AuditActions = {
   IP_BANNED: 'IP_BANNED',
   IP_UNBANNED: 'IP_UNBANNED',
   RATE_LIMITS_UPDATED: 'RATE_LIMITS_UPDATED',
+  SITE_SETTINGS_UPDATED: 'SITE_SETTINGS_UPDATED',
 } as const
 
 export type AuditAction = (typeof AuditActions)[keyof typeof AuditActions]
