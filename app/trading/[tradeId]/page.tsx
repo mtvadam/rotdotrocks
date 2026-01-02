@@ -195,26 +195,62 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
     return (
       <div className="min-h-[calc(100vh-64px)] bg-darkbg-950">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
+          {/* Back Link skeleton */}
           <div className="h-5 w-32 skeleton rounded mb-6" />
-          <div className="bg-darkbg-900/90 backdrop-blur-sm rounded-2xl border border-darkbg-700 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 skeleton rounded-full" />
-              <div className="h-5 w-32 skeleton rounded" />
-              <div className="h-5 w-20 skeleton rounded" />
-            </div>
-            <div className="grid md:grid-cols-[1fr_auto_1fr] gap-4">
-              <div className="space-y-3">
-                <div className="h-4 w-20 skeleton rounded" />
-                <div className="h-16 w-full skeleton rounded-lg" />
-                <div className="h-16 w-full skeleton rounded-lg" />
+
+          {/* Trade Card skeleton */}
+          <div className="bg-darkbg-900/90 backdrop-blur-sm rounded-2xl border border-darkbg-700 p-6 mb-6">
+            {/* Header - responsive layout with status badge in top-right */}
+            <div className="flex flex-col gap-3 mb-6">
+              {/* Top row: User info left, Status badge right */}
+              <div className="flex items-start justify-between gap-3">
+                {/* Left: Avatar, name, verified */}
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <div className="w-10 h-10 skeleton rounded-full" />
+                  <div className="min-w-0">
+                    <div className="h-5 w-24 sm:w-32 skeleton rounded mb-1" />
+                    <div className="h-4 w-16 skeleton rounded" />
+                  </div>
+                </div>
+                {/* Right: Status badge */}
+                <div className="h-7 w-16 sm:w-20 skeleton rounded-lg flex-shrink-0" />
               </div>
-              <div className="flex items-center justify-center py-2 md:py-0">
-                <div className="h-5 w-5 md:h-6 md:w-6 skeleton rounded" />
-              </div>
-              <div className="space-y-3">
+              {/* Time - separate row */}
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 skeleton rounded" />
                 <div className="h-4 w-24 skeleton rounded" />
-                <div className="h-16 w-full skeleton rounded-lg" />
               </div>
+            </div>
+
+            {/* Trade Content - grid layout */}
+            <div className="grid md:grid-cols-[1fr_auto_1fr] gap-4 mb-6 overflow-hidden">
+              {/* Offer Side */}
+              <div className="min-w-0 overflow-hidden">
+                <div className="h-4 w-20 skeleton rounded mb-3" />
+                <div className="space-y-2">
+                  <div className="h-20 w-full skeleton rounded-lg" />
+                  <div className="h-20 w-full skeleton rounded-lg" />
+                </div>
+              </div>
+
+              {/* Arrow - horizontal on mobile, vertical on md+ */}
+              <div className="flex items-center justify-center py-2 md:py-0 flex-shrink-0">
+                <div className="w-5 h-5 md:w-6 md:h-6 skeleton rounded" />
+              </div>
+
+              {/* Request Side */}
+              <div className="min-w-0 overflow-hidden">
+                <div className="h-4 w-24 skeleton rounded mb-3" />
+                <div className="space-y-2">
+                  <div className="h-20 w-full skeleton rounded-lg" />
+                </div>
+              </div>
+            </div>
+
+            {/* Actions - full-width grid on mobile */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-2 pt-4 border-t border-darkbg-700">
+              <div className="flex-1 h-11 skeleton rounded-lg" />
+              <div className="flex-1 h-11 skeleton rounded-lg" />
             </div>
           </div>
         </div>

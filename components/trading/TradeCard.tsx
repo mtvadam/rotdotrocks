@@ -493,16 +493,16 @@ function ItemGrid({ items, size = 'sm' }: { items: TradeCardProps['trade']['item
     : size
 
   return (
-    <div className={`flex flex-col gap-1 ${containerHeight} ${!hasSecondRow ? 'justify-center' : ''}`}>
+    <div className={`flex flex-col gap-1 sm:gap-2 ${containerHeight} ${!hasSecondRow ? 'justify-center' : ''}`}>
       {/* Row 1 - always centered horizontally */}
-      <div className="flex justify-center gap-1">
+      <div className="flex justify-center gap-1 sm:gap-2">
         {row1.map((item) => (
           <CompactItem key={item.id} item={item} size={itemSize} />
         ))}
       </div>
       {/* Row 2 - centered, only if there are items */}
       {hasSecondRow && (
-        <div className="flex justify-center gap-1">
+        <div className="flex justify-center gap-1 sm:gap-2">
           {row2.map((item) => (
             <CompactItem key={item.id} item={item} size={size} />
           ))}
@@ -562,7 +562,7 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
           </div>
 
           {/* Items grid with arrow */}
-          <div className="flex items-start gap-2">
+          <div className="flex items-start gap-2 sm:gap-3">
             {/* Offer Side */}
             <div className="flex-1 min-w-0">
               {/* XS screens get smaller items */}
@@ -775,6 +775,8 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
 }
 
 // Skeleton loader for TradeCard - responsive for mobile, iPad, and desktop
+// Matches the 3-per-row, 2-row grid layout (max 6 items per side)
+// Single-row layouts have larger brainrot images, consistent min-heights for alignment
 export function TradeCardSkeleton({ index = 0 }: { index?: number }) {
   return (
     <motion.div
@@ -783,99 +785,296 @@ export function TradeCardSkeleton({ index = 0 }: { index?: number }) {
       transition={{ duration: 0.15, delay: index * 0.03 }}
       className="bg-darkbg-900 rounded-xl border border-darkbg-700 p-3 md:p-5 lg:p-3"
     >
-      {/* Mobile Skeleton (0-767px) */}
-      <div className="md:hidden">
-        {/* Items */}
-        <div className="flex items-center gap-1.5 sm:gap-2 pb-2">
-          <div className="flex-1 flex justify-center gap-1 sm:gap-1.5">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 skeleton rounded-lg" />
-            <div className="w-10 h-10 sm:w-12 sm:h-12 skeleton rounded-lg" />
-            <div className="hidden sm:block w-12 h-12 skeleton rounded-lg" />
-          </div>
-          <div className="w-4 h-4 sm:w-5 sm:h-5 skeleton rounded" />
-          <div className="flex-1 flex justify-center gap-1 sm:gap-1.5">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 skeleton rounded-lg" />
-            <div className="w-10 h-10 sm:w-12 sm:h-12 skeleton rounded-lg" />
-            <div className="hidden sm:block w-12 h-12 skeleton rounded-lg" />
-          </div>
+      {/* ============================================ */}
+      {/* MOBILE SKELETON (0 - 767px) */}
+      {/* 3 items per row, max 2 rows (6 items), centered layout */}
+      {/* ============================================ */}
+      <div className="md:hidden pb-2">
+        {/* Labels row */}
+        <div className="flex justify-between mb-1.5">
+          <div className="h-3 w-14 sm:w-16 skeleton rounded" />
+          <div className="h-3 w-10 sm:w-12 skeleton rounded" />
         </div>
-        {/* Footer */}
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-darkbg-800">
-          <div className="flex items-center gap-1 sm:gap-1.5">
-            <div className="w-5 h-5 skeleton rounded-full" />
-            <div className="h-3 w-12 sm:w-16 skeleton rounded" />
+
+        {/* Items grid with arrow */}
+        <div className="flex items-start gap-2 sm:gap-3">
+          {/* Offer Side - 3x2 grid skeleton */}
+          <div className="flex-1 min-w-0">
+            {/* XS screens skeleton */}
+            <div className="sm:hidden min-h-[144px] flex flex-col gap-1">
+              {/* Row 1 */}
+              <div className="flex justify-center gap-1">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
+                    <div className="w-12 h-12 skeleton rounded-lg" />
+                    <div className="h-4 w-8 skeleton rounded" />
+                  </div>
+                ))}
+              </div>
+              {/* Row 2 */}
+              <div className="flex justify-center gap-1">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
+                    <div className="w-12 h-12 skeleton rounded-lg" />
+                    <div className="h-4 w-8 skeleton rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* SM+ screens skeleton */}
+            <div className="hidden sm:block min-h-[176px]">
+              <div className="flex flex-col gap-2">
+                {/* Row 1 */}
+                <div className="flex justify-center gap-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 skeleton rounded-lg" />
+                      <div className="h-4 w-10 skeleton rounded" />
+                    </div>
+                  ))}
+                </div>
+                {/* Row 2 */}
+                <div className="flex justify-center gap-2">
+                  {[...Array(2)].map((_, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 skeleton rounded-lg" />
+                      <div className="h-4 w-10 skeleton rounded" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {/* Income */}
+            <div className="mt-1.5 flex justify-center">
+              <div className="h-4 w-16 skeleton rounded" />
+            </div>
           </div>
-          <div className="h-3 w-8 sm:w-10 skeleton rounded" />
+
+          {/* Arrow - vertically centered */}
+          <div className="flex-shrink-0 flex items-center self-center py-4">
+            <div className="w-4 h-4 sm:w-5 sm:h-5 skeleton rounded" />
+          </div>
+
+          {/* Request Side - 3x2 grid skeleton */}
+          <div className="flex-1 min-w-0">
+            {/* XS screens skeleton */}
+            <div className="sm:hidden min-h-[144px] flex flex-col gap-1">
+              {/* Row 1 */}
+              <div className="flex justify-center gap-1">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
+                    <div className="w-12 h-12 skeleton rounded-lg" />
+                    <div className="h-4 w-8 skeleton rounded" />
+                  </div>
+                ))}
+              </div>
+              {/* Row 2 */}
+              <div className="flex justify-center gap-1">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
+                    <div className="w-12 h-12 skeleton rounded-lg" />
+                    <div className="h-4 w-8 skeleton rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* SM+ screens skeleton */}
+            <div className="hidden sm:block min-h-[176px]">
+              <div className="flex flex-col gap-2">
+                {/* Row 1 */}
+                <div className="flex justify-center gap-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 skeleton rounded-lg" />
+                      <div className="h-4 w-10 skeleton rounded" />
+                    </div>
+                  ))}
+                </div>
+                {/* Row 2 */}
+                <div className="flex justify-center gap-2">
+                  {[...Array(2)].map((_, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 skeleton rounded-lg" />
+                      <div className="h-4 w-10 skeleton rounded" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {/* Income */}
+            <div className="mt-1.5 flex justify-center">
+              <div className="h-4 w-16 skeleton rounded" />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Desktop Skeleton (lg: 1024px+) */}
-      <div className="hidden lg:block">
-        {/* Items */}
-        <div className="flex items-center gap-3 pb-2">
-          <div className="flex-1 flex gap-2">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 skeleton rounded-lg" />
-            <div className="w-12 h-12 sm:w-14 sm:h-14 skeleton rounded-lg" />
-          </div>
-          <div className="w-5 h-5 skeleton rounded" />
-          <div className="flex-1 flex justify-end gap-2">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 skeleton rounded-lg" />
-            <div className="w-12 h-12 sm:w-14 sm:h-14 skeleton rounded-lg" />
-          </div>
+      {/* ============================================ */}
+      {/* DESKTOP SKELETON (lg: 1024px+) */}
+      {/* 3 items per row, max 2 rows (6 items), centered layout */}
+      {/* ============================================ */}
+      <div className="hidden lg:block pb-2">
+        {/* Labels row */}
+        <div className="flex justify-between mb-1.5">
+          <div className="h-3 w-16 skeleton rounded" />
+          <div className="h-3 w-12 skeleton rounded" />
         </div>
-        {/* Footer */}
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-darkbg-800">
-          <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 skeleton rounded-full" />
-            <div className="h-3 w-16 skeleton rounded" />
+
+        {/* Items grid with arrow */}
+        <div className="flex items-start gap-3">
+          {/* Offer Side - 3x2 grid skeleton */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col gap-1 min-h-[176px]">
+              {/* Row 1 */}
+              <div className="flex justify-center gap-1">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 skeleton rounded-lg" />
+                    <div className="h-4 w-10 skeleton rounded" />
+                  </div>
+                ))}
+              </div>
+              {/* Row 2 */}
+              <div className="flex justify-center gap-1">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 skeleton rounded-lg" />
+                    <div className="h-4 w-10 skeleton rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Income */}
+            <div className="mt-1.5 flex justify-center">
+              <div className="h-4 w-16 skeleton rounded" />
+            </div>
           </div>
-          <div className="h-3 w-10 skeleton rounded" />
+
+          {/* Arrow - vertically centered */}
+          <div className="flex-shrink-0 flex items-center self-center py-4">
+            <div className="w-6 h-6 skeleton rounded" />
+          </div>
+
+          {/* Request Side - 3x2 grid skeleton */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col gap-1 min-h-[176px]">
+              {/* Row 1 */}
+              <div className="flex justify-center gap-1">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 skeleton rounded-lg" />
+                    <div className="h-4 w-10 skeleton rounded" />
+                  </div>
+                ))}
+              </div>
+              {/* Row 2 */}
+              <div className="flex justify-center gap-1">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 skeleton rounded-lg" />
+                    <div className="h-4 w-10 skeleton rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Income */}
+            <div className="mt-1.5 flex justify-center">
+              <div className="h-4 w-16 skeleton rounded" />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* iPad Enhanced Skeleton */}
-      <div className="hidden md:block lg:hidden">
-        {/* Header */}
+      {/* ============================================ */}
+      {/* iPAD ENHANCED SKELETON (md: only, 768-1024px) */}
+      {/* 3 items per row, max 2 rows, larger items with more details */}
+      {/* ============================================ */}
+      <div className="hidden md:block lg:hidden pb-3">
+        {/* Header with trade icon and status badge placeholder */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 skeleton rounded-lg" />
             <div className="h-4 w-24 skeleton rounded" />
           </div>
+          {/* Status badge placeholder */}
+          <div className="h-6 w-16 skeleton rounded-lg" />
         </div>
-        {/* Items area */}
+
+        {/* Main trade content - horizontal layout */}
         <div className="flex items-stretch gap-4">
-          {/* Offer side */}
+          {/* Offer Side */}
           <div className="flex-1 bg-darkbg-800/50 rounded-xl p-3">
-            <div className="h-3 w-16 skeleton rounded mb-3" />
-            <div className="flex flex-wrap gap-3 justify-center">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex flex-col items-center gap-1.5">
-                  <div className="w-[72px] h-[72px] skeleton rounded-xl" />
-                  <div className="h-3 w-14 skeleton rounded" />
-                  <div className="h-4 w-10 skeleton rounded-full" />
-                </div>
-              ))}
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-3 w-16 skeleton rounded" />
+              <div className="h-5 w-16 skeleton rounded-full" />
+            </div>
+            {/* 3x2 grid with min-height for alignment */}
+            <div className="flex flex-col gap-2 min-h-[280px]">
+              {/* Row 1 */}
+              <div className="flex justify-center gap-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1.5 min-w-[72px]">
+                    <div className="w-[72px] h-[72px] skeleton rounded-xl" />
+                    <div className="h-3 w-14 skeleton rounded" />
+                    <div className="h-4 w-10 skeleton rounded-full" />
+                    <div className="h-5 w-12 skeleton rounded" />
+                  </div>
+                ))}
+              </div>
+              {/* Row 2 */}
+              <div className="flex justify-center gap-3">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1.5 min-w-[72px]">
+                    <div className="w-[72px] h-[72px] skeleton rounded-xl" />
+                    <div className="h-3 w-14 skeleton rounded" />
+                    <div className="h-4 w-10 skeleton rounded-full" />
+                    <div className="h-5 w-12 skeleton rounded" />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-          {/* Arrow */}
-          <div className="flex items-center">
+
+          {/* Arrow divider - larger for iPad */}
+          <div className="flex-shrink-0 flex items-center">
             <div className="w-10 h-10 skeleton rounded-full" />
           </div>
-          {/* Request side */}
+
+          {/* Request Side */}
           <div className="flex-1 bg-darkbg-800/50 rounded-xl p-3">
-            <div className="h-3 w-16 skeleton rounded mb-3" />
-            <div className="flex flex-wrap gap-3 justify-center">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex flex-col items-center gap-1.5">
-                  <div className="w-[72px] h-[72px] skeleton rounded-xl" />
-                  <div className="h-3 w-14 skeleton rounded" />
-                  <div className="h-4 w-10 skeleton rounded-full" />
-                </div>
-              ))}
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-3 w-12 skeleton rounded" />
+              <div className="h-5 w-16 skeleton rounded-full" />
+            </div>
+            {/* 3x2 grid with min-height for alignment */}
+            <div className="flex flex-col gap-2 min-h-[280px]">
+              {/* Row 1 */}
+              <div className="flex justify-center gap-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1.5 min-w-[72px]">
+                    <div className="w-[72px] h-[72px] skeleton rounded-xl" />
+                    <div className="h-3 w-14 skeleton rounded" />
+                    <div className="h-4 w-10 skeleton rounded-full" />
+                    <div className="h-5 w-12 skeleton rounded" />
+                  </div>
+                ))}
+              </div>
+              {/* Row 2 */}
+              <div className="flex justify-center gap-3">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1.5 min-w-[72px]">
+                    <div className="w-[72px] h-[72px] skeleton rounded-xl" />
+                    <div className="h-3 w-14 skeleton rounded" />
+                    <div className="h-4 w-10 skeleton rounded-full" />
+                    <div className="h-5 w-12 skeleton rounded" />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-        {/* Footer */}
+
+        {/* iPad Enhanced Footer - more prominent user info */}
         <div className="flex items-center justify-between mt-4 pt-3 border-t border-darkbg-700">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 skeleton rounded-full" />
@@ -884,7 +1083,23 @@ export function TradeCardSkeleton({ index = 0 }: { index?: number }) {
               <div className="h-3 w-20 skeleton rounded" />
             </div>
           </div>
-          <div className="h-8 w-20 skeleton rounded-lg" />
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-20 skeleton rounded-lg" />
+            <div className="h-8 w-20 skeleton rounded-lg" />
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================ */}
+      {/* FOOTER SKELETON - Mobile/Desktop (not iPad) */}
+      {/* ============================================ */}
+      <div className="md:hidden lg:flex flex items-center justify-between mt-2 pt-2 border-t border-darkbg-800">
+        <div className="flex items-center gap-1 sm:gap-1.5">
+          <div className="w-5 h-5 skeleton rounded-full" />
+          <div className="h-3 w-12 sm:w-16 skeleton rounded" />
+        </div>
+        <div className="flex items-center gap-1 sm:gap-1.5">
+          <div className="h-3 w-8 sm:w-10 skeleton rounded" />
         </div>
       </div>
     </motion.div>

@@ -113,6 +113,7 @@ export default function HomePage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const carouselRef = useRef<HTMLDivElement>(null)
   const [newBrainrots, setNewBrainrots] = useState<NewBrainrot[]>([])
+  const [brainrotsLoading, setBrainrotsLoading] = useState(true)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
 
@@ -148,10 +149,13 @@ export default function HomePage() {
       .then(res => res.json())
       .then(data => {
         setNewBrainrots(data.brainrots || [])
+        setBrainrotsLoading(false)
         // Check scroll after data loads
         setTimeout(checkCarouselScroll, 100)
       })
-      .catch(() => {})
+      .catch(() => {
+        setBrainrotsLoading(false)
+      })
   }, [])
 
   return (
@@ -351,7 +355,7 @@ export default function HomePage() {
       </motion.div>
 
       {/* New Brainrots Section - Premium Showcase */}
-      {newBrainrots.length > 0 && (
+      {(brainrotsLoading || newBrainrots.length > 0) && (
         <div className="relative z-[10] container mx-auto px-4 py-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -360,10 +364,10 @@ export default function HomePage() {
             transition={{ duration: 0.5 }}
           >
             {/* Premium Section Header - z-20 to stay above edge shadows */}
-            <div className="relative z-20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
-              <div className="flex items-center gap-3">
+            <div className="relative z-20 flex flex-row items-center justify-between gap-3 mb-10">
+              <div className="flex items-center gap-3 min-w-0">
                 <motion.div
-                  className="p-3 bg-gradient-to-br from-amber-500/30 to-orange-600/20 rounded-2xl border border-amber-500/30"
+                  className="p-2 sm:p-3 bg-gradient-to-br from-amber-500/30 to-orange-600/20 rounded-xl sm:rounded-2xl border border-amber-500/30 flex-shrink-0"
                   animate={{
                     boxShadow: [
                       '0 0 20px rgba(251, 191, 36, 0.2)',
@@ -373,18 +377,19 @@ export default function HomePage() {
                   }}
                   transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <Sparkles className="w-6 h-6 text-amber-400" />
+                  <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
                 </motion.div>
-                <div>
-                  <h2 className="text-2xl md:text-3xl font-black text-white">new brainrots!</h2>
-                  <p className="text-gray-500 text-sm">freshly added to the collection</p>
+                <div className="min-w-0">
+                  <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white truncate">new brainrots!</h2>
+                  <p className="text-gray-500 text-xs sm:text-sm hidden min-[400px]:block">freshly added to the collection</p>
                 </div>
               </div>
               <Link
                 href="/brainrots"
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm text-amber-400 hover:text-amber-300 border border-amber-500/30 hover:border-amber-500/50 rounded-xl transition-all hover:bg-amber-500/10"
+                className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm text-amber-400 hover:text-amber-300 border border-amber-500/30 hover:border-amber-500/50 rounded-lg sm:rounded-xl transition-all hover:bg-amber-500/10 flex-shrink-0 whitespace-nowrap"
               >
-                view all brainrots
+                <span className="hidden sm:inline">view all brainrots</span>
+                <span className="sm:hidden">view all</span>
               </Link>
             </div>
 
@@ -441,7 +446,34 @@ export default function HomePage() {
                 className="flex gap-4 md:gap-5 overflow-x-auto overflow-y-visible scrollbar-hide scroll-smooth py-8 -my-8 px-8 -mx-8"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {newBrainrots.map((brainrot, index) => {
+                {/* Skeleton Loading State - Premium Card Design */}
+                {brainrotsLoading && [...Array(6)].map((_, index) => (
+                  <motion.div
+                    key={`skeleton-${index}`}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.05, duration: 0.3 }}
+                    className="relative flex-shrink-0 w-[160px] sm:w-[180px] md:w-[200px] bg-gradient-to-b from-darkbg-800 to-darkbg-850 rounded-2xl border-2 border-darkbg-700"
+                  >
+                    {/* Subtle gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/5 pointer-events-none rounded-2xl" />
+
+                    {/* Image container skeleton */}
+                    <div className="aspect-square relative p-3 sm:p-4">
+                      <div className="absolute inset-4 skeleton rounded-xl" />
+                    </div>
+
+                    {/* Info section skeleton */}
+                    <div className="px-3 pb-3 sm:px-4 sm:pb-4 relative z-10">
+                      <div className="h-px mb-3 rounded-full bg-gradient-to-r from-transparent via-darkbg-600 to-transparent" />
+                      <div className="h-4 w-3/4 mx-auto skeleton rounded mb-2" />
+                      <div className="h-3 w-1/2 mx-auto skeleton rounded" />
+                    </div>
+                  </motion.div>
+                ))}
+
+                {/* Actual Brainrot Cards */}
+                {!brainrotsLoading && newBrainrots.map((brainrot, index) => {
                   const rarityBorder = getRarityBorder(brainrot.rarity)
                   const rarityTier = getRarityTier(brainrot.rarity)
                   const isSpecialRarity = rarityTier >= 6
