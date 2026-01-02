@@ -51,3 +51,21 @@ export function timeAgo(date: Date | string): string {
 export function getImageUrl(localImage?: string | null): string | null {
   return localImage || null
 }
+
+export function getMutationClass(name: string): string {
+  const lowerName = name.toLowerCase()
+  switch (lowerName) {
+    case 'gold': return 'mutation-gold'
+    case 'diamond': return 'mutation-diamond'
+    case 'rainbow': return 'mutation-rainbow'
+    case 'bloodrot':
+    case 'bloodroot': return 'mutation-bloodrot'
+    case 'candy': return 'mutation-candy'
+    case 'lava': return 'mutation-lava'
+    case 'galaxy': return 'mutation-galaxy'
+    case 'yin yang':
+    case 'yinyang': return 'mutation-yinyang'
+    case 'radioactive': return 'mutation-radioactive'
+    default: return 'text-gray-400'
+  }
+}

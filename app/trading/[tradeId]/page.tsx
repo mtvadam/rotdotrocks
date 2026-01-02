@@ -208,8 +208,8 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
                 <div className="h-16 w-full skeleton rounded-lg" />
                 <div className="h-16 w-full skeleton rounded-lg" />
               </div>
-              <div className="hidden md:flex items-center">
-                <div className="h-6 w-6 skeleton rounded" />
+              <div className="flex items-center justify-center py-2 md:py-0">
+                <div className="h-5 w-5 md:h-6 md:w-6 skeleton rounded" />
               </div>
               <div className="space-y-3">
                 <div className="h-4 w-24 skeleton rounded" />
@@ -304,9 +304,9 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
               </div>
             </div>
 
-            {/* Arrow */}
-            <div className="hidden md:flex items-center justify-center">
-              <ArrowRightLeft className="w-6 h-6 text-gray-400" />
+            {/* Arrow - horizontal on mobile, vertical on md+ */}
+            <div className="flex items-center justify-center py-2 md:py-0">
+              <ArrowRightLeft className="w-5 h-5 md:w-6 md:h-6 text-green-500/60 rotate-90 md:rotate-0" />
             </div>
 
             {/* Request Side */}

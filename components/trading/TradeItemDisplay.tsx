@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { Pencil, X } from 'lucide-react'
-import { formatIncome } from '@/lib/utils'
+import { formatIncome, getMutationClass } from '@/lib/utils'
 import { easeOut } from '@/lib/animations'
 
 interface TradeItemDisplayProps {
@@ -65,6 +65,9 @@ function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: stri
       {/* Icons wrapper - hover/click only on this */}
       <div
         ref={iconsRef}
+        role="button"
+        tabIndex={0}
+        aria-label={`View ${traits.length} trait${traits.length === 1 ? '' : 's'}`}
         className="flex gap-0.5 cursor-pointer"
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
@@ -72,6 +75,15 @@ function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: stri
           e.stopPropagation()
           setShowTooltip(!showTooltip)
         }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            e.stopPropagation()
+            setShowTooltip(!showTooltip)
+          }
+        }}
+        onFocus={() => setShowTooltip(true)}
+        onBlur={() => setShowTooltip(false)}
       >
         {visible.map((t, i) => (
           <motion.div
@@ -103,7 +115,7 @@ function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: stri
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 4, scale: 0.95 }}
               style={{ top: tooltipPos.top, left: tooltipPos.left }}
-              className="fixed z-[100] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px]"
+              className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px]"
             >
               {traits.map((t) => (
                 <div key={t.trait.id} className="flex items-center gap-2 py-1">
@@ -127,23 +139,6 @@ function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: stri
   )
 }
 
-function getMutationClass(name: string): string {
-  const lowerName = name.toLowerCase()
-  switch (lowerName) {
-    case 'gold': return 'mutation-gold'
-    case 'diamond': return 'mutation-diamond'
-    case 'rainbow': return 'mutation-rainbow'
-    case 'bloodrot':
-    case 'bloodroot': return 'mutation-bloodrot'
-    case 'candy': return 'mutation-candy'
-    case 'lava': return 'mutation-lava'
-    case 'galaxy': return 'mutation-galaxy'
-    case 'yin yang':
-    case 'yinyang': return 'mutation-yinyang'
-    case 'radioactive': return 'mutation-radioactive'
-    default: return 'text-gray-400'
-  }
-}
 
 export function TradeItemDisplay({
   item,
@@ -258,6 +253,7 @@ export function TradeItemDisplay({
                 e.stopPropagation()
                 onEdit()
               }}
+              aria-label="Edit item"
               className="p-2 bg-darkbg-600 active:bg-darkbg-500 text-gray-300 rounded-lg transition-colors"
             >
               <Pencil className="w-4 h-4" />
@@ -270,6 +266,7 @@ export function TradeItemDisplay({
                 e.stopPropagation()
                 onRemove()
               }}
+              aria-label="Remove item"
               className="p-2 bg-red-500 active:bg-red-600 text-white rounded-lg transition-colors"
             >
               <X className="w-4 h-4" />
@@ -277,7 +274,7 @@ export function TradeItemDisplay({
           )}
         </div>
         {/* Desktop: absolute positioned on hover */}
-        <div className="hidden md:flex absolute top-2 right-2 gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="hidden md:flex absolute top-2 right-2 gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
           {onEdit && (
             <motion.button
               whileHover={{ scale: 1.1 }}
@@ -286,6 +283,7 @@ export function TradeItemDisplay({
                 e.stopPropagation()
                 onEdit()
               }}
+              aria-label="Edit item"
               className="p-1.5 bg-darkbg-600 hover:bg-darkbg-500 text-gray-300 rounded-lg shadow-lg transition-colors"
             >
               <Pencil className="w-3 h-3" />
@@ -299,6 +297,7 @@ export function TradeItemDisplay({
                 e.stopPropagation()
                 onRemove()
               }}
+              aria-label="Remove item"
               className="p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-lg transition-colors"
             >
               <X className="w-3 h-3" />

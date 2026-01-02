@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { Search, X, Plus, Check, ArrowDownUp, ArrowLeft, Flag, Send, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import { TruncatedText } from '@/components/ui'
-import { formatIncome } from '@/lib/utils'
+import { formatIncome, getMutationClass } from '@/lib/utils'
 import { easeOut, modalVariants, backdropVariants, staggerContainer, staggerChild } from '@/lib/animations'
 
 interface Brainrot {
@@ -130,24 +130,6 @@ interface BrainrotPickerProps {
   onSelect: (item: SelectedItem) => void
   onClose: () => void
   initialItem?: InitialItem
-}
-
-function getMutationClass(name: string): string {
-  const lowerName = name.toLowerCase()
-  switch (lowerName) {
-    case 'gold': return 'mutation-gold'
-    case 'diamond': return 'mutation-diamond'
-    case 'rainbow': return 'mutation-rainbow'
-    case 'bloodrot':
-    case 'bloodroot': return 'mutation-bloodrot'
-    case 'candy': return 'mutation-candy'
-    case 'lava': return 'mutation-lava'
-    case 'galaxy': return 'mutation-galaxy'
-    case 'yin yang':
-    case 'yinyang': return 'mutation-yinyang'
-    case 'radioactive': return 'mutation-radioactive'
-    default: return 'text-gray-400'
-  }
 }
 
 function getRarityClass(rarity: string | null): string {

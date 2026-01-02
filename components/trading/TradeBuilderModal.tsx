@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Plus, ArrowRightLeft, Gem, Loader2 } from 'lucide-react'
@@ -67,6 +67,17 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
 
   const isCounterOffer = !!parentTradeId
   const gemCost = isCounterOffer ? 0 : 5
+
+  // Close modal on Escape key press
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !pickerSide) {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [onClose, pickerSide])
 
   const handleAddItem = (side: 'OFFER' | 'REQUEST') => {
     const items = side === 'OFFER' ? offerItems : requestItems
@@ -156,6 +167,13 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
       return
     }
 
+    // Ensure at least one real brainrot (not addon) on offering side
+    const hasRealBrainrot = offerItems.some(item => !item.brainrotId.startsWith('addon-'))
+    if (!hasRealBrainrot) {
+      setError('Must offer at least one brainrot (not just add-ons)')
+      return
+    }
+
     if (!isCounterOffer && (!user || user.gems < 5)) {
       setError('Not enough gems (need 5)')
       return
@@ -217,7 +235,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
         animate="animate"
         exit="exit"
         onClick={onClose}
-        className="fixed inset-0 z-40 flex items-start md:items-center justify-center pt-4 md:pt-0 bg-black/40 backdrop-blur-sm will-change-[opacity] overflow-y-auto"
+        className="fixed inset-x-0 top-16 bottom-0 z-40 flex items-start md:items-center justify-center pt-4 md:pt-0 bg-black/40 backdrop-blur-sm will-change-[opacity] overflow-y-auto overflow-x-hidden"
       >
         <motion.div
           variants={modalVariants}
@@ -225,33 +243,35 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
           animate="animate"
           exit="exit"
           onClick={(e) => e.stopPropagation()}
-          className="bg-darkbg-900/95 backdrop-blur-xl rounded-2xl w-full max-w-3xl max-h-[calc(100dvh-2rem)] md:max-h-[85vh] mx-3 md:mx-4 mb-4 md:mb-0 overflow-hidden flex flex-col shadow-2xl border border-darkbg-700 flex-shrink-0"
+          className="bg-darkbg-900/95 backdrop-blur-xl rounded-2xl w-[calc(100%-1.5rem)] max-w-3xl md:max-w-[54rem] max-h-[calc(100dvh-5rem)] md:max-h-[calc(100vh-6rem)] mx-auto mb-4 md:mb-0 overflow-hidden flex flex-col shadow-2xl border border-darkbg-700 flex-shrink-0"
         >
-            {/* Header */}
-            <div className="flex items-center justify-between p-3 md:p-4 border-b border-darkbg-700 flex-shrink-0">
-              <div className="flex items-center gap-2 md:block">
-                <h2 className="text-base md:text-lg font-bold text-white">
-                  {isCounterOffer ? 'Counter Offer' : 'Create Trade'}
-                </h2>
-                {!isCounterOffer && (
-                  <span className="text-xs md:text-sm text-gray-500 flex items-center gap-1">
-                    <Gem className="w-3 h-3 md:w-4 md:h-4 text-amber-500" />
-                    <span className="hidden md:inline">Costs</span> 5 gems
-                  </span>
-                )}
+            {/* Scrollable container with sticky header inside */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Header - sticky to ensure close button is always accessible when scrolling */}
+              <div className="sticky top-0 z-10 flex items-center justify-between p-3 md:p-4 border-b border-darkbg-700 bg-darkbg-900/95 backdrop-blur-xl">
+                <div className="flex items-center gap-2 md:block">
+                  <h2 className="text-base md:text-lg font-bold text-white">
+                    {isCounterOffer ? 'Counter Offer' : 'Create Trade'}
+                  </h2>
+                  {!isCounterOffer && (
+                    <span className="text-xs md:text-sm text-gray-500 flex items-center gap-1">
+                      <Gem className="w-3 h-3 md:w-4 md:h-4 text-amber-500" />
+                      <span className="hidden md:inline">Costs</span> 5 gems
+                    </span>
+                  )}
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={onClose}
+                  className="p-2 rounded-xl bg-darkbg-800 hover:bg-darkbg-700 transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </motion.button>
               </div>
-              <motion.button
-                whileHover={{ scale: 1.1, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={onClose}
-                className="p-2 rounded-xl bg-darkbg-800 hover:bg-darkbg-700 transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </motion.button>
-            </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-3 md:p-4">
+              {/* Content */}
+              <div className="p-3 md:p-4">
               <div className="flex flex-col md:grid md:grid-cols-[1fr_auto_1fr] gap-2 md:gap-4">
                 {/* Offer Side */}
                 <motion.div
@@ -260,7 +280,11 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                   transition={{ duration: 0.25, ease: easeOut }}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-white">
+                    <h3 className={`font-semibold transition-all duration-300 ${
+                      offerItems.length === 0
+                        ? 'text-green-400 animate-pulse drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]'
+                        : 'text-white'
+                    }`}>
                       You&apos;re Offering
                     </h3>
                     <span className="text-sm text-gray-500">{offerItems.length}/4</span>
@@ -360,8 +384,8 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                 >
                   <div className="flex items-center justify-between mb-3">
                     <h3 className={`font-semibold transition-all duration-300 ${
-                      requestItems.length === 0
-                        ? 'text-green-400 md:text-white animate-pulse md:animate-none drop-shadow-[0_0_8px_rgba(34,197,94,0.6)] md:drop-shadow-none'
+                      offerItems.length > 0 && requestItems.length === 0
+                        ? 'text-green-400 animate-pulse drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]'
                         : 'text-white'
                     }`}>
                       You&apos;re Looking For
@@ -449,6 +473,8 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
               <AnimatePresence>
                 {error && (
                   <motion.p
+                    role="alert"
+                    aria-live="polite"
                     initial={{ opacity: 0, y: -8, height: 0 }}
                     animate={{ opacity: 1, y: 0, height: 'auto' }}
                     exit={{ opacity: 0, y: -8, height: 0 }}
@@ -459,6 +485,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                   </motion.p>
                 )}
               </AnimatePresence>
+              </div>
             </div>
 
             {/* Footer */}

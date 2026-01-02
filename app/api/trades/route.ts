@@ -5,6 +5,24 @@ import { checkRateLimitDynamic } from '@/lib/rate-limit'
 
 const TRADE_COST = 5
 
+// Parse income string like "1K", "10M", "1B" to number
+function parseIncomeValue(value: string): number | null {
+  if (!value) return null
+  const normalized = value.toUpperCase().trim()
+  const match = normalized.match(/^([\d.]+)(K|M|B)?$/)
+  if (!match) return null
+
+  let num = parseFloat(match[1])
+  if (isNaN(num)) return null
+
+  const suffix = match[2]
+  if (suffix === 'K') num *= 1000
+  else if (suffix === 'M') num *= 1000000
+  else if (suffix === 'B') num *= 1000000000
+
+  return num
+}
+
 // GET /api/trades - List trades
 export async function GET(request: NextRequest) {
   try {
@@ -14,6 +32,16 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get('sort') || 'newest'
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = parseInt(searchParams.get('offset') || '0')
+
+    // Advanced filter params
+    const offerBrainrots = searchParams.get('offerBrainrots')?.split(',').filter(Boolean) || []
+    const offerIncomeMin = parseIncomeValue(searchParams.get('offerIncomeMin') || '')
+    const offerIncomeMax = parseIncomeValue(searchParams.get('offerIncomeMax') || '')
+    const requestBrainrots = searchParams.get('requestBrainrots')?.split(',').filter(Boolean) || []
+    const requestIncomeMin = parseIncomeValue(searchParams.get('requestIncomeMin') || '')
+    const requestIncomeMax = parseIncomeValue(searchParams.get('requestIncomeMax') || '')
+    const offerTradeTypes = searchParams.get('offerTradeTypes')?.split(',').filter(Boolean) || []
+    const requestTradeTypes = searchParams.get('requestTradeTypes')?.split(',').filter(Boolean) || []
 
     const user = await getCurrentUser()
 
@@ -28,12 +56,71 @@ export async function GET(request: NextRequest) {
       where.userId = user.id
     }
 
-    // Search filter
+    // Search filter - match username or brainrot names
     if (search) {
       where.OR = [
         { user: { robloxUsername: { contains: search, mode: 'insensitive' } } },
         { items: { some: { brainrot: { name: { contains: search, mode: 'insensitive' } } } } },
       ]
+    }
+
+    // Store search term for post-fetch relevance sorting
+    const searchTerm = search.toLowerCase()
+
+    // Advanced filters - build item conditions
+    const itemConditions: any[] = []
+
+    // Offer side brainrot filter
+    if (offerBrainrots.length > 0) {
+      itemConditions.push({
+        items: {
+          some: {
+            side: 'OFFER',
+            brainrotId: { in: offerBrainrots },
+          },
+        },
+      })
+    }
+
+    // Request side brainrot filter
+    if (requestBrainrots.length > 0) {
+      itemConditions.push({
+        items: {
+          some: {
+            side: 'REQUEST',
+            brainrotId: { in: requestBrainrots },
+          },
+        },
+      })
+    }
+
+    // Offer side trade type filter (addons)
+    if (offerTradeTypes.length > 0) {
+      itemConditions.push({
+        items: {
+          some: {
+            side: 'OFFER',
+            addonType: { in: offerTradeTypes },
+          },
+        },
+      })
+    }
+
+    // Request side trade type filter (addons)
+    if (requestTradeTypes.length > 0) {
+      itemConditions.push({
+        items: {
+          some: {
+            side: 'REQUEST',
+            addonType: { in: requestTradeTypes },
+          },
+        },
+      })
+    }
+
+    // Apply item conditions
+    if (itemConditions.length > 0) {
+      where.AND = [...(where.AND || []), ...itemConditions]
     }
 
     // Get trades
@@ -94,7 +181,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Serialize BigInt values and handle addon items
-    const serializedTrades = trades.map((trade) => ({
+    let serializedTrades = trades.map((trade) => ({
       ...trade,
       items: trade.items.map((item) => {
         // Handle addon items (no brainrot, has addonType)
@@ -123,10 +210,66 @@ export async function GET(request: NextRequest) {
       }),
     }))
 
+    // Sort by search relevance if searching
+    if (searchTerm) {
+      serializedTrades.sort((a, b) => {
+        const scoreItem = (trade: typeof serializedTrades[0]) => {
+          let maxScore = 0
+
+          // Check username
+          const username = trade.user.robloxUsername.toLowerCase()
+          if (username === searchTerm) maxScore = Math.max(maxScore, 100)
+          else if (username.startsWith(searchTerm)) maxScore = Math.max(maxScore, 80)
+          else if (username.includes(searchTerm)) maxScore = Math.max(maxScore, 40)
+
+          // Check brainrot names
+          for (const item of trade.items) {
+            if (!item.brainrot) continue
+            const name = item.brainrot.name.toLowerCase()
+            if (name === searchTerm) maxScore = Math.max(maxScore, 100)
+            else if (name.startsWith(searchTerm)) maxScore = Math.max(maxScore, 80)
+            else if (name.split(' ').some((word: string) => word.startsWith(searchTerm))) maxScore = Math.max(maxScore, 60)
+            else if (name.includes(searchTerm)) maxScore = Math.max(maxScore, 40)
+          }
+
+          return maxScore
+        }
+
+        return scoreItem(b) - scoreItem(a)
+      })
+    }
+
+    // Apply income filters (post-fetch since we need totals per side)
+    if (offerIncomeMin !== null || offerIncomeMax !== null) {
+      serializedTrades = serializedTrades.filter((trade) => {
+        const offerTotal = trade.items
+          .filter((i) => i.side === 'OFFER' && i.calculatedIncome)
+          .reduce((sum, i) => sum + parseFloat(i.calculatedIncome || '0'), 0)
+
+        if (offerIncomeMin !== null && offerTotal < offerIncomeMin) return false
+        if (offerIncomeMax !== null && offerTotal > offerIncomeMax) return false
+        return true
+      })
+    }
+
+    if (requestIncomeMin !== null || requestIncomeMax !== null) {
+      serializedTrades = serializedTrades.filter((trade) => {
+        const requestTotal = trade.items
+          .filter((i) => i.side === 'REQUEST' && i.calculatedIncome)
+          .reduce((sum, i) => sum + parseFloat(i.calculatedIncome || '0'), 0)
+
+        if (requestIncomeMin !== null && requestTotal < requestIncomeMin) return false
+        if (requestIncomeMax !== null && requestTotal > requestIncomeMax) return false
+        return true
+      })
+    }
+
+    // Note: total count may not match after income filtering (post-fetch filter)
+    // This is a trade-off for simpler implementation
     return NextResponse.json({
       trades: serializedTrades,
-      total,
-      hasMore: offset + trades.length < total,
+      total: serializedTrades.length + offset, // Adjusted for post-filter
+      hasMore: trades.length === limit && serializedTrades.length > 0,
     })
   } catch (error) {
     console.error('Get trades error:', error)

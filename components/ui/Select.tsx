@@ -89,7 +89,7 @@ export function Select({ value, onChange, options, className = '', disabled = fa
               exit={{ opacity: 0, y: -8, scale: 0.95 }}
               transition={{ duration: 0.15 }}
               style={{ top: position.top, left: position.left, width: position.width }}
-              className="fixed z-[100] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-xl shadow-2xl shadow-black/50 overflow-hidden"
+              className="fixed z-[60] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-xl shadow-2xl shadow-black/50 overflow-hidden"
             >
             {options.map((option, index) => {
               const isSelected = option.value === value

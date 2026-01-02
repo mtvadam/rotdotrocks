@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from './Providers'
 import { GemDisplay, RobloxAvatar } from './ui'
@@ -19,6 +20,12 @@ function DiscordIcon({ className }: { className?: string }) {
 export function NavBar() {
   const { user, loading, refreshUser } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const pathname = usePathname()
+
+  const isActive = (path: string) => {
+    if (path === '/trading') return pathname === '/trading' || pathname.startsWith('/trading/')
+    return pathname === path || pathname.startsWith(path + '/')
+  }
 
   // Prefetch brainrots data for instant page load
   useEffect(() => {
@@ -38,19 +45,23 @@ export function NavBar() {
   return (
     <nav className="sticky top-0 z-50 bg-darkbg-900/80 backdrop-blur-lg border-b border-darkbg-700">
       <div className="container mx-auto px-4">
-        <div className="relative flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 z-10">
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
             <span className="text-xl font-bold text-white">
               rot<span className="text-green-500">.rocks</span>
             </span>
           </Link>
 
-          {/* Desktop Nav - Centered */}
-          <div className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6 absolute left-1/2 -translate-x-1/2">
+          {/* Desktop Nav - Centered between elements on smaller screens, absolute center on xl+ */}
+          <div className="hidden md:flex items-center justify-center gap-6 lg:gap-4 xl:gap-6 flex-1 xl:flex-none xl:absolute xl:left-1/2 xl:-translate-x-1/2">
             <Link
               href="/trading"
-              className="flex items-center gap-2 text-gray-300 hover:text-green-400 transition-colors"
+              className={`flex items-center gap-2 transition-colors duration-200 ${
+                isActive('/trading') && !pathname.includes('/calculator')
+                  ? 'text-green-400'
+                  : 'text-gray-300 hover:text-green-400/50'
+              }`}
               title="Trading"
             >
               <ArrowRightLeft className="w-4 h-4" />
@@ -58,7 +69,11 @@ export function NavBar() {
             </Link>
             <Link
               href="/brainrots"
-              className="flex items-center gap-2 text-gray-300 hover:text-green-400 transition-colors"
+              className={`flex items-center gap-2 transition-colors duration-200 ${
+                isActive('/brainrots')
+                  ? 'text-green-400'
+                  : 'text-gray-300 hover:text-green-400/50'
+              }`}
               title="Index"
             >
               <Sparkles className="w-4 h-4" />
@@ -66,7 +81,11 @@ export function NavBar() {
             </Link>
             <Link
               href="/trading/calculator"
-              className="flex items-center gap-2 text-gray-300 hover:text-green-400 transition-colors"
+              className={`flex items-center gap-2 transition-colors duration-200 ${
+                pathname === '/trading/calculator'
+                  ? 'text-green-400'
+                  : 'text-gray-300 hover:text-green-400/50'
+              }`}
               title="Calculator"
             >
               <Calculator className="w-4 h-4" />
@@ -74,7 +93,11 @@ export function NavBar() {
             </Link>
             <Link
               href="/faq"
-              className="flex items-center gap-2 text-gray-300 hover:text-green-400 transition-colors"
+              className={`flex items-center gap-2 transition-colors duration-200 ${
+                isActive('/faq')
+                  ? 'text-green-400'
+                  : 'text-gray-300 hover:text-green-400/50'
+              }`}
               title="FAQ"
             >
               <HelpCircle className="w-4 h-4" />
@@ -93,7 +116,7 @@ export function NavBar() {
           </div>
 
           {/* Right side */}
-          <div className="flex items-center gap-4 z-10">
+          <div className="flex items-center gap-4 flex-shrink-0">
             {/* User section */}
             {loading ? (
               <div className="flex items-center gap-3">
@@ -165,7 +188,11 @@ export function NavBar() {
                 <Link
                   href="/trading"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-gray-200 hover:bg-darkbg-800 active:bg-darkbg-700 rounded-xl transition-colors text-base"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base transition-colors duration-200 ${
+                    isActive('/trading') && !pathname.includes('/calculator')
+                      ? 'text-green-400 bg-green-500/10'
+                      : 'text-gray-200 hover:text-green-400/50 hover:bg-darkbg-800 active:bg-darkbg-700'
+                  }`}
                 >
                   <ArrowRightLeft className="w-5 h-5" />
                   Trading
@@ -173,7 +200,11 @@ export function NavBar() {
                 <Link
                   href="/brainrots"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-gray-200 hover:bg-darkbg-800 active:bg-darkbg-700 rounded-xl transition-colors text-base"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base transition-colors duration-200 ${
+                    isActive('/brainrots')
+                      ? 'text-green-400 bg-green-500/10'
+                      : 'text-gray-200 hover:text-green-400/50 hover:bg-darkbg-800 active:bg-darkbg-700'
+                  }`}
                 >
                   <Sparkles className="w-5 h-5" />
                   Index
@@ -181,7 +212,11 @@ export function NavBar() {
                 <Link
                   href="/trading/calculator"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-gray-200 hover:bg-darkbg-800 active:bg-darkbg-700 rounded-xl transition-colors text-base"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base transition-colors duration-200 ${
+                    pathname === '/trading/calculator'
+                      ? 'text-green-400 bg-green-500/10'
+                      : 'text-gray-200 hover:text-green-400/50 hover:bg-darkbg-800 active:bg-darkbg-700'
+                  }`}
                 >
                   <Calculator className="w-5 h-5" />
                   Calculator
@@ -189,7 +224,11 @@ export function NavBar() {
                 <Link
                   href="/faq"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-gray-200 hover:bg-darkbg-800 active:bg-darkbg-700 rounded-xl transition-colors text-base"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base transition-colors duration-200 ${
+                    isActive('/faq')
+                      ? 'text-green-400 bg-green-500/10'
+                      : 'text-gray-200 hover:text-green-400/50 hover:bg-darkbg-800 active:bg-darkbg-700'
+                  }`}
                 >
                   <HelpCircle className="w-5 h-5" />
                   FAQ

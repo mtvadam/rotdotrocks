@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Plus, BadgeCheck, Loader2 } from 'lucide-react'
-import { TradeCard, TradeCardSkeleton, TradeBuilderModal } from '@/components/trading'
+import { RefreshCw, Plus, BadgeCheck, Loader2, ArrowRightLeft } from 'lucide-react'
+import { TradeCard, TradeCardSkeleton, TradeBuilderModal, TradeFilters, defaultFilters } from '@/components/trading'
+import type { TradeFiltersState } from '@/components/trading'
 import { useAuth } from '@/components/Providers'
 import { PageTransition, Select } from '@/components/ui'
 import { AdminAbuseCard, LiveEventCard, UpcomingEventCard } from '@/components/AdminAbuseCard'
@@ -57,6 +58,13 @@ interface Trade {
   }
 }
 
+interface Brainrot {
+  id: string
+  name: string
+  localImage: string | null
+  baseIncome: string
+}
+
 type Tab = 'all' | 'verified' | 'mine'
 
 const tabs: { id: Tab; label: string; icon?: React.ReactNode }[] = [
@@ -69,17 +77,37 @@ export default function TradingPage() {
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('all')
-  const [search, setSearch] = useState('')
   const [sort, setSort] = useState<'newest' | 'oldest'>('newest')
+  const [lastRefresh, setLastRefresh] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
   const [showBuilder, setShowBuilder] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [filters, setFilters] = useState<TradeFiltersState>(defaultFilters)
+  const [brainrots, setBrainrots] = useState<Brainrot[]>([])
+
+  // Fetch brainrots for filter autocomplete
+  useEffect(() => {
+    fetch('/api/brainrots/all')
+      .then(res => res.json())
+      .then(data => setBrainrots(data.brainrots || []))
+      .catch(console.error)
+  }, [])
+
+  // Check if any advanced filters are active
+  const hasAdvancedFilters =
+    filters.offerBrainrots.length > 0 ||
+    filters.offerIncomeMin || filters.offerIncomeMax ||
+    filters.offerTradeTypes.length > 0 ||
+    filters.requestBrainrots.length > 0 ||
+    filters.requestIncomeMin || filters.requestIncomeMax ||
+    filters.requestTradeTypes.length > 0
 
   const fetchTrades = useCallback(async (reset = false) => {
     const cacheKey = `${tab}-${sort}`
 
-    // Use cache for initial load (no search)
-    if (reset && !search && tradesCache[cacheKey]) {
+    // Use cache for initial load (no filters)
+    if (reset && !hasAdvancedFilters && tradesCache[cacheKey]) {
       const cached = tradesCache[cacheKey]
       // Cache valid for 30 seconds
       if (Date.now() - cached.timestamp < 30000) {
@@ -99,19 +127,44 @@ export default function TradingPage() {
     try {
       const params = new URLSearchParams({
         tab,
-        search,
         sort,
         limit: reset ? INITIAL_LIMIT.toString() : '12',
         offset: reset ? '0' : trades.length.toString(),
       })
+
+      // Add advanced filter params
+      if (filters.offerBrainrots.length > 0) {
+        params.set('offerBrainrots', filters.offerBrainrots.map(b => b.id).join(','))
+      }
+      if (filters.offerIncomeMin) {
+        params.set('offerIncomeMin', filters.offerIncomeMin)
+      }
+      if (filters.offerIncomeMax) {
+        params.set('offerIncomeMax', filters.offerIncomeMax)
+      }
+      if (filters.offerTradeTypes.length > 0) {
+        params.set('offerTradeTypes', filters.offerTradeTypes.join(','))
+      }
+      if (filters.requestBrainrots.length > 0) {
+        params.set('requestBrainrots', filters.requestBrainrots.map(b => b.id).join(','))
+      }
+      if (filters.requestIncomeMin) {
+        params.set('requestIncomeMin', filters.requestIncomeMin)
+      }
+      if (filters.requestIncomeMax) {
+        params.set('requestIncomeMax', filters.requestIncomeMax)
+      }
+      if (filters.requestTradeTypes.length > 0) {
+        params.set('requestTradeTypes', filters.requestTradeTypes.join(','))
+      }
 
       const res = await fetch(`/api/trades?${params}`)
       const data = await res.json()
 
       if (reset) {
         setTrades(data.trades || [])
-        // Cache if no search filter
-        if (!search) {
+        // Cache if no advanced filters
+        if (!hasAdvancedFilters) {
           tradesCache[cacheKey] = {
             trades: data.trades || [],
             hasMore: data.hasMore || false,
@@ -127,18 +180,14 @@ export default function TradingPage() {
     } finally {
       setLoading(false)
       setLoadingMore(false)
+      setRefreshing(false)
     }
-  }, [tab, search, sort, trades.length])
+  }, [tab, sort, trades.length, filters, hasAdvancedFilters])
 
   useEffect(() => {
     fetchTrades(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, sort])
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    fetchTrades(true)
-  }
+  }, [tab, sort, filters])
 
   // Force refresh - clears cache and fetches fresh data
   const handleTradeCreated = useCallback(() => {
@@ -147,6 +196,20 @@ export default function TradingPage() {
     // Fetch fresh data
     fetchTrades(true)
   }, [fetchTrades])
+
+  // Manual refresh with rate limit (5 seconds)
+  const handleRefresh = useCallback(() => {
+    const now = Date.now()
+    if (now - lastRefresh < 5000) return // 5 second rate limit
+
+    setLastRefresh(now)
+    setRefreshing(true)
+    // Clear cache for current view
+    Object.keys(tradesCache).forEach(key => delete tradesCache[key])
+    fetchTrades(true)
+  }, [lastRefresh, fetchTrades])
+
+  const canRefresh = Date.now() - lastRefresh >= 5000
 
   const allTabs = user ? [...tabs, { id: 'mine' as Tab, label: 'My Trades' }] : tabs
 
@@ -220,15 +283,15 @@ export default function TradingPage() {
           transition={{ duration: 0.25, delay: 0.05, ease: easeOut }}
           className="bg-darkbg-900 rounded-2xl border border-darkbg-700 p-3 md:p-4 mb-6"
         >
-          <div className="flex flex-col gap-3 md:flex-row md:gap-4">
-            {/* Tabs - scrollable on mobile */}
-            <div className="flex gap-1.5 md:gap-2 p-1 bg-darkbg-800 rounded-xl overflow-x-auto scrollbar-hide">
+          <div className="flex flex-col gap-3 lg:flex-row lg:gap-4">
+            {/* Tabs - full width on mobile/tablet */}
+            <div className="flex gap-1 p-1 bg-darkbg-800 rounded-xl w-full lg:w-auto">
               {allTabs.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
                   className={`
-                    relative px-3 md:px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex-shrink-0 flex items-center justify-center
+                    relative flex-1 lg:flex-initial px-3 lg:px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center justify-center
                     ${tab === t.id
                       ? 'text-white'
                       : 'text-gray-400 hover:text-white'
@@ -242,7 +305,7 @@ export default function TradingPage() {
                       transition={{ duration: 0.2, ease: easeOut }}
                     />
                   )}
-                  <span className="relative z-10 flex items-center gap-1.5 text-sm md:text-base">
+                  <span className="relative z-10 flex items-center gap-1.5 text-sm lg:text-base">
                     {t.icon}
                     {t.label}
                   </span>
@@ -250,22 +313,8 @@ export default function TradingPage() {
               ))}
             </div>
 
-            {/* Search + Sort row on mobile */}
-            <div className="flex gap-2 md:contents">
-              {/* Search */}
-              <form onSubmit={handleSearch} className="flex-1 md:flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 md:w-5 h-4 md:h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2.5 bg-darkbg-800 rounded-xl border-2 border-transparent focus:border-green-500 focus:ring-0 focus:outline-none text-white placeholder-gray-500 transition-colors text-sm md:text-base"
-                  />
-                </div>
-              </form>
-
+            {/* Sort + Filters + Refresh row */}
+            <div className="flex items-center gap-2 w-full lg:w-auto lg:flex-1 justify-between lg:justify-end">
               {/* Sort */}
               <Select
                 value={sort}
@@ -275,6 +324,31 @@ export default function TradingPage() {
                   { value: 'oldest', label: 'Oldest' },
                 ]}
               />
+
+              {/* Advanced Filters */}
+              <TradeFilters
+                filters={filters}
+                onFiltersChange={setFilters}
+                brainrots={brainrots}
+              />
+
+              {/* Refresh Button */}
+              <motion.button
+                whileHover={canRefresh ? { scale: 1.05 } : {}}
+                whileTap={canRefresh ? { scale: 0.95 } : {}}
+                onClick={handleRefresh}
+                disabled={!canRefresh || refreshing}
+                className={`
+                  p-2.5 rounded-xl transition-colors
+                  ${canRefresh && !refreshing
+                    ? 'bg-darkbg-800 hover:bg-darkbg-700 text-gray-400 hover:text-white'
+                    : 'bg-darkbg-800 text-gray-600 cursor-not-allowed'
+                  }
+                `}
+                title={canRefresh ? 'Refresh trades' : 'Wait 5 seconds'}
+              >
+                <RefreshCw className={`w-4 h-4 md:w-5 md:h-5 ${refreshing ? 'animate-spin' : ''}`} />
+              </motion.button>
             </div>
           </div>
         </motion.div>
@@ -287,7 +361,7 @@ export default function TradingPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="grid md:grid-cols-2 gap-4"
+              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-4"
             >
               {[...Array(4)].map((_, i) => (
                 <TradeCardSkeleton key={i} index={i} />
@@ -308,7 +382,7 @@ export default function TradingPage() {
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                 className="w-20 h-20 mx-auto mb-4 bg-darkbg-800 rounded-2xl flex items-center justify-center"
               >
-                <Search className="w-8 h-8 text-gray-400" />
+                <ArrowRightLeft className="w-8 h-8 text-gray-400" />
               </motion.div>
               <p className="text-gray-400 mb-4">No trades found</p>
               {user && (
@@ -330,7 +404,7 @@ export default function TradingPage() {
               initial="initial"
               animate="animate"
             >
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-4">
                 {trades.map((trade, index) => (
                   <TradeCard key={trade.id} trade={trade} index={index} />
                 ))}

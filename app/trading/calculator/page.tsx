@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
-import { Calculator, Plus, Trash2, ArrowRightLeft, Scale, RotateCcw } from 'lucide-react'
+import { Calculator, Plus, Trash2, ArrowRightLeft, Scale, RotateCcw, Pencil } from 'lucide-react'
 import { BrainrotPicker, prefetchPickerData } from '@/components/trading'
 import { PageTransition } from '@/components/ui'
-import { formatIncome } from '@/lib/utils'
+import { formatIncome, getMutationClass } from '@/lib/utils'
 import { easeOut } from '@/lib/animations'
 
 interface TradeItem {
@@ -40,31 +40,15 @@ interface TradeItem {
 
 type Side = 'left' | 'right'
 
-function getMutationClass(name: string): string {
-  const lowerName = name.toLowerCase()
-  switch (lowerName) {
-    case 'gold': return 'mutation-gold'
-    case 'diamond': return 'mutation-diamond'
-    case 'rainbow': return 'mutation-rainbow'
-    case 'bloodrot':
-    case 'bloodroot': return 'mutation-bloodrot'
-    case 'candy': return 'mutation-candy'
-    case 'lava': return 'mutation-lava'
-    case 'galaxy': return 'mutation-galaxy'
-    case 'yin yang':
-    case 'yinyang': return 'mutation-yinyang'
-    case 'radioactive': return 'mutation-radioactive'
-    default: return 'text-gray-400'
-  }
-}
-
 function CalculatorItem({
   item,
   index,
+  onEdit,
   onRemove,
 }: {
   item: TradeItem
   index: number
+  onEdit: () => void
   onRemove: () => void
 }) {
   return (
@@ -116,19 +100,29 @@ function CalculatorItem({
           </p>
         )}
       </div>
-      <div className="text-right">
+      <div className="text-right flex-shrink-0">
         <p className="font-bold text-green-400 text-sm">
           {formatIncome(item.calculatedIncome || item.brainrot.baseIncome)}
         </p>
       </div>
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={onRemove}
-        className="p-1.5 text-gray-400 hover:text-red-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-      >
-        <Trash2 className="w-4 h-4" />
-      </motion.button>
+      <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={onEdit}
+          className="p-1.5 text-gray-400 hover:text-green-400"
+        >
+          <Pencil className="w-4 h-4" />
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={onRemove}
+          className="p-1.5 text-gray-400 hover:text-red-500"
+        >
+          <Trash2 className="w-4 h-4" />
+        </motion.button>
+      </div>
     </motion.div>
   )
 }
@@ -137,6 +131,7 @@ export default function CalculatorPage() {
   const [leftItems, setLeftItems] = useState<TradeItem[]>([])
   const [rightItems, setRightItems] = useState<TradeItem[]>([])
   const [pickerSide, setPickerSide] = useState<Side | null>(null)
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
 
   // Prefetch picker data on page load for instant picker
   useEffect(() => {
@@ -152,18 +147,40 @@ export default function CalculatorPage() {
     BigInt(0)
   )
 
-  const difference = leftTotal - rightTotal
-  const percentDiff = rightTotal > 0
-    ? Number((difference * BigInt(10000)) / rightTotal) / 100
-    : leftTotal > 0 ? 100 : 0
+  const difference = rightTotal - leftTotal
+  const percentDiff = leftTotal > 0
+    ? Number((difference * BigInt(10000)) / leftTotal) / 100
+    : rightTotal > 0 ? 100 : 0
 
   const handleSelectItem = (item: TradeItem) => {
-    if (pickerSide === 'left') {
-      setLeftItems((prev) => [...prev, item])
+    if (editingIndex !== null) {
+      // Editing existing item
+      if (pickerSide === 'left') {
+        setLeftItems((prev) => prev.map((it, i) => i === editingIndex ? item : it))
+      } else {
+        setRightItems((prev) => prev.map((it, i) => i === editingIndex ? item : it))
+      }
     } else {
-      setRightItems((prev) => [...prev, item])
+      // Adding new item
+      if (pickerSide === 'left') {
+        setLeftItems((prev) => [...prev, item])
+      } else {
+        setRightItems((prev) => [...prev, item])
+      }
     }
     setPickerSide(null)
+    setEditingIndex(null)
+  }
+
+  const handleEditItem = (side: Side, index: number) => {
+    setPickerSide(side)
+    setEditingIndex(index)
+  }
+
+  const getEditingItem = () => {
+    if (editingIndex === null || !pickerSide) return undefined
+    const items = pickerSide === 'left' ? leftItems : rightItems
+    return items[editingIndex]
   }
 
   const handleRemoveItem = (side: Side, index: number) => {
@@ -218,7 +235,7 @@ export default function CalculatorPage() {
             {/* Left Side */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-white">Side A</h3>
+                <h3 className="font-semibold text-white">Your Offer</h3>
                 <span className="text-sm text-gray-500">{leftItems.length} items</span>
               </div>
               <div className="space-y-3">
@@ -228,6 +245,7 @@ export default function CalculatorPage() {
                       key={`left-${index}-${item.brainrotId}`}
                       item={item}
                       index={index}
+                      onEdit={() => handleEditItem('left', index)}
                       onRemove={() => handleRemoveItem('left', index)}
                     />
                   ))}
@@ -248,22 +266,23 @@ export default function CalculatorPage() {
                 </motion.button>
               </div>
               {/* Left Total */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-                className="mt-4 p-4 bg-gradient-to-r from-green-900/20 to-emerald-900/20 rounded-xl border border-green-800"
-              >
-                <p className="text-sm text-gray-400">Total Value</p>
-                <motion.p
-                  key={leftTotal.toString()}
-                  initial={{ scale: 1.05 }}
-                  animate={{ scale: 1 }}
-                  className="text-2xl font-bold text-green-400"
+              {leftItems.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 flex items-center justify-between p-3 bg-darkbg-800 rounded-xl"
                 >
-                  {formatIncome(leftTotal.toString())}
-                </motion.p>
-              </motion.div>
+                  <span className="text-sm text-gray-400">Total</span>
+                  <motion.span
+                    key={leftTotal.toString()}
+                    initial={{ scale: 1.1 }}
+                    animate={{ scale: 1 }}
+                    className="text-lg font-bold text-green-400"
+                  >
+                    Σ {formatIncome(leftTotal.toString())}
+                  </motion.span>
+                </motion.div>
+              )}
             </div>
 
             {/* Middle - Comparison */}
@@ -304,8 +323,8 @@ export default function CalculatorPage() {
                       {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}%
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      {difference > 0 ? 'Side A is higher' :
-                       difference < 0 ? 'Side B is higher' : 'Even trade'}
+                      {difference > 0 ? 'You gain value' :
+                       difference < 0 ? 'You lose value' : 'Fair trade'}
                     </p>
                   </motion.div>
                 )}
@@ -315,7 +334,7 @@ export default function CalculatorPage() {
             {/* Right Side */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-white">Side B</h3>
+                <h3 className="font-semibold text-white">You Receive</h3>
                 <span className="text-sm text-gray-500">{rightItems.length} items</span>
               </div>
               <div className="space-y-3">
@@ -325,6 +344,7 @@ export default function CalculatorPage() {
                       key={`right-${index}-${item.brainrotId}`}
                       item={item}
                       index={index}
+                      onEdit={() => handleEditItem('right', index)}
                       onRemove={() => handleRemoveItem('right', index)}
                     />
                   ))}
@@ -345,22 +365,23 @@ export default function CalculatorPage() {
                 </motion.button>
               </div>
               {/* Right Total */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-                className="mt-4 p-4 bg-gradient-to-r from-green-900/20 to-emerald-900/20 rounded-xl border border-green-800"
-              >
-                <p className="text-sm text-gray-400">Total Value</p>
-                <motion.p
-                  key={rightTotal.toString()}
-                  initial={{ scale: 1.05 }}
-                  animate={{ scale: 1 }}
-                  className="text-2xl font-bold text-green-400"
+              {rightItems.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 flex items-center justify-between p-3 bg-darkbg-800 rounded-xl"
                 >
-                  {formatIncome(rightTotal.toString())}
-                </motion.p>
-              </motion.div>
+                  <span className="text-sm text-gray-400">Total</span>
+                  <motion.span
+                    key={rightTotal.toString()}
+                    initial={{ scale: 1.1 }}
+                    animate={{ scale: 1 }}
+                    className="text-lg font-bold text-green-400"
+                  >
+                    Σ {formatIncome(rightTotal.toString())}
+                  </motion.span>
+                </motion.div>
+              )}
             </div>
           </div>
 
@@ -387,8 +408,8 @@ export default function CalculatorPage() {
                 </motion.p>
                 <p className="text-sm text-gray-500">
                   {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}% •{' '}
-                  {difference > 0 ? 'Side A is higher' :
-                   difference < 0 ? 'Side B is higher' : 'Even trade'}
+                  {difference > 0 ? 'You gain value' :
+                   difference < 0 ? 'You lose value' : 'Fair trade'}
                 </p>
               </motion.div>
             )}
@@ -436,7 +457,11 @@ export default function CalculatorPage() {
         {pickerSide && (
           <BrainrotPicker
             onSelect={handleSelectItem}
-            onClose={() => setPickerSide(null)}
+            onClose={() => {
+              setPickerSide(null)
+              setEditingIndex(null)
+            }}
+            initialItem={getEditingItem()}
           />
         )}
       </AnimatePresence>
