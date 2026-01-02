@@ -251,31 +251,38 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
         </Link>
 
         {/* Trade Card */}
-        <div className="bg-darkbg-900 rounded-2xl border border-darkbg-700 p-6 mb-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <RobloxAvatar
-                avatarUrl={trade.user.robloxAvatarUrl}
-                username={trade.user.robloxUsername}
-                size="md"
-              />
-              <a
-                href={`https://www.roblox.com/users/${trade.user.robloxUserId}/profile`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-lg font-bold text-white hover:text-green-400 transition-colors inline-flex items-center gap-1.5 group"
-              >
-                {trade.user.robloxUsername}
-                <ExternalLink className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" />
-              </a>
-              {trade.isVerified && (
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-900/30 text-green-400 text-sm font-medium rounded-lg">
-                  <BadgeCheck className="w-4 h-4" />
-                  Verified
-                </span>
-              )}
-              <span className={`px-2 py-1 text-sm font-medium rounded-lg ${
+        <div className="bg-darkbg-900/90 backdrop-blur-sm rounded-2xl border border-darkbg-700 p-6 mb-6">
+          {/* Header - responsive layout */}
+          <div className="flex flex-col gap-3 mb-6">
+            {/* Top row: User info left, Status badge right */}
+            <div className="flex items-start justify-between gap-3">
+              {/* Left: Avatar, name, verified */}
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <RobloxAvatar
+                  avatarUrl={trade.user.robloxAvatarUrl}
+                  username={trade.user.robloxUsername}
+                  size="md"
+                />
+                <div className="min-w-0">
+                  <a
+                    href={`https://www.roblox.com/users/${trade.user.robloxUserId}/profile`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-base sm:text-lg font-bold text-white hover:text-green-400 transition-colors inline-flex items-center gap-1.5 group"
+                  >
+                    <span className="truncate max-w-[120px] sm:max-w-[200px]">{trade.user.robloxUsername}</span>
+                    <ExternalLink className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                  </a>
+                  {trade.isVerified && (
+                    <span className="flex items-center gap-1 text-green-400 text-xs sm:text-sm font-medium mt-0.5">
+                      <BadgeCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span>Verified</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+              {/* Right: Status badge */}
+              <span className={`px-2.5 py-1 text-xs sm:text-sm font-medium rounded-lg flex-shrink-0 ${
                 trade.status === 'OPEN' ? 'bg-blue-900/30 text-blue-400' :
                 trade.status === 'PENDING' ? 'bg-amber-900/30 text-amber-400' :
                 trade.status === 'COMPLETED' ? 'bg-green-900/30 text-green-400' :
@@ -284,16 +291,17 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
                 {trade.status}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Clock className="w-4 h-4" />
-              {formatDistanceToNow(new Date(trade.createdAt), { addSuffix: true })}
+            {/* Time - separate row */}
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span>{formatDistanceToNow(new Date(trade.createdAt), { addSuffix: true })}</span>
             </div>
           </div>
 
           {/* Trade Content */}
-          <div className="grid md:grid-cols-[1fr_auto_1fr] gap-4 mb-6">
+          <div className="grid md:grid-cols-[1fr_auto_1fr] gap-4 mb-6 overflow-hidden">
             {/* Offer Side */}
-            <div>
+            <div className="min-w-0 overflow-hidden">
               <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">
                 Offering
               </h3>
@@ -305,12 +313,12 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
             </div>
 
             {/* Arrow - horizontal on mobile, vertical on md+ */}
-            <div className="flex items-center justify-center py-2 md:py-0">
+            <div className="flex items-center justify-center py-2 md:py-0 flex-shrink-0">
               <ArrowRightLeft className="w-5 h-5 md:w-6 md:h-6 text-green-500/60 rotate-90 md:rotate-0" />
             </div>
 
             {/* Request Side */}
-            <div>
+            <div className="min-w-0 overflow-hidden">
               <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">
                 Looking For
               </h3>
@@ -322,25 +330,23 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex flex-wrap gap-2 pt-4 border-t border-darkbg-700">
+          {/* Actions - all buttons fill row evenly */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-2 pt-4 border-t border-darkbg-700">
             {/* Owner Actions */}
             {isOwner && trade.status === 'OPEN' && (
-              <>
-                <button
-                  onClick={() => handleUpdateStatus('CANCELLED')}
-                  disabled={actionLoading === 'CANCELLED'}
-                  className="px-4 py-2 bg-red-900/30 text-red-400 rounded-lg font-medium hover:bg-red-900/50 transition-colors"
-                >
-                  Cancel Trade
-                </button>
-              </>
+              <button
+                onClick={() => handleUpdateStatus('CANCELLED')}
+                disabled={actionLoading === 'CANCELLED'}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-900/30 text-red-400 rounded-lg font-medium hover:bg-red-900/50 transition-colors"
+              >
+                Cancel Trade
+              </button>
             )}
             {isOwner && trade.status === 'PENDING' && (
               <button
                 onClick={() => handleUpdateStatus('COMPLETED')}
                 disabled={actionLoading === 'COMPLETED'}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
               >
                 Mark Completed
               </button>
@@ -351,9 +357,9 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
               <button
                 onClick={() => handleVerify(!trade.isVerified)}
                 disabled={actionLoading === 'verify'}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${
                   trade.isVerified
-                    ? 'bg-darkbg-800 text-gray-300'
+                    ? 'bg-darkbg-800 text-gray-300 hover:bg-darkbg-700'
                     : 'bg-green-600 text-white hover:bg-green-700'
                 }`}
               >
@@ -366,18 +372,18 @@ export default function TradePage({ params }: { params: Promise<{ tradeId: strin
               <>
                 <button
                   onClick={() => setShowCounterOffer(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
                 >
-                  <MessageSquare className="w-4 h-4 inline mr-2" />
-                  Counter Offer
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Counter Offer</span>
                 </button>
                 <button
                   onClick={handleSendRequest}
                   disabled={actionLoading === 'request'}
-                  className="px-4 py-2 bg-darkbg-800 text-gray-300 rounded-lg font-medium hover:bg-darkbg-700 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-darkbg-800 text-gray-300 rounded-lg font-medium hover:bg-darkbg-700 transition-colors"
                 >
-                  <Send className="w-4 h-4 inline mr-2" />
-                  Request to Trade
+                  <Send className="w-4 h-4" />
+                  <span>Request Trade</span>
                 </button>
               </>
             )}

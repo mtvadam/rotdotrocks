@@ -9,6 +9,15 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      screens: {
+        // Custom breakpoint ranges for fine-grained mobile control
+        // xs-only: 320px to 374px (very small phones)
+        'xs-only': { 'max': '374px' },
+        // sm-only: 375px to 639px (standard phones)
+        'sm-only': { 'min': '375px', 'max': '639px' },
+        // xs: min 320px (for targeting small screens and up)
+        'xs': '320px',
+      },
       colors: {
         // Custom dark theme blue-gray palette
         darkbg: {

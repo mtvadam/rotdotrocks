@@ -37,6 +37,7 @@ interface TradeItemDisplayProps {
     calculatedIncome?: string | null
   }
   size?: 'sm' | 'md'
+  layout?: 'horizontal' | 'compact' // compact is vertical card for grids
   index?: number
   interactive?: boolean
   onEdit?: () => void
@@ -143,12 +144,104 @@ function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: stri
 export function TradeItemDisplay({
   item,
   size = 'md',
+  layout = 'horizontal',
   index = 0,
   interactive = false,
   onEdit,
   onRemove,
 }: TradeItemDisplayProps) {
-  const imageSize = size === 'sm' ? 48 : 64
+  const imageSize = layout === 'compact' ? 56 : (size === 'sm' ? 48 : 64)
+
+  // Compact vertical card layout for grids
+  if (layout === 'compact') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2, delay: index * 0.03, ease: easeOut }}
+        className="relative group bg-darkbg-800 rounded-xl p-2 border border-transparent hover:border-green-500/30 transition-colors"
+      >
+        {/* Action buttons - top right */}
+        {interactive && (onEdit || onRemove) && (
+          <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity z-10">
+            {onEdit && (
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => { e.stopPropagation(); onEdit() }}
+                aria-label="Edit item"
+                className="p-1 bg-darkbg-600 hover:bg-darkbg-500 text-gray-300 rounded-md shadow-lg transition-colors"
+              >
+                <Pencil className="w-3 h-3" />
+              </motion.button>
+            )}
+            {onRemove && (
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => { e.stopPropagation(); onRemove() }}
+                aria-label="Remove item"
+                className="p-1 bg-red-500 hover:bg-red-600 text-white rounded-md shadow-lg transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </motion.button>
+            )}
+          </div>
+        )}
+
+        {/* Image with mutation badge */}
+        <div className="relative mx-auto w-fit mb-2">
+          <div className="w-14 h-14 rounded-lg bg-darkbg-700 flex items-center justify-center overflow-hidden">
+            {item.brainrot.localImage ? (
+              <Image
+                src={item.brainrot.localImage}
+                alt={item.brainrot.name}
+                width={imageSize}
+                height={imageSize}
+                className="object-contain w-full h-full"
+              />
+            ) : (
+              <span className="text-xs text-gray-400">?</span>
+            )}
+          </div>
+          {item.mutation && (
+            <div className="animation-always-running absolute -top-1 -right-1 px-1 py-0.5 rounded text-[9px] font-bold bg-darkbg-900 shadow-lg">
+              <span className={getMutationClass(item.mutation.name)}>
+                {item.mutation.name.charAt(0)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Name - centered, truncated */}
+        <p className="text-xs font-semibold text-white text-center truncate px-1" title={item.brainrot.name}>
+          {item.brainrot.name}
+        </p>
+
+        {/* Mutation name */}
+        {item.mutation && (
+          <p className={`animation-always-running text-[10px] font-bold text-center ${getMutationClass(item.mutation.name)}`}>
+            {item.mutation.name}
+          </p>
+        )}
+
+        {/* Income */}
+        {item.calculatedIncome && (
+          <p className="text-[10px] font-semibold text-green-400 text-center mt-0.5">
+            {formatIncome(item.calculatedIncome)}
+          </p>
+        )}
+
+        {/* Traits - centered */}
+        {item.traits && item.traits.length > 0 && (
+          <div className="flex justify-center mt-1">
+            <TraitIcons traits={item.traits} maxShow={2} />
+          </div>
+        )}
+      </motion.div>
+    )
+  }
 
   const content = (
     <>
@@ -188,25 +281,26 @@ export function TradeItemDisplay({
       </div>
 
       {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+      <div className="flex-1 min-w-0 overflow-hidden">
+        {/* Name row - stacks on very small screens */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
           <p className={`font-semibold text-white truncate ${size === 'sm' ? 'text-sm' : ''}`}>
             {item.brainrot.name}
           </p>
-          {/* Income - inline on smaller screens, separate on xl+ */}
+          {/* Income - below name on mobile, inline on sm+ */}
           {item.calculatedIncome && (
-            <span className={`xl:hidden font-bold text-green-500 flex-shrink-0 ${size === 'sm' ? 'text-xs' : 'text-sm'}`}>
+            <span className={`xl:hidden font-bold text-green-500 whitespace-nowrap ${size === 'sm' ? 'text-xs' : 'text-sm'}`}>
               {formatIncome(item.calculatedIncome)}
             </span>
           )}
         </div>
         {item.mutation && (
-          <p className={`animation-always-running text-xs font-bold ${getMutationClass(item.mutation.name)}`}>
+          <p className={`animation-always-running text-xs font-bold truncate ${getMutationClass(item.mutation.name)}`}>
             {item.mutation.name}
           </p>
         )}
         {item.event && (
-          <p className="text-xs text-green-500">
+          <p className="text-xs text-green-500 truncate">
             {item.event.name}
           </p>
         )}

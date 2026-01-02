@@ -81,8 +81,8 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
 
   const handleAddItem = (side: 'OFFER' | 'REQUEST') => {
     const items = side === 'OFFER' ? offerItems : requestItems
-    if (items.length >= 4) {
-      setError('Maximum 4 items per side')
+    if (items.length >= 6) {
+      setError('Maximum 6 items per side')
       return
     }
     setEditingIndex(null)
@@ -132,8 +132,8 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
 
   const handleAddAddon = (side: 'OFFER' | 'REQUEST', addon: typeof TRADE_ADDONS[0]) => {
     const items = side === 'OFFER' ? offerItems : requestItems
-    if (items.length >= 4) {
-      setError('Maximum 4 items per side')
+    if (items.length >= 6) {
+      setError('Maximum 6 items per side')
       return
     }
 
@@ -287,32 +287,36 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                     }`}>
                       You&apos;re Offering
                     </h3>
-                    <span className="text-sm text-gray-500">{offerItems.length}/4</span>
+                    <span className="text-sm text-gray-500">{offerItems.length}/6</span>
                   </div>
                   <div className="space-y-2">
-                    <AnimatePresence mode="popLayout">
-                      {offerItems.map((item, index) => {
-                        const isAddon = item.brainrotId.startsWith('addon-')
-                        return (
-                          <TradeItemDisplay
-                            key={`offer-${index}-${item.brainrotId}`}
-                            item={{
-                              id: index.toString(),
-                              brainrot: item.brainrot,
-                              mutation: item.mutation,
-                              event: item.event,
-                              traits: item.traits?.map((t) => ({ trait: t })),
-                              calculatedIncome: item.calculatedIncome,
-                            }}
-                            index={index}
-                            interactive
-                            onEdit={isAddon ? undefined : () => handleEditItem('OFFER', index)}
-                            onRemove={() => handleRemoveItem('OFFER', index)}
-                          />
-                        )
-                      })}
-                    </AnimatePresence>
-                    {offerItems.length < 4 && (
+                    {/* Items grid - 3 per row, max 2 rows */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <AnimatePresence mode="popLayout">
+                        {offerItems.map((item, index) => {
+                          const isAddon = item.brainrotId.startsWith('addon-')
+                          return (
+                            <TradeItemDisplay
+                              key={`offer-${index}-${item.brainrotId}`}
+                              item={{
+                                id: index.toString(),
+                                brainrot: item.brainrot,
+                                mutation: item.mutation,
+                                event: item.event,
+                                traits: item.traits?.map((t) => ({ trait: t })),
+                                calculatedIncome: item.calculatedIncome,
+                              }}
+                              index={index}
+                              layout="compact"
+                              interactive
+                              onEdit={isAddon ? undefined : () => handleEditItem('OFFER', index)}
+                              onRemove={() => handleRemoveItem('OFFER', index)}
+                            />
+                          )
+                        })}
+                      </AnimatePresence>
+                    </div>
+                    {offerItems.length < 6 && (
                       <motion.button
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -330,7 +334,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                       </motion.button>
                     )}
                     {/* Quick Add-ons */}
-                    {offerItems.length < 4 && (
+                    {offerItems.length < 6 && (
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -390,32 +394,36 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                     }`}>
                       You&apos;re Looking For
                     </h3>
-                    <span className="text-sm text-gray-500">{requestItems.length}/4</span>
+                    <span className="text-sm text-gray-500">{requestItems.length}/6</span>
                   </div>
                   <div className="space-y-2">
-                    <AnimatePresence mode="popLayout">
-                      {requestItems.map((item, index) => {
-                        const isAddon = item.brainrotId.startsWith('addon-')
-                        return (
-                          <TradeItemDisplay
-                            key={`request-${index}-${item.brainrotId}`}
-                            item={{
-                              id: index.toString(),
-                              brainrot: item.brainrot,
-                              mutation: item.mutation,
-                              event: item.event,
-                              traits: item.traits?.map((t) => ({ trait: t })),
-                              calculatedIncome: item.calculatedIncome,
-                            }}
-                            index={index}
-                            interactive
-                            onEdit={isAddon ? undefined : () => handleEditItem('REQUEST', index)}
-                            onRemove={() => handleRemoveItem('REQUEST', index)}
-                          />
-                        )
-                      })}
-                    </AnimatePresence>
-                    {requestItems.length < 4 && (
+                    {/* Items grid - 3 per row, max 2 rows */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <AnimatePresence mode="popLayout">
+                        {requestItems.map((item, index) => {
+                          const isAddon = item.brainrotId.startsWith('addon-')
+                          return (
+                            <TradeItemDisplay
+                              key={`request-${index}-${item.brainrotId}`}
+                              item={{
+                                id: index.toString(),
+                                brainrot: item.brainrot,
+                                mutation: item.mutation,
+                                event: item.event,
+                                traits: item.traits?.map((t) => ({ trait: t })),
+                                calculatedIncome: item.calculatedIncome,
+                              }}
+                              index={index}
+                              layout="compact"
+                              interactive
+                              onEdit={isAddon ? undefined : () => handleEditItem('REQUEST', index)}
+                              onRemove={() => handleRemoveItem('REQUEST', index)}
+                            />
+                          )
+                        })}
+                      </AnimatePresence>
+                    </div>
+                    {requestItems.length < 6 && (
                       <motion.button
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -433,7 +441,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                       </motion.button>
                     )}
                     {/* Quick Add-ons */}
-                    {requestItems.length < 4 && (
+                    {requestItems.length < 6 && (
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}

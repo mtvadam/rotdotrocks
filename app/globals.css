@@ -362,3 +362,17 @@ body::-webkit-scrollbar {
 .animation-always-running * {
   animation-play-state: running !important;
 }
+
+/* Card hover shimmer effect */
+.animate-shimmer {
+  animation: card-shimmer 1.2s ease-in-out;
+}
+
+@keyframes card-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

@@ -60,12 +60,20 @@ interface TradeCardProps {
 
 // Trait icons with hover tooltip - same style as TradeItemDisplay
 // size: 'sm' for mobile/desktop compact, 'md' for iPad enhanced view
+// maxShow is the TOTAL slots including the "+X" indicator
 function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trait: { id: string; name: string; localImage: string | null; multiplier: number } }>; maxShow?: number; size?: 'sm' | 'md' }) {
   const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
   const iconsRef = useRef<HTMLDivElement>(null)
-  const visible = traits.slice(0, maxShow)
-  const overflow = traits.length - maxShow
+
+  // Sort by highest multiplier first
+  const sortedTraits = [...traits].sort((a, b) => b.trait.multiplier - a.trait.multiplier)
+
+  // If there's overflow, reserve 1 slot for the "+X" indicator
+  const hasOverflow = sortedTraits.length > maxShow
+  const visibleCount = hasOverflow ? maxShow - 1 : sortedTraits.length
+  const visible = sortedTraits.slice(0, visibleCount)
+  const overflow = sortedTraits.length - visibleCount
 
   const iconSize = size === 'md' ? 'w-5 h-5' : 'w-4 h-4'
   const iconPx = size === 'md' ? 20 : 16
@@ -88,7 +96,7 @@ function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trai
         ref={iconsRef}
         role="button"
         tabIndex={0}
-        aria-label={`View ${traits.length} trait${traits.length === 1 ? '' : 's'}`}
+        aria-label={`View ${sortedTraits.length} trait${sortedTraits.length === 1 ? '' : 's'}`}
         className="flex gap-0.5 cursor-pointer"
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
@@ -134,7 +142,7 @@ function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trai
               style={{ top: tooltipPos.top, left: tooltipPos.left }}
               className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px]"
             >
-              {traits.map((t) => (
+              {sortedTraits.map((t) => (
                 <div key={t.trait.id} className="flex items-center gap-2 py-1">
                   <div className="w-5 h-5 rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0">
                     {t.trait.localImage ? (
@@ -157,7 +165,8 @@ function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trai
 }
 
 // Compact item display for trade cards - shows image with mutation badge, traits, and hover tooltip
-function CompactItem({ item }: { item: TradeCardProps['trade']['items'][0] }) {
+// size: 'xs' for very small mobile, 'sm' for normal 2-row layouts, 'lg' for single-row centered layouts
+function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['items'][0]; size?: 'xs' | 'sm' | 'lg' }) {
   const traits = item.traits || []
   const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
@@ -177,6 +186,17 @@ function CompactItem({ item }: { item: TradeCardProps['trade']['items'][0] }) {
     ? formatCompactIncome(item.calculatedIncome) + '/s'
     : null
 
+  // Size classes based on size prop
+  // xs: small mobile (2-row), sm: normal (2-row), lg: single-row centered (bigger since more space)
+  const sizeClasses = size === 'xs'
+    ? 'w-12 h-12' // 48px for very small screens
+    : size === 'lg'
+    ? 'w-20 h-20 sm:w-24 sm:h-24' // 80px mobile, 96px sm+ for single-row
+    : 'w-14 h-14 sm:w-16 sm:h-16' // 56px mobile, 64px sm+ for 2-row
+
+  const imageSize = size === 'xs' ? 48 : size === 'lg' ? 96 : 64
+  const maxTraits = size === 'xs' ? 2 : size === 'lg' ? 4 : 3
+
   return (
     <div className="flex flex-col items-center gap-1 flex-shrink-0">
       <div
@@ -185,13 +205,13 @@ function CompactItem({ item }: { item: TradeCardProps['trade']['items'][0] }) {
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >
-        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-darkbg-700 overflow-hidden flex items-center justify-center">
+        <div className={`${sizeClasses} rounded-lg bg-darkbg-700 overflow-hidden flex items-center justify-center`}>
           {item.brainrot.localImage ? (
             <Image
               src={item.brainrot.localImage}
               alt={item.brainrot.name}
-              width={56}
-              height={56}
+              width={imageSize}
+              height={imageSize}
               className="object-contain w-full h-full"
             />
           ) : (
@@ -208,7 +228,7 @@ function CompactItem({ item }: { item: TradeCardProps['trade']['items'][0] }) {
       {/* Traits below the image - always reserve space for consistent height */}
       <div className="h-4 flex items-center">
         {traits.length > 0 ? (
-          <TraitIcons traits={traits} maxShow={3} />
+          <TraitIcons traits={traits} maxShow={maxTraits} />
         ) : null}
       </div>
       {/* Brainrot tooltip */}
@@ -247,36 +267,44 @@ function CompactItem({ item }: { item: TradeCardProps['trade']['items'][0] }) {
 
 // Enhanced iPad item display - larger images with visible name, income, and details
 // Used for the iPad-specific single-column layout (md breakpoint, 768-1024px)
-function IPadEnhancedItem({ item }: { item: TradeCardProps['trade']['items'][0] }) {
+// size: 'md' for 2-row layouts (72px), 'lg' for single-row centered layouts (100px)
+function IPadEnhancedItem({ item, size = 'md' }: { item: TradeCardProps['trade']['items'][0]; size?: 'md' | 'lg' }) {
   const traits = item.traits || []
 
   const formattedIncome = item.calculatedIncome
     ? formatCompactIncome(item.calculatedIncome) + '/s'
     : null
 
+  // Size-dependent values
+  const imgSize = size === 'lg' ? 100 : 72
+  const containerClass = size === 'lg' ? 'min-w-[100px]' : 'min-w-[72px]'
+  const imgContainerClass = size === 'lg' ? 'w-[100px] h-[100px]' : 'w-[72px] h-[72px]'
+  const nameMaxWidth = size === 'lg' ? 'max-w-[100px]' : 'max-w-[72px]'
+  const nameTruncateLen = size === 'lg' ? 14 : 12
+
   // Truncate long names for display
-  const displayName = item.brainrot.name.length > 12
-    ? item.brainrot.name.slice(0, 11) + '...'
+  const displayName = item.brainrot.name.length > nameTruncateLen
+    ? item.brainrot.name.slice(0, nameTruncateLen - 1) + '...'
     : item.brainrot.name
 
   return (
-    <div className="flex flex-col items-center gap-1.5 flex-shrink-0 min-w-[72px]">
-      {/* Image container - 72x72px for iPad */}
+    <div className={`flex flex-col items-center gap-1.5 flex-shrink-0 ${containerClass}`}>
+      {/* Image container */}
       <div className="relative">
-        <div className="w-[72px] h-[72px] rounded-xl bg-darkbg-700 overflow-hidden flex items-center justify-center shadow-lg shadow-black/10">
+        <div className={`${imgContainerClass} rounded-xl bg-darkbg-700 overflow-hidden flex items-center justify-center shadow-lg shadow-black/10`}>
           {item.brainrot.localImage ? (
             <Image
               src={item.brainrot.localImage}
               alt={item.brainrot.name}
-              width={72}
-              height={72}
+              width={imgSize}
+              height={imgSize}
               className="object-contain w-full h-full"
             />
           ) : (
             <span className="text-sm text-gray-500">?</span>
           )}
         </div>
-        {/* Mutation badge - larger for iPad */}
+        {/* Mutation badge */}
         {item.mutation && (
           <div className={`animation-always-running absolute -top-1.5 -right-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-darkbg-800 shadow-lg border border-darkbg-600 ${getMutationClass(item.mutation.name)}`}>
             {item.mutation.name.charAt(0)}
@@ -286,7 +314,7 @@ function IPadEnhancedItem({ item }: { item: TradeCardProps['trade']['items'][0] 
 
       {/* Brainrot name - Comic Sans style for kids */}
       <p
-        className="text-[11px] font-semibold text-white text-center leading-tight max-w-[72px] truncate"
+        className={`${size === 'lg' ? 'text-xs' : 'text-[11px]'} font-semibold text-white text-center leading-tight ${nameMaxWidth} truncate`}
         style={{ fontFamily: "'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', 'Comic Neue', cursive" }}
         title={item.brainrot.name}
       >
@@ -295,24 +323,70 @@ function IPadEnhancedItem({ item }: { item: TradeCardProps['trade']['items'][0] 
 
       {/* Mutation name if present */}
       {item.mutation && (
-        <p className={`animation-always-running text-[9px] font-bold -mt-1 ${getMutationClass(item.mutation.name)}`}>
+        <p className={`animation-always-running ${size === 'lg' ? 'text-[10px]' : 'text-[9px]'} font-bold -mt-1 ${getMutationClass(item.mutation.name)}`}>
           {item.mutation.name}
         </p>
       )}
 
       {/* Individual income display */}
       {formattedIncome && (
-        <span className="text-[10px] font-semibold text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-full -mt-0.5">
+        <span className={`${size === 'lg' ? 'text-[11px]' : 'text-[10px]'} font-semibold text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-full -mt-0.5`}>
           {formattedIncome}
         </span>
       )}
 
-      {/* Traits row - slightly larger for iPad */}
+      {/* Traits row */}
       <div className="h-5 flex items-center -mt-0.5">
         {traits.length > 0 ? (
-          <TraitIcons traits={traits} maxShow={4} size="md" />
+          <TraitIcons traits={traits} maxShow={size === 'lg' ? 5 : 4} size="md" />
         ) : null}
       </div>
+    </div>
+  )
+}
+
+// iPad Grid display component - shows items in 3-per-row grid, max 2 rows with enhanced items
+// Always maintains consistent height for 2 rows to align cards in grid
+// Single-row layouts get larger brainrots since there's more vertical space
+function IPadItemGrid({ items }: { items: TradeCardProps['trade']['items'] }) {
+  const maxVisible = 6
+  const visible = items.slice(0, maxVisible)
+  const hidden = Math.max(0, items.length - maxVisible)
+
+  // Split into rows of 3
+  const row1 = visible.slice(0, 3)
+  const row2 = visible.slice(3, 6)
+  const hasSecondRow = row2.length > 0 || hidden > 0
+
+  // Use larger size for single-row layouts
+  const itemSize = hasSecondRow ? 'md' : 'lg'
+
+  return (
+    <div className={`flex flex-col gap-2 min-h-[280px] ${!hasSecondRow ? 'justify-center' : ''}`}>
+      {/* Row 1 - always centered horizontally */}
+      <div className="flex justify-center gap-3">
+        {row1.map((item) => (
+          <IPadEnhancedItem key={item.id} item={item} size={itemSize} />
+        ))}
+      </div>
+      {/* Row 2 - centered, only if there are items */}
+      {hasSecondRow && (
+        <div className="flex justify-center gap-3">
+          {row2.map((item) => (
+            <IPadEnhancedItem key={item.id} item={item} size="md" />
+          ))}
+          {hidden > 0 && (
+            <div className="flex flex-col items-center gap-1.5 flex-shrink-0 min-w-[72px]">
+              <div className="w-[72px] h-[72px] rounded-xl bg-darkbg-700 flex items-center justify-center shadow-lg shadow-black/10">
+                <span className="text-base font-semibold text-gray-400">+{hidden}</span>
+              </div>
+              <div className="h-[11px]" />
+              <div className="h-[22px]" />
+              <div className="h-5" />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -341,9 +415,9 @@ function IncomeDisplay({ income, align = 'left' }: { income: string; align?: 'le
         ref={incomeRef}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
-        className="text-xs text-green-500 font-semibold cursor-default"
+        className="text-xs text-green-400 font-semibold cursor-default"
       >
-        Σ {formatCompactIncome(income)}/s
+        <span className="text-white/70">Σ</span> {formatCompactIncome(income)}/s
       </span>
       {typeof window !== 'undefined' && createPortal(
         <AnimatePresence>
@@ -383,33 +457,72 @@ function calculateTotalIncome(items: TradeCardProps['trade']['items']): string |
 // Format income for display
 function formatCompactIncome(income: string): string {
   const num = parseFloat(income)
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M'
-  } else if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K'
+  if (num >= 1_000_000_000_000) {
+    return (num / 1_000_000_000_000).toFixed(1) + 'T'
+  } else if (num >= 1_000_000_000) {
+    return (num / 1_000_000_000).toFixed(1) + 'B'
+  } else if (num >= 1_000_000) {
+    return (num / 1_000_000).toFixed(1) + 'M'
+  } else if (num >= 1_000) {
+    return (num / 1_000).toFixed(1) + 'K'
   }
   return num.toFixed(0)
+}
+
+// Grid display component - shows items in 3-per-row grid, max 2 rows
+// Always maintains consistent height for 2 rows to align cards in grid
+// Single-row layouts get larger brainrots since there's more vertical space
+function ItemGrid({ items, size = 'sm' }: { items: TradeCardProps['trade']['items']; size?: 'xs' | 'sm' }) {
+  const maxVisible = 6
+  const visible = items.slice(0, maxVisible)
+  const hidden = Math.max(0, items.length - maxVisible)
+
+  // Split into rows of 3
+  const row1 = visible.slice(0, 3)
+  const row2 = visible.slice(3, 6)
+  const hasSecondRow = row2.length > 0 || hidden > 0
+
+  // Fixed height for 2 rows: each row ~68px (xs) or ~84px (sm), plus gap
+  // This ensures all cards have same height regardless of item count
+  const containerHeight = size === 'xs' ? 'min-h-[144px]' : 'min-h-[176px]'
+
+  // Use larger size for single-row layouts (more vertical space available)
+  // xs upgrades to sm, sm upgrades to lg when single row
+  const itemSize: 'xs' | 'sm' | 'lg' = !hasSecondRow
+    ? (size === 'xs' ? 'sm' : 'lg')
+    : size
+
+  return (
+    <div className={`flex flex-col gap-1 ${containerHeight} ${!hasSecondRow ? 'justify-center' : ''}`}>
+      {/* Row 1 - always centered horizontally */}
+      <div className="flex justify-center gap-1">
+        {row1.map((item) => (
+          <CompactItem key={item.id} item={item} size={itemSize} />
+        ))}
+      </div>
+      {/* Row 2 - centered, only if there are items */}
+      {hasSecondRow && (
+        <div className="flex justify-center gap-1">
+          {row2.map((item) => (
+            <CompactItem key={item.id} item={item} size={size} />
+          ))}
+          {hidden > 0 && (
+            <div className="flex flex-col items-center gap-1 flex-shrink-0">
+              <div className={`${size === 'xs' ? 'w-12 h-12' : 'w-14 h-14 sm:w-16 sm:h-16'} rounded-lg bg-darkbg-800 flex items-center justify-center`}>
+                <span className={`${size === 'xs' ? 'text-sm' : 'text-base'} font-medium text-gray-400`}>+{hidden}</span>
+              </div>
+              <div className="h-4" />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function TradeCard({ trade, index = 0 }: TradeCardProps) {
   const offerItems = trade.items.filter((i) => i.side === 'OFFER')
   const requestItems = trade.items.filter((i) => i.side === 'REQUEST')
-
-  // Different max visible items for different screen sizes
-  // Mobile/Desktop compact: 4 items
-  // iPad enhanced: 6 items (more horizontal space with single column)
-  const maxVisibleCompact = 4
-  const maxVisibleIPad = 6
-
-  const visibleOffersCompact = offerItems.slice(0, maxVisibleCompact)
-  const visibleRequestsCompact = requestItems.slice(0, maxVisibleCompact)
-  const hiddenOffersCompact = Math.max(0, offerItems.length - maxVisibleCompact)
-  const hiddenRequestsCompact = Math.max(0, requestItems.length - maxVisibleCompact)
-
-  const visibleOffersIPad = offerItems.slice(0, maxVisibleIPad)
-  const visibleRequestsIPad = requestItems.slice(0, maxVisibleIPad)
-  const hiddenOffersIPad = Math.max(0, offerItems.length - maxVisibleIPad)
-  const hiddenRequestsIPad = Math.max(0, requestItems.length - maxVisibleIPad)
 
   // Calculate total income for each side
   const offerIncome = calculateTotalIncome(offerItems)
@@ -427,6 +540,7 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
         }}
         whileTap={{ scale: 0.98 }}
         className="
+          h-full
           bg-darkbg-900/90 backdrop-blur-sm rounded-xl
           p-3 md:p-5 lg:p-3
           border border-darkbg-700
@@ -437,55 +551,43 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
         "
       >
         {/* ============================================ */}
-        {/* MOBILE & DESKTOP VIEW (default + lg:) */}
-        {/* Compact layout with 4 items per side */}
+        {/* MOBILE VIEW (0 - 767px) */}
+        {/* 3 items per row, max 2 rows (6 items), centered layout */}
         {/* ============================================ */}
-        <div className="md:hidden lg:block pb-2">
+        <div className="md:hidden pb-2">
           {/* Labels row */}
           <div className="flex justify-between mb-1.5">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Offering</p>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Wants</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide">Offering</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide">Wants</p>
           </div>
 
-          {/* Items row with arrow */}
-          <div className="flex items-start gap-3">
+          {/* Items grid with arrow */}
+          <div className="flex items-start gap-2">
             {/* Offer Side */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-center gap-2">
-                {visibleOffersCompact.map((item) => (
-                  <CompactItem key={item.id} item={item} />
-                ))}
-                {hiddenOffersCompact > 0 && (
-                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-darkbg-800 flex items-center justify-center">
-                      <span className="text-sm font-medium text-gray-400">+{hiddenOffersCompact}</span>
-                    </div>
-                    <div className="h-4" />
-                  </div>
-                )}
+              {/* XS screens get smaller items */}
+              <div className="sm:hidden">
+                <ItemGrid items={offerItems} size="xs" />
+              </div>
+              <div className="hidden sm:block">
+                <ItemGrid items={offerItems} size="sm" />
               </div>
               {offerIncome && <IncomeDisplay income={offerIncome} align="center" />}
             </div>
 
-            {/* Arrow */}
-            <div className="flex-shrink-0 h-12 sm:h-14 flex items-center">
-              <MoveRight className="w-6 h-6 text-green-500/70" />
+            {/* Arrow - vertically centered */}
+            <div className="flex-shrink-0 flex items-center self-center py-4">
+              <MoveRight className="w-4 h-4 sm:w-5 sm:h-5 text-green-500/70" />
             </div>
 
             {/* Request Side */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-center gap-2">
-                {visibleRequestsCompact.map((item) => (
-                  <CompactItem key={item.id} item={item} />
-                ))}
-                {hiddenRequestsCompact > 0 && (
-                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-darkbg-800 flex items-center justify-center">
-                      <span className="text-sm font-medium text-gray-400">+{hiddenRequestsCompact}</span>
-                    </div>
-                    <div className="h-4" />
-                  </div>
-                )}
+              {/* XS screens get smaller items */}
+              <div className="sm:hidden">
+                <ItemGrid items={requestItems} size="xs" />
+              </div>
+              <div className="hidden sm:block">
+                <ItemGrid items={requestItems} size="sm" />
               </div>
               {requestIncome && <IncomeDisplay income={requestIncome} align="center" />}
             </div>
@@ -493,8 +595,40 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
         </div>
 
         {/* ============================================ */}
+        {/* DESKTOP VIEW (lg: 1024px+) */}
+        {/* 3 items per row, max 2 rows (6 items), centered layout */}
+        {/* ============================================ */}
+        <div className="hidden lg:block pb-2">
+          {/* Labels row */}
+          <div className="flex justify-between mb-1.5">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Offering</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Wants</p>
+          </div>
+
+          {/* Items grid with arrow */}
+          <div className="flex items-start gap-3">
+            {/* Offer Side */}
+            <div className="flex-1 min-w-0">
+              <ItemGrid items={offerItems} size="sm" />
+              {offerIncome && <IncomeDisplay income={offerIncome} align="center" />}
+            </div>
+
+            {/* Arrow - vertically centered */}
+            <div className="flex-shrink-0 flex items-center self-center py-4">
+              <MoveRight className="w-6 h-6 text-green-500/70" />
+            </div>
+
+            {/* Request Side */}
+            <div className="flex-1 min-w-0">
+              <ItemGrid items={requestItems} size="sm" />
+              {requestIncome && <IncomeDisplay income={requestIncome} align="center" />}
+            </div>
+          </div>
+        </div>
+
+        {/* ============================================ */}
         {/* iPAD ENHANCED VIEW (md: only, 768-1024px) */}
-        {/* Single column, larger items, more details */}
+        {/* 3 items per row, max 2 rows, larger items with more details */}
         {/* ============================================ */}
         <div className="hidden md:block lg:hidden pb-3">
           {/* Header with labels and trade icon */}
@@ -529,23 +663,11 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
                 <p className="text-xs font-bold text-green-400 uppercase tracking-wider">Offering</p>
                 {offerIncome && (
                   <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">
-                    Total: {formatCompactIncome(offerIncome)}/s
+                    <span className="text-white/70">Σ</span> {formatCompactIncome(offerIncome)}/s
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap items-start gap-3 justify-center">
-                {visibleOffersIPad.map((item) => (
-                  <IPadEnhancedItem key={item.id} item={item} />
-                ))}
-                {hiddenOffersIPad > 0 && (
-                  <div className="flex flex-col items-center gap-1.5 min-w-[72px]">
-                    <div className="w-[72px] h-[72px] rounded-xl bg-darkbg-700 flex items-center justify-center shadow-lg">
-                      <span className="text-base font-bold text-gray-400">+{hiddenOffersIPad}</span>
-                    </div>
-                    <p className="text-[11px] text-gray-500">more</p>
-                  </div>
-                )}
-              </div>
+              <IPadItemGrid items={offerItems} />
             </div>
 
             {/* Arrow divider - larger for iPad */}
@@ -561,23 +683,11 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
                 <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Wants</p>
                 {requestIncome && (
                   <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                    Total: {formatCompactIncome(requestIncome)}/s
+                    <span className="text-white/70">Σ</span> {formatCompactIncome(requestIncome)}/s
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap items-start gap-3 justify-center">
-                {visibleRequestsIPad.map((item) => (
-                  <IPadEnhancedItem key={item.id} item={item} />
-                ))}
-                {hiddenRequestsIPad > 0 && (
-                  <div className="flex flex-col items-center gap-1.5 min-w-[72px]">
-                    <div className="w-[72px] h-[72px] rounded-xl bg-darkbg-700 flex items-center justify-center shadow-lg">
-                      <span className="text-base font-bold text-gray-400">+{hiddenRequestsIPad}</span>
-                    </div>
-                    <p className="text-[11px] text-gray-500">more</p>
-                  </div>
-                )}
-              </div>
+              <IPadItemGrid items={requestItems} />
             </div>
           </div>
         </div>
@@ -587,23 +697,23 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
         {/* ============================================ */}
         {/* Mobile/Desktop Footer */}
         <div className="md:hidden lg:flex flex items-center justify-between mt-2 pt-2 border-t border-darkbg-800">
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
             <RobloxAvatar
               avatarUrl={trade.user.robloxAvatarUrl}
               username={trade.user.robloxUsername}
               size="xs"
             />
-            <span className="text-xs text-gray-400 truncate max-w-[80px] sm:max-w-[100px]">
+            <span className="text-[10px] sm:text-xs text-gray-400 truncate max-w-[60px] sm:max-w-[100px]">
               {trade.user.robloxUsername}
             </span>
             {trade.isVerified && (
               <BadgeCheck className="w-3 h-3 text-green-500 flex-shrink-0" />
             )}
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] text-gray-500 flex-shrink-0">
             {trade.status !== 'OPEN' && (
               <span
-                className={`font-medium px-1.5 py-0.5 rounded ${
+                className={`font-medium px-1 sm:px-1.5 py-0.5 rounded ${
                   trade.status === 'COMPLETED'
                     ? 'bg-green-500/10 text-green-500'
                     : trade.status === 'PENDING'
@@ -673,8 +783,34 @@ export function TradeCardSkeleton({ index = 0 }: { index?: number }) {
       transition={{ duration: 0.15, delay: index * 0.03 }}
       className="bg-darkbg-900 rounded-xl border border-darkbg-700 p-3 md:p-5 lg:p-3"
     >
-      {/* Mobile/Desktop Skeleton */}
-      <div className="md:hidden lg:block">
+      {/* Mobile Skeleton (0-767px) */}
+      <div className="md:hidden">
+        {/* Items */}
+        <div className="flex items-center gap-1.5 sm:gap-2 pb-2">
+          <div className="flex-1 flex justify-center gap-1 sm:gap-1.5">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 skeleton rounded-lg" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 skeleton rounded-lg" />
+            <div className="hidden sm:block w-12 h-12 skeleton rounded-lg" />
+          </div>
+          <div className="w-4 h-4 sm:w-5 sm:h-5 skeleton rounded" />
+          <div className="flex-1 flex justify-center gap-1 sm:gap-1.5">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 skeleton rounded-lg" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 skeleton rounded-lg" />
+            <div className="hidden sm:block w-12 h-12 skeleton rounded-lg" />
+          </div>
+        </div>
+        {/* Footer */}
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-darkbg-800">
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <div className="w-5 h-5 skeleton rounded-full" />
+            <div className="h-3 w-12 sm:w-16 skeleton rounded" />
+          </div>
+          <div className="h-3 w-8 sm:w-10 skeleton rounded" />
+        </div>
+      </div>
+
+      {/* Desktop Skeleton (lg: 1024px+) */}
+      <div className="hidden lg:block">
         {/* Items */}
         <div className="flex items-center gap-3 pb-2">
           <div className="flex-1 flex gap-2">

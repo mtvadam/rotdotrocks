@@ -279,7 +279,7 @@ export default function CalculatorPage() {
                     animate={{ scale: 1 }}
                     className="text-lg font-bold text-green-400"
                   >
-                    Σ {formatIncome(leftTotal.toString())}
+                    <span className="text-white/70">Σ</span> {formatIncome(leftTotal.toString())}
                   </motion.span>
                 </motion.div>
               )}
@@ -378,7 +378,7 @@ export default function CalculatorPage() {
                     animate={{ scale: 1 }}
                     className="text-lg font-bold text-green-400"
                   >
-                    Σ {formatIncome(rightTotal.toString())}
+                    <span className="text-white/70">Σ</span> {formatIncome(rightTotal.toString())}
                   </motion.span>
                 </motion.div>
               )}

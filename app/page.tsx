@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowRightLeft, Calculator, Gem, Zap, Users, Sparkles } from 'lucide-react'
+import { ArrowRightLeft, Calculator, Gem, Zap, Users, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useRef, useEffect, useState } from 'react'
 
@@ -12,6 +12,57 @@ interface NewBrainrot {
   slug: string
   localImage: string | null
   rarity: string | null
+}
+
+// Rarity color classes with animated effects (from brainrots index)
+function getRarityColor(rarity: string | null): string {
+  if (!rarity) return 'text-gray-400'
+  const r = rarity.toLowerCase()
+  if (r === 'common') return 'rarity-common'
+  if (r === 'rare') return 'rarity-rare'
+  if (r === 'epic') return 'rarity-epic'
+  if (r === 'legendary') return 'rarity-legendary'
+  if (r === 'mythic') return 'rarity-mythic'
+  if (r === 'brainrot god' || r === 'god') return 'rarity-god animation-always-running'
+  if (r === 'secret') return 'rarity-secret animation-always-running'
+  if (r === 'festive') return 'rarity-festive animation-always-running'
+  if (r === 'og') return 'rarity-og animation-always-running'
+  if (r === 'admin') return 'rarity-admin animation-always-running'
+  return 'text-gray-400'
+}
+
+// Rarity border classes with glowing effects (from brainrots index)
+function getRarityBorder(rarity: string | null): { border: string; animated?: string; glow?: string } {
+  if (!rarity) return { border: 'border-darkbg-700 hover:border-darkbg-600', glow: '' }
+  const r = rarity.toLowerCase()
+  if (r === 'common') return { border: 'border-green-700/50 hover:border-green-600', glow: 'hover:shadow-[0_0_25px_rgba(0,128,0,0.4)]' }
+  if (r === 'rare') return { border: 'border-cyan-500/50 hover:border-cyan-400', glow: 'hover:shadow-[0_0_25px_rgba(0,255,255,0.4)]' }
+  if (r === 'epic') return { border: 'border-purple-600/50 hover:border-purple-500', glow: 'hover:shadow-[0_0_25px_rgba(128,0,128,0.4)]' }
+  if (r === 'legendary') return { border: 'border-yellow-500/50 hover:border-yellow-400', glow: 'hover:shadow-[0_0_25px_rgba(255,255,0,0.4)]' }
+  if (r === 'mythic') return { border: 'border-red-500/50 hover:border-red-400', glow: 'hover:shadow-[0_0_25px_rgba(255,0,0,0.4)]' }
+  if (r === 'brainrot god' || r === 'god') return { border: 'border-pink-500/50', animated: 'card-border-animated card-border-god', glow: 'shadow-[0_0_20px_rgba(255,0,128,0.3)]' }
+  if (r === 'secret') return { border: 'border-gray-400/50', animated: 'card-border-animated card-border-secret', glow: 'shadow-[0_0_20px_rgba(255,255,255,0.2)]' }
+  if (r === 'festive') return { border: 'border-red-500/50', animated: 'card-border-animated card-border-festive', glow: 'shadow-[0_0_20px_rgba(255,0,0,0.3)]' }
+  if (r === 'og') return { border: 'border-yellow-500/50', animated: 'card-border-animated card-border-og', glow: 'shadow-[0_0_20px_rgba(255,255,0,0.3)]' }
+  if (r === 'admin') return { border: 'border-amber-500/50', animated: 'card-border-animated card-border-admin', glow: 'shadow-[0_0_20px_rgba(255,165,0,0.3)]' }
+  return { border: 'border-darkbg-700 hover:border-darkbg-600', glow: '' }
+}
+
+// Get rarity tier for ordering/display purposes
+function getRarityTier(rarity: string | null): number {
+  if (!rarity) return 0
+  const r = rarity.toLowerCase()
+  if (r === 'common') return 1
+  if (r === 'rare') return 2
+  if (r === 'epic') return 3
+  if (r === 'legendary') return 4
+  if (r === 'mythic') return 5
+  if (r === 'brainrot god' || r === 'god') return 7
+  if (r === 'secret') return 6
+  if (r === 'festive') return 6
+  if (r === 'og') return 6
+  if (r === 'admin') return 8
+  return 0
 }
 
 const floatingBrainrots = [
@@ -60,7 +111,29 @@ const scaleInVariants = {
 
 export default function HomePage() {
   const containerRef = useRef<HTMLDivElement>(null)
+  const carouselRef = useRef<HTMLDivElement>(null)
   const [newBrainrots, setNewBrainrots] = useState<NewBrainrot[]>([])
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  // Check scroll position for carousel arrows
+  const checkCarouselScroll = () => {
+    if (carouselRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current
+      setCanScrollLeft(scrollLeft > 0)
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10)
+    }
+  }
+
+  const scrollCarousel = (direction: 'left' | 'right') => {
+    if (carouselRef.current) {
+      const scrollAmount = carouselRef.current.clientWidth * 0.8
+      carouselRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      })
+    }
+  }
 
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -73,7 +146,11 @@ export default function HomePage() {
   useEffect(() => {
     fetch('/api/brainrots/new')
       .then(res => res.json())
-      .then(data => setNewBrainrots(data.brainrots || []))
+      .then(data => {
+        setNewBrainrots(data.brainrots || [])
+        // Check scroll after data loads
+        setTimeout(checkCarouselScroll, 100)
+      })
       .catch(() => {})
   }, [])
 
@@ -273,7 +350,7 @@ export default function HomePage() {
         </div>
       </motion.div>
 
-      {/* New Brainrots Section */}
+      {/* New Brainrots Section - Premium Showcase */}
       {newBrainrots.length > 0 && (
         <div className="relative z-[10] container mx-auto px-4 py-16">
           <motion.div
@@ -282,48 +359,179 @@ export default function HomePage() {
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <div className="flex items-center gap-3 mb-8">
-              <div className="p-2 bg-amber-500/20 rounded-xl">
-                <Sparkles className="w-5 h-5 text-amber-400" />
+            {/* Premium Section Header - z-20 to stay above edge shadows */}
+            <div className="relative z-20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
+              <div className="flex items-center gap-3">
+                <motion.div
+                  className="p-3 bg-gradient-to-br from-amber-500/30 to-orange-600/20 rounded-2xl border border-amber-500/30"
+                  animate={{
+                    boxShadow: [
+                      '0 0 20px rgba(251, 191, 36, 0.2)',
+                      '0 0 40px rgba(251, 191, 36, 0.4)',
+                      '0 0 20px rgba(251, 191, 36, 0.2)'
+                    ]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <Sparkles className="w-6 h-6 text-amber-400" />
+                </motion.div>
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-black text-white">new brainrots!</h2>
+                  <p className="text-gray-500 text-sm">freshly added to the collection</p>
+                </div>
               </div>
-              <h2 className="text-2xl font-bold text-white">new brainrots</h2>
+              <Link
+                href="/brainrots"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm text-amber-400 hover:text-amber-300 border border-amber-500/30 hover:border-amber-500/50 rounded-xl transition-all hover:bg-amber-500/10"
+              >
+                view all brainrots
+              </Link>
             </div>
 
-            <motion.div
-              className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4"
-              variants={containerVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
-              {newBrainrots.map((brainrot) => (
-                <motion.div
-                  key={brainrot.id}
-                  variants={itemVariants}
-                  whileHover={{ y: -4, scale: 1.02 }}
-                  className="group bg-darkbg-800 rounded-2xl p-3 border border-darkbg-700 hover:border-amber-500/30 transition-all"
-                >
-                  <div className="aspect-square relative mb-2 rounded-xl overflow-hidden bg-darkbg-700">
-                    {brainrot.localImage && (
-                      <Image
-                        src={brainrot.localImage}
-                        alt={brainrot.name}
-                        fill
-                        className="object-contain p-2 group-hover:scale-110 transition-transform duration-300"
-                      />
-                    )}
-                  </div>
-                  <p className="text-white text-sm font-medium text-center truncate">
-                    {brainrot.name}
-                  </p>
-                  {brainrot.rarity && (
-                    <p className="text-gray-500 text-xs text-center truncate">
-                      {brainrot.rarity}
-                    </p>
-                  )}
-                </motion.div>
-              ))}
-            </motion.div>
+            {/* Premium Carousel */}
+            <div className="relative">
+              {/* Left Arrow */}
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: canScrollLeft ? 1 : 0 }}
+                onClick={() => scrollCarousel('left')}
+                disabled={!canScrollLeft}
+                className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-20 w-12 h-12 rounded-full bg-darkbg-800/90 backdrop-blur-sm border border-darkbg-600 flex items-center justify-center text-white hover:bg-darkbg-700 hover:border-amber-500/50 transition-all shadow-xl ${!canScrollLeft ? 'pointer-events-none' : ''}`}
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </motion.button>
+
+              {/* Right Arrow */}
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: canScrollRight ? 1 : 0 }}
+                onClick={() => scrollCarousel('right')}
+                disabled={!canScrollRight}
+                className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-20 w-12 h-12 rounded-full bg-darkbg-800/90 backdrop-blur-sm border border-darkbg-600 flex items-center justify-center text-white hover:bg-darkbg-700 hover:border-amber-500/50 transition-all shadow-xl ${!canScrollRight ? 'pointer-events-none' : ''}`}
+              >
+                <ChevronRight className="w-6 h-6" />
+              </motion.button>
+
+              {/* Left Edge Shadow Overlay - matches page bg darkbg-950: rgb(33, 39, 57) */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: canScrollLeft ? 1 : 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="absolute -left-8 top-0 bottom-0 w-20 md:w-28 z-10 pointer-events-none"
+                style={{
+                  background: 'linear-gradient(to right, rgb(33, 39, 57) 0%, rgb(33, 39, 57) 40%, rgba(33, 39, 57, 0) 100%)',
+                }}
+              />
+
+              {/* Right Edge Shadow Overlay - matches page bg darkbg-950: rgb(33, 39, 57) */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: canScrollRight ? 1 : 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="absolute -right-8 top-0 bottom-0 w-20 md:w-28 z-10 pointer-events-none"
+                style={{
+                  background: 'linear-gradient(to left, rgb(33, 39, 57) 0%, rgb(33, 39, 57) 40%, rgba(33, 39, 57, 0) 100%)',
+                }}
+              />
+
+              {/* Carousel Container */}
+              <div
+                ref={carouselRef}
+                onScroll={checkCarouselScroll}
+                className="flex gap-4 md:gap-5 overflow-x-auto overflow-y-visible scrollbar-hide scroll-smooth py-8 -my-8 px-8 -mx-8"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {newBrainrots.map((brainrot, index) => {
+                  const rarityBorder = getRarityBorder(brainrot.rarity)
+                  const rarityTier = getRarityTier(brainrot.rarity)
+                  const isSpecialRarity = rarityTier >= 6
+
+                  return (
+                    <motion.div
+                      key={brainrot.id}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.05, duration: 0.3 }}
+                      whileHover={{ y: -8, scale: 1.03 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`
+                        group relative flex-shrink-0 w-[160px] sm:w-[180px] md:w-[200px]
+                        bg-gradient-to-b from-darkbg-800 to-darkbg-850 rounded-2xl
+                        border-2 ${rarityBorder.border} ${rarityBorder.animated || ''} ${rarityBorder.glow || ''}
+                        transition-all duration-300 cursor-pointer
+                      `}
+                    >
+                      {/* Subtle gradient overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/5 pointer-events-none rounded-2xl" />
+
+                      {/* NEW badge for special rarities */}
+                      {isSpecialRarity && (
+                        <motion.div
+                          className="absolute top-2 right-2 z-20"
+                          initial={{ scale: 0, rotate: -12 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{ delay: 0.3 + index * 0.05, type: "spring" }}
+                        >
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full shadow-lg">
+                            NEW
+                          </span>
+                        </motion.div>
+                      )}
+
+                      {/* Image container */}
+                      <div className="aspect-square relative p-3 sm:p-4">
+                        {rarityTier >= 4 && (
+                          <div className={`absolute inset-4 rounded-xl blur-xl opacity-30 ${
+                            rarityTier >= 7 ? 'bg-gradient-to-br from-pink-500 via-purple-500 to-cyan-500' :
+                            rarityTier === 6 ? 'bg-gradient-to-br from-yellow-500 to-amber-600' :
+                            rarityTier === 5 ? 'bg-red-500' :
+                            'bg-yellow-500'
+                          }`} />
+                        )}
+
+                        {brainrot.localImage && (
+                          <Image
+                            src={brainrot.localImage}
+                            alt={brainrot.name}
+                            fill
+                            className="object-contain p-2 group-hover:scale-110 transition-transform duration-500 ease-out drop-shadow-lg relative z-10"
+                          />
+                        )}
+                      </div>
+
+                      {/* Info section */}
+                      <div className="px-3 pb-3 sm:px-4 sm:pb-4 relative z-10">
+                        <div className={`h-px mb-3 rounded-full ${
+                          rarityTier >= 6 ? 'bg-gradient-to-r from-transparent via-white/30 to-transparent' :
+                          'bg-gradient-to-r from-transparent via-darkbg-600 to-transparent'
+                        }`} />
+
+                        <p className="text-white font-bold text-sm sm:text-base text-center truncate mb-1">
+                          {brainrot.name}
+                        </p>
+
+                        {brainrot.rarity && (
+                          <p className={`text-xs sm:text-sm text-center font-semibold ${getRarityColor(brainrot.rarity)}`}>
+                            {brainrot.rarity}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Hover shine effect - smooth shimmer */}
+                      <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
+                        <div
+                          className="absolute inset-0 opacity-0 group-hover:opacity-100 group-hover:animate-shimmer"
+                          style={{
+                            background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.08) 50%, transparent 60%)',
+                            backgroundSize: '200% 100%',
+                          }}
+                        />
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            </div>
           </motion.div>
         </div>
       )}
@@ -348,7 +556,7 @@ export default function HomePage() {
           viewport={{ once: true, margin: "-100px" }}
         >
           <motion.div
-            className="group bg-gradient-to-b from-darkbg-800 to-darkbg-850 rounded-3xl p-8 border border-darkbg-700 hover:border-green-500/30 transition-all hover:shadow-xl hover:shadow-green-500/5"
+            className="group bg-gradient-to-b from-darkbg-800/90 to-darkbg-850/90 backdrop-blur-sm rounded-3xl p-8 border border-darkbg-700 hover:border-green-500/30 transition-all hover:shadow-xl hover:shadow-green-500/5"
             variants={itemVariants}
             whileHover={{ y: -8, transition: { duration: 0.2 } }}
           >
@@ -367,7 +575,7 @@ export default function HomePage() {
           </motion.div>
 
           <motion.div
-            className="group bg-gradient-to-b from-darkbg-800 to-darkbg-850 rounded-3xl p-8 border border-darkbg-700 hover:border-amber-500/30 transition-all hover:shadow-xl hover:shadow-amber-500/5"
+            className="group bg-gradient-to-b from-darkbg-800/90 to-darkbg-850/90 backdrop-blur-sm rounded-3xl p-8 border border-darkbg-700 hover:border-amber-500/30 transition-all hover:shadow-xl hover:shadow-amber-500/5"
             variants={itemVariants}
             whileHover={{ y: -8, transition: { duration: 0.2 } }}
           >
@@ -386,7 +594,7 @@ export default function HomePage() {
           </motion.div>
 
           <motion.div
-            className="group bg-gradient-to-b from-darkbg-800 to-darkbg-850 rounded-3xl p-8 border border-darkbg-700 hover:border-purple-500/30 transition-all hover:shadow-xl hover:shadow-purple-500/5"
+            className="group bg-gradient-to-b from-darkbg-800/90 to-darkbg-850/90 backdrop-blur-sm rounded-3xl p-8 border border-darkbg-700 hover:border-purple-500/30 transition-all hover:shadow-xl hover:shadow-purple-500/5"
             variants={itemVariants}
             whileHover={{ y: -8, transition: { duration: 0.2 } }}
           >
@@ -409,7 +617,7 @@ export default function HomePage() {
       {/* CTA */}
       <div className="relative z-[10] container mx-auto px-4 py-16">
         <motion.div
-          className="relative overflow-hidden bg-darkbg-800 border border-darkbg-700 rounded-2xl p-10 md:p-14"
+          className="relative overflow-hidden bg-darkbg-800/90 backdrop-blur-sm border border-darkbg-700 rounded-2xl p-10 md:p-14"
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-50px" }}

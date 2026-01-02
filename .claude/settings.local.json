@@ -12,7 +12,9 @@
       "Bash(npx tsx:*)",
       "WebFetch(domain:abusetime.dev)",
       "Bash(curl:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npx next lint:*)",
+      "Bash(npm run lint:*)"
     ]
   }
 }
