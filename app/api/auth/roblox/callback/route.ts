@@ -24,7 +24,7 @@ interface UserInfo {
 
 // GET /api/auth/roblox/callback - Handle OAuth callback
 export async function GET(request: NextRequest) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3333'
 
   try {
     const { searchParams } = new URL(request.url)

@@ -47,43 +47,48 @@ export function NavBar() {
           </Link>
 
           {/* Desktop Nav - Centered */}
-          <div className="hidden md:flex items-center gap-6 absolute left-1/2 -translate-x-1/2">
+          <div className="hidden md:flex items-center gap-2 lg:gap-4 xl:gap-6 absolute left-1/2 -translate-x-1/2">
             <Link
               href="/trading"
               className="flex items-center gap-2 text-gray-300 hover:text-green-400 transition-colors"
+              title="Trading"
             >
               <ArrowRightLeft className="w-4 h-4" />
-              Trading
+              <span className="hidden lg:inline">Trading</span>
             </Link>
             <Link
               href="/brainrots"
               className="flex items-center gap-2 text-gray-300 hover:text-green-400 transition-colors"
+              title="Index"
             >
               <Sparkles className="w-4 h-4" />
-              Index
+              <span className="hidden lg:inline">Index</span>
             </Link>
             <Link
               href="/trading/calculator"
               className="flex items-center gap-2 text-gray-300 hover:text-green-400 transition-colors"
+              title="Calculator"
             >
               <Calculator className="w-4 h-4" />
-              Calculator
+              <span className="hidden lg:inline">Calculator</span>
             </Link>
             <Link
               href="/faq"
               className="flex items-center gap-2 text-gray-300 hover:text-green-400 transition-colors"
+              title="FAQ"
             >
               <HelpCircle className="w-4 h-4" />
-              FAQ
+              <span className="hidden lg:inline">FAQ</span>
             </Link>
             <a
               href="https://discord.gg/rotrocks"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-gray-300 hover:text-indigo-400 transition-colors"
+              title="Discord"
             >
               <DiscordIcon className="w-4 h-4" />
-              Discord
+              <span className="hidden lg:inline">Discord</span>
             </a>
           </div>
 
