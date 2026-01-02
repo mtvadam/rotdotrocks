@@ -70,3 +70,42 @@ export async function PATCH(
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 }
+
+// DELETE /api/admin/data/brainrots/[id] - Delete a brainrot
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const admin = await requireAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    const { id } = await params
+
+    // Get brainrot before deleting for audit log
+    const existing = await prisma.brainrot.findUnique({ where: { id } })
+    if (!existing) {
+      return NextResponse.json({ error: 'Brainrot not found' }, { status: 404 })
+    }
+
+    await prisma.brainrot.delete({ where: { id } })
+
+    // Log the action
+    await prisma.auditLog.create({
+      data: {
+        adminId: admin.id,
+        action: 'DELETE_BRAINROT',
+        targetType: 'Brainrot',
+        targetId: id,
+        details: JSON.stringify({ name: existing.name }),
+      },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Failed to delete brainrot')
+    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 })
+  }
+}

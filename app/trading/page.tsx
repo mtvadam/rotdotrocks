@@ -140,6 +140,14 @@ export default function TradingPage() {
     fetchTrades(true)
   }
 
+  // Force refresh - clears cache and fetches fresh data
+  const handleTradeCreated = useCallback(() => {
+    // Clear all cache entries
+    Object.keys(tradesCache).forEach(key => delete tradesCache[key])
+    // Fetch fresh data
+    fetchTrades(true)
+  }, [fetchTrades])
+
   const allTabs = user ? [...tabs, { id: 'mine' as Tab, label: 'My Trades' }] : tabs
 
   return (
@@ -361,7 +369,7 @@ export default function TradingPage() {
         {showBuilder && (
           <TradeBuilderModal
             onClose={() => setShowBuilder(false)}
-            onSuccess={() => fetchTrades(true)}
+            onSuccess={handleTradeCreated}
           />
         )}
       </AnimatePresence>

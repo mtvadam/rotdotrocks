@@ -60,3 +60,40 @@ export async function PATCH(
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 }
+
+// DELETE /api/admin/data/traits/[id] - Delete a trait
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const admin = await requireAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    const { id } = await params
+
+    const existing = await prisma.trait.findUnique({ where: { id } })
+    if (!existing) {
+      return NextResponse.json({ error: 'Trait not found' }, { status: 404 })
+    }
+
+    await prisma.trait.delete({ where: { id } })
+
+    await prisma.auditLog.create({
+      data: {
+        adminId: admin.id,
+        action: 'DELETE_TRAIT',
+        targetType: 'Trait',
+        targetId: id,
+        details: JSON.stringify({ name: existing.name }),
+      },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Failed to delete trait')
+    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 })
+  }
+}
