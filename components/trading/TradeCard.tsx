@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
@@ -10,6 +10,12 @@ import { BadgeCheck, MessageSquare, MoveRight, ArrowRightLeft } from 'lucide-rea
 import { RobloxAvatar } from '@/components/ui'
 import { easeOut } from '@/lib/animations'
 import { getMutationClass } from '@/lib/utils'
+
+// Income formatting thresholds as constants to avoid recreation
+const TRILLION = 1_000_000_000_000
+const BILLION = 1_000_000_000
+const MILLION = 1_000_000
+const THOUSAND = 1_000
 
 interface TradeCardProps {
   trade: {
@@ -454,19 +460,23 @@ function calculateTotalIncome(items: TradeCardProps['trade']['items']): string |
   return hasIncome ? total.toFixed(2) : null
 }
 
-// Format income for display
+// Optimized income formatting using pre-defined constants
+// Uses floor instead of round to avoid misleading higher values
 function formatCompactIncome(income: string): string {
   const num = parseFloat(income)
-  if (num >= 1_000_000_000_000) {
-    return (num / 1_000_000_000_000).toFixed(1) + 'T'
-  } else if (num >= 1_000_000_000) {
-    return (num / 1_000_000_000).toFixed(1) + 'B'
-  } else if (num >= 1_000_000) {
-    return (num / 1_000_000).toFixed(1) + 'M'
-  } else if (num >= 1_000) {
-    return (num / 1_000).toFixed(1) + 'K'
+  if (num >= TRILLION) {
+    return (Math.floor(num / TRILLION * 10) / 10).toFixed(1) + 'T'
   }
-  return num.toFixed(0)
+  if (num >= BILLION) {
+    return (Math.floor(num / BILLION * 10) / 10).toFixed(1) + 'B'
+  }
+  if (num >= MILLION) {
+    return (Math.floor(num / MILLION * 10) / 10).toFixed(1) + 'M'
+  }
+  if (num >= THOUSAND) {
+    return (Math.floor(num / THOUSAND * 10) / 10).toFixed(1) + 'K'
+  }
+  return Math.floor(num).toString()
 }
 
 // Grid display component - shows items in 3-per-row grid, max 2 rows
@@ -520,13 +530,31 @@ function ItemGrid({ items, size = 'sm' }: { items: TradeCardProps['trade']['item
   )
 }
 
-export function TradeCard({ trade, index = 0 }: TradeCardProps) {
-  const offerItems = trade.items.filter((i) => i.side === 'OFFER')
-  const requestItems = trade.items.filter((i) => i.side === 'REQUEST')
+// Memoized TradeCard component to prevent unnecessary re-renders
+export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCardProps) {
+  // Memoize filtered items to prevent recalculation on every render
+  const offerItems = useMemo(
+    () => trade.items.filter((i) => i.side === 'OFFER'),
+    [trade.items]
+  )
+  const requestItems = useMemo(
+    () => trade.items.filter((i) => i.side === 'REQUEST'),
+    [trade.items]
+  )
 
-  // Calculate total income for each side
-  const offerIncome = calculateTotalIncome(offerItems)
-  const requestIncome = calculateTotalIncome(requestItems)
+  // Memoize income calculations
+  const offerIncome = useMemo(() => calculateTotalIncome(offerItems), [offerItems])
+  const requestIncome = useMemo(() => calculateTotalIncome(requestItems), [requestItems])
+
+  // Memoize formatted date to prevent recreation
+  const formattedDate = useMemo(
+    () => formatDistanceToNow(new Date(trade.createdAt), { addSuffix: false }),
+    [trade.createdAt]
+  )
+  const formattedDateWithSuffix = useMemo(
+    () => formatDistanceToNow(new Date(trade.createdAt), { addSuffix: true }),
+    [trade.createdAt]
+  )
 
   return (
     <Link href={`/trading/${trade.id}`}>
@@ -730,7 +758,7 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
                 {trade._count.counterOffers}
               </span>
             )}
-            <span>{formatDistanceToNow(new Date(trade.createdAt), { addSuffix: false })}</span>
+            <span>{formattedDate}</span>
           </div>
         </div>
 
@@ -752,7 +780,7 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
                 )}
               </div>
               <span className="text-xs text-gray-500">
-                Posted {formatDistanceToNow(new Date(trade.createdAt), { addSuffix: true })}
+                Posted {formattedDateWithSuffix}
               </span>
             </div>
           </div>
@@ -772,7 +800,7 @@ export function TradeCard({ trade, index = 0 }: TradeCardProps) {
       </motion.div>
     </Link>
   )
-}
+})
 
 // Skeleton loader for TradeCard - responsive for mobile, iPad, and desktop
 // Matches the 3-per-row, 2-row grid layout (max 6 items per side)

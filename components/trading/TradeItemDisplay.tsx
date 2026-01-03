@@ -1,12 +1,48 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, memo, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { Pencil, X } from 'lucide-react'
 import { formatIncome, getMutationClass } from '@/lib/utils'
 import { easeOut } from '@/lib/animations'
+
+// Animation variants defined outside component to prevent recreation
+const traitIconAnimation = {
+  initial: { opacity: 0, scale: 0.8 },
+  animate: { opacity: 1, scale: 1 },
+} as const
+
+const tooltipAnimation = {
+  initial: { opacity: 0, y: 4, scale: 0.95 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: 4, scale: 0.95 },
+} as const
+
+const compactItemAnimation = {
+  initial: { opacity: 0, scale: 0.95 },
+  animate: { opacity: 1, scale: 1 },
+  exit: { opacity: 0, scale: 0.95 },
+} as const
+
+const horizontalItemAnimation = {
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: 8 },
+} as const
+
+const verticalItemAnimation = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+} as const
+
+const mutationBadgeAnimation = {
+  initial: { scale: 0 },
+  animate: { scale: 1 },
+} as const
+
+const mutationBadgeTransition = { type: 'spring', stiffness: 500, damping: 25, delay: 0.1 } as const
 
 interface TradeItemDisplayProps {
   item: {
@@ -44,12 +80,31 @@ interface TradeItemDisplayProps {
   onRemove?: () => void
 }
 
-function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: string; name: string; localImage: string | null; multiplier: number } }>; maxShow?: number }) {
+const TraitIcons = memo(function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: string; name: string; localImage: string | null; multiplier: number } }>; maxShow?: number }) {
   const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
   const iconsRef = useRef<HTMLDivElement>(null)
-  const visible = traits.slice(0, maxShow)
+
+  // Memoize computed values
+  const visible = useMemo(() => traits.slice(0, maxShow), [traits, maxShow])
   const overflow = traits.length - maxShow
+
+  // Memoized handlers
+  const handleMouseEnter = useCallback(() => setShowTooltip(true), [])
+  const handleMouseLeave = useCallback(() => setShowTooltip(false), [])
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    setShowTooltip(prev => !prev)
+  }, [])
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      e.stopPropagation()
+      setShowTooltip(prev => !prev)
+    }
+  }, [])
+  const handleFocus = useCallback(() => setShowTooltip(true), [])
+  const handleBlur = useCallback(() => setShowTooltip(false), [])
 
   useEffect(() => {
     if (showTooltip && iconsRef.current) {
@@ -70,32 +125,22 @@ function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: stri
         tabIndex={0}
         aria-label={`View ${traits.length} trait${traits.length === 1 ? '' : 's'}`}
         className="flex gap-0.5 cursor-pointer"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
-        onClick={(e) => {
-          e.stopPropagation()
-          setShowTooltip(!showTooltip)
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            e.stopPropagation()
-            setShowTooltip(!showTooltip)
-          }
-        }}
-        onFocus={() => setShowTooltip(true)}
-        onBlur={() => setShowTooltip(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
       >
         {visible.map((t, i) => (
           <motion.div
             key={t.trait.id}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
+            {...traitIconAnimation}
             transition={{ delay: i * 0.05 }}
             className="w-5 h-5 rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0"
           >
             {t.trait.localImage ? (
-              <Image src={t.trait.localImage} alt={t.trait.name} width={20} height={20} className="object-cover" />
+              <Image src={t.trait.localImage} alt={t.trait.name} width={20} height={20} className="object-cover" sizes="20px" />
             ) : (
               <span className="w-full h-full flex items-center justify-center text-[8px] text-gray-400">{t.trait.name.charAt(0)}</span>
             )}
@@ -112,9 +157,7 @@ function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: stri
         <AnimatePresence>
           {showTooltip && (
             <motion.div
-              initial={{ opacity: 0, y: 4, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4, scale: 0.95 }}
+              {...tooltipAnimation}
               style={{ top: tooltipPos.top, left: tooltipPos.left }}
               className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px]"
             >
@@ -122,7 +165,7 @@ function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: stri
                 <div key={t.trait.id} className="flex items-center gap-2 py-1">
                   <div className="w-5 h-5 rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0">
                     {t.trait.localImage ? (
-                      <Image src={t.trait.localImage} alt={t.trait.name} width={20} height={20} className="object-cover" />
+                      <Image src={t.trait.localImage} alt={t.trait.name} width={20} height={20} className="object-cover" sizes="20px" />
                     ) : (
                       <span className="w-full h-full flex items-center justify-center text-[8px] text-gray-400">{t.trait.name.charAt(0)}</span>
                     )}
@@ -138,10 +181,10 @@ function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: stri
       )}
     </div>
   )
-}
+})
 
 
-export function TradeItemDisplay({
+export const TradeItemDisplay = memo(function TradeItemDisplay({
   item,
   size = 'md',
   layout = 'horizontal',
@@ -150,15 +193,29 @@ export function TradeItemDisplay({
   onEdit,
   onRemove,
 }: TradeItemDisplayProps) {
-  const imageSize = layout === 'compact' ? 56 : (size === 'sm' ? 48 : 64)
+  // Memoize computed values
+  const imageSize = useMemo(
+    () => layout === 'compact' ? 56 : (size === 'sm' ? 48 : 64),
+    [layout, size]
+  )
+
+  // Memoize mutation class to prevent recalculation
+  const mutationClass = useMemo(
+    () => item.mutation ? getMutationClass(item.mutation.name) : '',
+    [item.mutation]
+  )
+
+  // Memoize formatted income
+  const formattedIncome = useMemo(
+    () => item.calculatedIncome ? formatIncome(item.calculatedIncome) : null,
+    [item.calculatedIncome]
+  )
 
   // Compact vertical card layout for grids
   if (layout === 'compact') {
     return (
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
+        {...compactItemAnimation}
         transition={{ duration: 0.2, delay: index * 0.03, ease: easeOut }}
         className="relative group bg-darkbg-800 rounded-xl p-2 border border-transparent hover:border-green-500/30 transition-colors"
       >
@@ -200,6 +257,7 @@ export function TradeItemDisplay({
                 width={imageSize}
                 height={imageSize}
                 className="object-contain w-full h-full"
+                sizes="56px"
               />
             ) : (
               <span className="text-xs text-gray-400">?</span>
@@ -207,7 +265,7 @@ export function TradeItemDisplay({
           </div>
           {item.mutation && (
             <div className="animation-always-running absolute -top-1 -right-1 px-1 py-0.5 rounded text-[9px] font-bold bg-darkbg-900 shadow-lg">
-              <span className={getMutationClass(item.mutation.name)}>
+              <span className={mutationClass}>
                 {item.mutation.name.charAt(0)}
               </span>
             </div>
@@ -221,15 +279,15 @@ export function TradeItemDisplay({
 
         {/* Mutation name */}
         {item.mutation && (
-          <p className={`animation-always-running text-[10px] font-bold text-center ${getMutationClass(item.mutation.name)}`}>
+          <p className={`animation-always-running text-[10px] font-bold text-center ${mutationClass}`}>
             {item.mutation.name}
           </p>
         )}
 
         {/* Income */}
-        {item.calculatedIncome && (
+        {formattedIncome && (
           <p className="text-[10px] font-semibold text-green-400 text-center mt-0.5">
-            {formatIncome(item.calculatedIncome)}
+            {formattedIncome}
           </p>
         )}
 
@@ -257,6 +315,7 @@ export function TradeItemDisplay({
             width={imageSize}
             height={imageSize}
             className="rounded-lg object-contain max-w-full max-h-full"
+            sizes="(max-width: 640px) 48px, 64px"
           />
         ) : (
           <div
@@ -268,12 +327,11 @@ export function TradeItemDisplay({
         {/* Mutation badge */}
         {item.mutation && (
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 25, delay: 0.1 }}
+            {...mutationBadgeAnimation}
+            transition={mutationBadgeTransition}
             className="animation-always-running absolute -top-1 -right-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-darkbg-900 shadow-lg"
           >
-            <span className={getMutationClass(item.mutation.name)}>
+            <span className={mutationClass}>
               {item.mutation.name.charAt(0)}
             </span>
           </motion.div>
@@ -288,14 +346,14 @@ export function TradeItemDisplay({
             {item.brainrot.name}
           </p>
           {/* Income - below name on mobile, inline on sm+ */}
-          {item.calculatedIncome && (
+          {formattedIncome && (
             <span className={`xl:hidden font-bold text-green-500 whitespace-nowrap ${size === 'sm' ? 'text-xs' : 'text-sm'}`}>
-              {formatIncome(item.calculatedIncome)}
+              {formattedIncome}
             </span>
           )}
         </div>
         {item.mutation && (
-          <p className={`animation-always-running text-xs font-bold truncate ${getMutationClass(item.mutation.name)}`}>
+          <p className={`animation-always-running text-xs font-bold truncate ${mutationClass}`}>
             {item.mutation.name}
           </p>
         )}
@@ -311,10 +369,10 @@ export function TradeItemDisplay({
       </div>
 
       {/* Income - separate column on xl+ */}
-      {item.calculatedIncome && (
+      {formattedIncome && (
         <div className="hidden xl:block text-right flex-shrink-0">
           <p className={`font-bold text-green-500 ${size === 'sm' ? 'text-sm' : ''}`}>
-            {formatIncome(item.calculatedIncome)}
+            {formattedIncome}
           </p>
           <p className="text-[10px] text-gray-500">income</p>
         </div>
@@ -325,9 +383,7 @@ export function TradeItemDisplay({
   if (interactive) {
     return (
       <motion.div
-        initial={{ opacity: 0, x: -8 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: 8 }}
+        {...horizontalItemAnimation}
         transition={{ duration: 0.2, delay: index * 0.03, ease: easeOut }}
         whileHover={{ scale: 1.01, backgroundColor: 'rgba(34, 197, 94, 0.05)' }}
         className={`
@@ -404,12 +460,11 @@ export function TradeItemDisplay({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
+      {...verticalItemAnimation}
       transition={{ duration: 0.2, delay: index * 0.03, ease: easeOut }}
       className={`flex items-center gap-3 ${size === 'sm' ? 'p-2' : 'p-3'} bg-darkbg-800 rounded-xl overflow-hidden`}
     >
       {content}
     </motion.div>
   )
-}
+})

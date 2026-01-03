@@ -9,10 +9,11 @@ export function formatNumber(num: number | bigint): string {
   const n = typeof num === 'bigint' ? Number(num) : num
   const absN = Math.abs(n)
   const sign = n < 0 ? '-' : ''
-  if (absN >= 1_000_000_000_000) return `${sign}${(absN / 1_000_000_000_000).toFixed(1)}T`
-  if (absN >= 1_000_000_000) return `${sign}${(absN / 1_000_000_000).toFixed(1)}B`
-  if (absN >= 1_000_000) return `${sign}${(absN / 1_000_000).toFixed(1)}M`
-  if (absN >= 1_000) return `${sign}${(absN / 1_000).toFixed(1)}K`
+  // Use floor instead of round to avoid misleading higher values
+  if (absN >= 1_000_000_000_000) return `${sign}${(Math.floor(absN / 1_000_000_000_000 * 10) / 10).toFixed(1)}T`
+  if (absN >= 1_000_000_000) return `${sign}${(Math.floor(absN / 1_000_000_000 * 10) / 10).toFixed(1)}B`
+  if (absN >= 1_000_000) return `${sign}${(Math.floor(absN / 1_000_000 * 10) / 10).toFixed(1)}M`
+  if (absN >= 1_000) return `${sign}${(Math.floor(absN / 1_000 * 10) / 10).toFixed(1)}K`
   return n.toLocaleString()
 }
 
@@ -66,6 +67,7 @@ export function getMutationClass(name: string): string {
     case 'yin yang':
     case 'yinyang': return 'mutation-yinyang'
     case 'radioactive': return 'mutation-radioactive'
+    case 'cursed': return 'mutation-cursed'
     default: return 'text-gray-400'
   }
 }

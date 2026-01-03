@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowRightLeft, Calculator, Gem, Zap, Users, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion, useScroll, useTransform } from 'framer-motion'
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useMemo, useCallback, memo } from 'react'
 
 interface NewBrainrot {
   id: string
@@ -14,66 +14,77 @@ interface NewBrainrot {
   rarity: string | null
 }
 
-// Rarity color classes with animated effects (from brainrots index)
+// Memoized rarity lookup maps for O(1) access instead of repeated string comparisons
+const RARITY_COLOR_MAP: Record<string, string> = {
+  common: 'rarity-common',
+  rare: 'rarity-rare',
+  epic: 'rarity-epic',
+  legendary: 'rarity-legendary',
+  mythic: 'rarity-mythic',
+  'brainrot god': 'rarity-god animation-always-running',
+  god: 'rarity-god animation-always-running',
+  secret: 'rarity-secret animation-always-running',
+  festive: 'rarity-festive animation-always-running',
+  og: 'rarity-og animation-always-running',
+  admin: 'rarity-admin animation-always-running',
+}
+
+const RARITY_BORDER_MAP: Record<string, { border: string; animated?: string; glow?: string }> = {
+  common: { border: 'border-green-700/50 hover:border-green-600', glow: 'hover:shadow-[0_0_25px_rgba(0,128,0,0.4)]' },
+  rare: { border: 'border-cyan-500/50 hover:border-cyan-400', glow: 'hover:shadow-[0_0_25px_rgba(0,255,255,0.4)]' },
+  epic: { border: 'border-purple-600/50 hover:border-purple-500', glow: 'hover:shadow-[0_0_25px_rgba(128,0,128,0.4)]' },
+  legendary: { border: 'border-yellow-500/50 hover:border-yellow-400', glow: 'hover:shadow-[0_0_25px_rgba(255,255,0,0.4)]' },
+  mythic: { border: 'border-red-500/50 hover:border-red-400', glow: 'hover:shadow-[0_0_25px_rgba(255,0,0,0.4)]' },
+  'brainrot god': { border: 'border-pink-500/50', animated: 'card-border-animated card-border-god', glow: 'shadow-[0_0_20px_rgba(255,0,128,0.3)]' },
+  god: { border: 'border-pink-500/50', animated: 'card-border-animated card-border-god', glow: 'shadow-[0_0_20px_rgba(255,0,128,0.3)]' },
+  secret: { border: 'border-gray-400/50', animated: 'card-border-animated card-border-secret', glow: 'shadow-[0_0_20px_rgba(255,255,255,0.2)]' },
+  festive: { border: 'border-red-500/50', animated: 'card-border-animated card-border-festive', glow: 'shadow-[0_0_20px_rgba(255,0,0,0.3)]' },
+  og: { border: 'border-yellow-500/50', animated: 'card-border-animated card-border-og', glow: 'shadow-[0_0_20px_rgba(255,255,0,0.3)]' },
+  admin: { border: 'border-amber-500/50', animated: 'card-border-animated card-border-admin', glow: 'shadow-[0_0_20px_rgba(255,165,0,0.3)]' },
+}
+
+const RARITY_TIER_MAP: Record<string, number> = {
+  common: 1,
+  rare: 2,
+  epic: 3,
+  legendary: 4,
+  mythic: 5,
+  secret: 6,
+  festive: 6,
+  og: 6,
+  'brainrot god': 7,
+  god: 7,
+  admin: 8,
+}
+
+const DEFAULT_BORDER = { border: 'border-darkbg-700 hover:border-darkbg-600', glow: '' }
+
+// Optimized rarity functions using lookup maps
 function getRarityColor(rarity: string | null): string {
   if (!rarity) return 'text-gray-400'
-  const r = rarity.toLowerCase()
-  if (r === 'common') return 'rarity-common'
-  if (r === 'rare') return 'rarity-rare'
-  if (r === 'epic') return 'rarity-epic'
-  if (r === 'legendary') return 'rarity-legendary'
-  if (r === 'mythic') return 'rarity-mythic'
-  if (r === 'brainrot god' || r === 'god') return 'rarity-god animation-always-running'
-  if (r === 'secret') return 'rarity-secret animation-always-running'
-  if (r === 'festive') return 'rarity-festive animation-always-running'
-  if (r === 'og') return 'rarity-og animation-always-running'
-  if (r === 'admin') return 'rarity-admin animation-always-running'
-  return 'text-gray-400'
+  return RARITY_COLOR_MAP[rarity.toLowerCase()] || 'text-gray-400'
 }
 
-// Rarity border classes with glowing effects (from brainrots index)
 function getRarityBorder(rarity: string | null): { border: string; animated?: string; glow?: string } {
-  if (!rarity) return { border: 'border-darkbg-700 hover:border-darkbg-600', glow: '' }
-  const r = rarity.toLowerCase()
-  if (r === 'common') return { border: 'border-green-700/50 hover:border-green-600', glow: 'hover:shadow-[0_0_25px_rgba(0,128,0,0.4)]' }
-  if (r === 'rare') return { border: 'border-cyan-500/50 hover:border-cyan-400', glow: 'hover:shadow-[0_0_25px_rgba(0,255,255,0.4)]' }
-  if (r === 'epic') return { border: 'border-purple-600/50 hover:border-purple-500', glow: 'hover:shadow-[0_0_25px_rgba(128,0,128,0.4)]' }
-  if (r === 'legendary') return { border: 'border-yellow-500/50 hover:border-yellow-400', glow: 'hover:shadow-[0_0_25px_rgba(255,255,0,0.4)]' }
-  if (r === 'mythic') return { border: 'border-red-500/50 hover:border-red-400', glow: 'hover:shadow-[0_0_25px_rgba(255,0,0,0.4)]' }
-  if (r === 'brainrot god' || r === 'god') return { border: 'border-pink-500/50', animated: 'card-border-animated card-border-god', glow: 'shadow-[0_0_20px_rgba(255,0,128,0.3)]' }
-  if (r === 'secret') return { border: 'border-gray-400/50', animated: 'card-border-animated card-border-secret', glow: 'shadow-[0_0_20px_rgba(255,255,255,0.2)]' }
-  if (r === 'festive') return { border: 'border-red-500/50', animated: 'card-border-animated card-border-festive', glow: 'shadow-[0_0_20px_rgba(255,0,0,0.3)]' }
-  if (r === 'og') return { border: 'border-yellow-500/50', animated: 'card-border-animated card-border-og', glow: 'shadow-[0_0_20px_rgba(255,255,0,0.3)]' }
-  if (r === 'admin') return { border: 'border-amber-500/50', animated: 'card-border-animated card-border-admin', glow: 'shadow-[0_0_20px_rgba(255,165,0,0.3)]' }
-  return { border: 'border-darkbg-700 hover:border-darkbg-600', glow: '' }
+  if (!rarity) return DEFAULT_BORDER
+  return RARITY_BORDER_MAP[rarity.toLowerCase()] || DEFAULT_BORDER
 }
 
-// Get rarity tier for ordering/display purposes
 function getRarityTier(rarity: string | null): number {
   if (!rarity) return 0
-  const r = rarity.toLowerCase()
-  if (r === 'common') return 1
-  if (r === 'rare') return 2
-  if (r === 'epic') return 3
-  if (r === 'legendary') return 4
-  if (r === 'mythic') return 5
-  if (r === 'brainrot god' || r === 'god') return 7
-  if (r === 'secret') return 6
-  if (r === 'festive') return 6
-  if (r === 'og') return 6
-  if (r === 'admin') return 8
-  return 0
+  return RARITY_TIER_MAP[rarity.toLowerCase()] || 0
 }
 
+// Static data moved outside component to prevent recreation
 const floatingBrainrots = [
   { src: '/brainrot-images/brainrots/tralalero-tralala.png', className: 'top-20 left-[10%]', delay: 0 },
   { src: '/brainrot-images/brainrots/bombardiro-crocodilo.png', className: 'top-32 right-[15%]', delay: 0.5 },
   { src: '/brainrot-images/brainrots/cappuccino-assassino.png', className: 'top-48 left-[20%]', delay: 1 },
   { src: '/brainrot-images/brainrots/brr-brr-patapim.png', className: 'bottom-32 right-[10%]', delay: 1.5 },
   { src: '/brainrot-images/brainrots/chimpanzini-bananini.png', className: 'bottom-48 left-[8%]', delay: 2 },
-]
+] as const
 
-// Stagger animation variants
+// Animation variants defined outside component to prevent recreation on each render
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -83,7 +94,7 @@ const containerVariants = {
       delayChildren: 0.2,
     },
   },
-}
+} as const
 
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -95,7 +106,7 @@ const itemVariants = {
       ease: [0.25, 0.46, 0.45, 0.94],
     },
   },
-}
+} as const
 
 const scaleInVariants = {
   hidden: { opacity: 0, scale: 0.8 },
@@ -107,6 +118,12 @@ const scaleInVariants = {
       ease: [0.25, 0.46, 0.45, 0.94],
     },
   },
+} as const
+
+// Memoized floating brainrot animation config (no `as const` - Framer Motion needs mutable arrays)
+const floatingAnimation = {
+  y: [0, -15, 0],
+  rotate: [-3, 3, -3],
 }
 
 export default function HomePage() {
@@ -117,16 +134,17 @@ export default function HomePage() {
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
 
-  // Check scroll position for carousel arrows
-  const checkCarouselScroll = () => {
+  // Memoized scroll check to prevent unnecessary recreations
+  const checkCarouselScroll = useCallback(() => {
     if (carouselRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current
       setCanScrollLeft(scrollLeft > 0)
       setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10)
     }
-  }
+  }, [])
 
-  const scrollCarousel = (direction: 'left' | 'right') => {
+  // Memoized scroll handler
+  const scrollCarousel = useCallback((direction: 'left' | 'right') => {
     if (carouselRef.current) {
       const scrollAmount = carouselRef.current.clientWidth * 0.8
       carouselRef.current.scrollBy({
@@ -134,7 +152,7 @@ export default function HomePage() {
         behavior: 'smooth'
       })
     }
-  }
+  }, [])
 
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -145,7 +163,10 @@ export default function HomePage() {
   const backgroundOpacity = useTransform(scrollYProgress, [0, 0.5], [0.2, 0])
 
   useEffect(() => {
-    fetch('/api/brainrots/new')
+    // Use AbortController for cleanup
+    const controller = new AbortController()
+
+    fetch('/api/brainrots/new', { signal: controller.signal })
       .then(res => res.json())
       .then(data => {
         setNewBrainrots(data.brainrots || [])
@@ -153,10 +174,14 @@ export default function HomePage() {
         // Check scroll after data loads
         setTimeout(checkCarouselScroll, 100)
       })
-      .catch(() => {
-        setBrainrotsLoading(false)
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setBrainrotsLoading(false)
+        }
       })
-  }, [])
+
+    return () => controller.abort()
+  }, [checkCarouselScroll])
 
   return (
     <div ref={containerRef} className="min-h-[calc(100vh-64px)] bg-darkbg-950 overflow-hidden">
@@ -182,10 +207,7 @@ export default function HomePage() {
             }}
           >
             <motion.div
-              animate={{
-                y: [0, -15, 0],
-                rotate: [-3, 3, -3],
-              }}
+              animate={floatingAnimation}
               transition={{
                 duration: 4 + i,
                 repeat: Infinity,
@@ -199,6 +221,8 @@ export default function HomePage() {
                 width={80}
                 height={80}
                 className="select-none blur-[1px]"
+                loading="lazy"
+                sizes="80px"
               />
             </motion.div>
           </motion.div>
@@ -527,6 +551,9 @@ export default function HomePage() {
                             alt={brainrot.name}
                             fill
                             className="object-contain p-2 group-hover:scale-110 transition-transform duration-500 ease-out drop-shadow-lg relative z-10"
+                            sizes="(max-width: 640px) 160px, (max-width: 768px) 180px, 200px"
+                            loading={index < 4 ? "eager" : "lazy"}
+                            priority={index < 2}
                           />
                         )}
                       </div>

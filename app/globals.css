@@ -57,8 +57,8 @@ body::-webkit-scrollbar {
 }
 
 .mutation-bloodrot {
-  color: #fe2c23;
-  text-shadow: 0 0 10px rgba(254, 44, 35, 0.5);
+  color: #800000;
+  text-shadow: 0 0 10px rgba(128, 0, 0, 0.5);
 }
 
 .mutation-candy {
@@ -103,6 +103,20 @@ body::-webkit-scrollbar {
 .mutation-radioactive {
   color: #00ff00;
   text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.mutation-cursed {
+  background: linear-gradient(90deg, #000, #ff0000, #000);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: cursed-shift 3s linear infinite;
+}
+
+@keyframes cursed-shift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
 }
 
 /* Rarity text styles */
