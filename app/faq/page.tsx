@@ -28,7 +28,7 @@ const faqs: FAQItem[] = [
             Post it in the{' '}
             <span className="text-green-400 font-semibold">#success</span> channel on our{' '}
             <a
-              href="https://discord.gg/rotrocks"
+              href="https://discord.gg/N5fnmraeee"
               target="_blank"
               rel="noopener noreferrer"
               className="text-green-400 hover:underline inline-flex items-center gap-1"
@@ -235,7 +235,7 @@ export default function FAQPage() {
         >
           <p className="text-gray-400 mb-4">Still have questions?</p>
           <a
-            href="https://discord.gg/rotrocks"
+            href="https://discord.gg/N5fnmraeee"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-6 py-3 bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold rounded-xl transition-colors"

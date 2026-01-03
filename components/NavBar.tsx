@@ -104,7 +104,7 @@ export function NavBar() {
               <span className="hidden lg:inline">FAQ</span>
             </Link>
             <a
-              href="https://discord.gg/rotrocks"
+              href="https://discord.gg/N5fnmraeee"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-gray-300 hover:text-indigo-400 transition-colors"
@@ -234,7 +234,7 @@ export function NavBar() {
                   FAQ
                 </Link>
                 <a
-                  href="https://discord.gg/rotrocks"
+                  href="https://discord.gg/N5fnmraeee"
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setMobileMenuOpen(false)}

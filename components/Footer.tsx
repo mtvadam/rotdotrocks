@@ -36,7 +36,7 @@ export function Footer() {
             </p>
             <div className="flex gap-3">
               <a
-                href="https://discord.gg/rotrocks"
+                href="https://discord.gg/N5fnmraeee"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 bg-darkbg-800 hover:bg-indigo-500/20 hover:border-indigo-500/50 border border-darkbg-700 rounded-xl flex items-center justify-center text-gray-400 hover:text-indigo-400 transition-all"
@@ -102,7 +102,7 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href="https://discord.gg/rotrocks"
+                  href="https://discord.gg/N5fnmraeee"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-500 hover:text-green-400 text-sm flex items-center gap-2 transition-colors"
