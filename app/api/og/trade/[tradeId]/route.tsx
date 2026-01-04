@@ -38,9 +38,15 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ tradeId: string }> }
 ) {
-  try {
-    const { tradeId } = await params
+  let debugStep = 'init'
+  let tradeId = 'unknown'
 
+  try {
+    debugStep = 'parsing params'
+    const resolvedParams = await params
+    tradeId = resolvedParams.tradeId
+
+    debugStep = 'fetching trade from db'
     const trade = await prisma.trade.findUnique({
       where: { id: tradeId },
       include: {
@@ -69,6 +75,7 @@ export async function GET(
       return new Response('Trade not found', { status: 404 })
     }
 
+    debugStep = 'filtering items'
     const offerItems = trade.items.filter(i => i.side === 'OFFER').slice(0, 6)
     const requestItems = trade.items.filter(i => i.side === 'REQUEST').slice(0, 6)
 
@@ -85,9 +92,11 @@ export async function GET(
       return total
     }
 
+    debugStep = 'calculating totals'
     const offerTotal = calculateTotal(offerItems)
     const requestTotal = calculateTotal(requestItems)
 
+    debugStep = 'preparing render'
     // Render items as a grid (3 per row, max 2 rows = 6 items)
     const renderItemGrid = (items: typeof offerItems) => {
       if (items.length === 0) {
@@ -187,6 +196,7 @@ export async function GET(
       )
     }
 
+    debugStep = 'generating ImageResponse'
     return new ImageResponse(
       (
         <div
@@ -295,6 +305,55 @@ export async function GET(
     )
   } catch (error) {
     console.error('OG Image generation error:', error)
-    return new Response('Failed to generate image', { status: 500 })
+
+    // Return an error image so we can see what went wrong on Vercel
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack?.split('\n').slice(0, 3).join('\n') : ''
+
+    return new ImageResponse(
+      (
+        <div
+          style={{
+            height: '100%',
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: '#1a0000',
+            padding: '40px',
+            fontFamily: 'monospace',
+          }}
+        >
+          <div style={{ display: 'flex', marginBottom: '20px' }}>
+            <span style={{ fontSize: '32px', fontWeight: 'bold', color: '#ef4444' }}>
+              OG Generation Error
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '14px', color: '#f87171', marginBottom: '4px' }}>Message:</span>
+              <span style={{ fontSize: '18px', color: '#fecaca', wordBreak: 'break-all' }}>
+                {errorMessage}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '14px', color: '#f87171', marginBottom: '4px' }}>Stack:</span>
+              <span style={{ fontSize: '12px', color: '#fca5a5', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                {errorStack || 'No stack trace'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '14px', color: '#f87171', marginBottom: '4px' }}>Debug Info:</span>
+              <span style={{ fontSize: '12px', color: '#fca5a5' }}>
+                Step: {debugStep} | TradeID: {tradeId} | BASE_URL: {BASE_URL}
+              </span>
+            </div>
+          </div>
+        </div>
+      ),
+      {
+        width: 1200,
+        height: 630,
+      }
+    )
   }
 }
