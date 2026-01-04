@@ -1,6 +1,5 @@
 import { ImageResponse } from '@vercel/og'
 import { prisma } from '@/lib/db'
-import sharp from 'sharp'
 
 export const runtime = 'nodejs'
 
@@ -12,27 +11,12 @@ function formatIncome(income: number): string {
   return Math.floor(income).toString()
 }
 
-async function getImageAsBase64(imageUrl: string): Promise<string | null> {
-  try {
-    const response = await fetch(imageUrl)
-    if (!response.ok) return null
-    const arrayBuffer = await response.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-    // Convert webp to png since @vercel/og doesn't support webp
-    const pngBuffer = await sharp(buffer).png().toBuffer()
-    return `data:image/png;base64,${pngBuffer.toString('base64')}`
-  } catch {
-    return null
-  }
-}
-
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ tradeId: string }> }
 ) {
   try {
     const { tradeId } = await params
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rot.rocks'
 
     const trade = await prisma.trade.findUnique({
       where: { id: tradeId },
@@ -43,7 +27,7 @@ export async function GET(
         items: {
           include: {
             brainrot: {
-              select: { name: true, localImage: true, baseIncome: true },
+              select: { name: true, baseIncome: true },
             },
             mutation: {
               select: { name: true, multiplier: true },
@@ -81,89 +65,29 @@ export async function GET(
     const offerTotal = calculateTotal(offerItems)
     const requestTotal = calculateTotal(requestItems)
 
-    // Pre-load all images by fetching from public URL
-    const allItems = [...offerItems, ...requestItems]
-    const imageMap = new Map<string, string | null>()
-    await Promise.all(
-      allItems.map(async (item) => {
-        if (item.brainrot?.localImage) {
-          const imageUrl = `${baseUrl}${item.brainrot.localImage}`
-          const base64 = await getImageAsBase64(imageUrl)
-          imageMap.set(item.brainrot.localImage, base64)
-        }
-      })
-    )
-
     const renderItems = (items: typeof offerItems) => {
-      // 3 per row, max 2 rows
-      const rows: typeof items[] = []
-      for (let i = 0; i < items.length; i += 3) {
-        rows.push(items.slice(i, i + 3))
-      }
-
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
-          {rows.map((row, rowIdx) => (
-            <div key={rowIdx} style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-              {row.map((item, i) => {
-                const imgSrc = item.brainrot?.localImage
-                  ? imageMap.get(item.brainrot.localImage)
-                  : null
-
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      width: '140px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '120px',
-                        height: '120px',
-                        backgroundColor: '#2d3548',
-                        borderRadius: '12px',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {imgSrc ? (
-                        <img
-                          src={imgSrc}
-                          width={110}
-                          height={110}
-                          style={{ objectFit: 'contain' }}
-                        />
-                      ) : (
-                        <span style={{ fontSize: '48px' }}>🧠</span>
-                      )}
-                    </div>
-                    <span
-                      style={{
-                        display: 'flex',
-                        fontSize: '13px',
-                        color: 'white',
-                        marginTop: '6px',
-                        textAlign: 'center',
-                      }}
-                    >
-                      {(item.brainrot?.name || '?').length > 14
-                        ? (item.brainrot?.name || '?').slice(0, 13) + '…'
-                        : item.brainrot?.name || '?'}
-                    </span>
-                    {item.mutation && item.mutation.name !== 'Default' && (
-                      <span style={{ display: 'flex', fontSize: '11px', color: '#fbbf24' }}>
-                        {item.mutation.name}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
+          {items.map((item, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: '#2d3548',
+                borderRadius: '8px',
+                padding: '8px 16px',
+              }}
+            >
+              <span style={{ fontSize: '16px', color: 'white' }}>
+                {item.brainrot?.name || '?'}
+              </span>
+              {item.mutation && item.mutation.name !== 'Default' && (
+                <span style={{ fontSize: '14px', color: '#fbbf24' }}>
+                  ({item.mutation.name})
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -179,13 +103,13 @@ export async function GET(
             display: 'flex',
             flexDirection: 'column',
             backgroundColor: '#0f1219',
-            padding: '24px 32px',
+            padding: '40px',
             fontFamily: 'system-ui, sans-serif',
           }}
         >
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-            <span style={{ fontSize: '22px', fontWeight: 'bold', color: 'white' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+            <span style={{ fontSize: '28px', fontWeight: 'bold', color: 'white' }}>
               Trade by {trade.user.robloxUsername}
             </span>
           </div>
@@ -193,23 +117,29 @@ export async function GET(
           {/* Trade Content */}
           <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             {/* Offer Side */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span style={{ fontSize: '14px', color: '#22c55e', marginBottom: '8px', fontWeight: '600' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+              <span style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Offering
+              </span>
+              <span style={{ fontSize: '20px', color: '#22c55e', marginBottom: '16px', fontWeight: '600' }}>
                 ${formatIncome(offerTotal)}/s
               </span>
               {renderItems(offerItems)}
             </div>
 
             {/* Arrow */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 32px' }}>
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
             </div>
 
             {/* Request Side */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span style={{ fontSize: '14px', color: '#22c55e', marginBottom: '8px', fontWeight: '600' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+              <span style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Requesting
+              </span>
+              <span style={{ fontSize: '20px', color: '#22c55e', marginBottom: '16px', fontWeight: '600' }}>
                 ${formatIncome(requestTotal)}/s
               </span>
               {renderItems(requestItems)}
@@ -217,8 +147,8 @@ export async function GET(
           </div>
 
           {/* Footer */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
-            <span style={{ fontSize: '14px', color: '#4b5563' }}>rot.rocks</span>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
+            <span style={{ fontSize: '16px', color: '#4b5563' }}>rot.rocks</span>
           </div>
         </div>
       ),
