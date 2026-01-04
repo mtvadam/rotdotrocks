@@ -1,7 +1,19 @@
-import { ImageResponse } from '@vercel/og'
-import { prisma } from '@/lib/db'
-
 export const runtime = 'nodejs'
+
+// Lazy imports to catch errors
+let ImageResponse: typeof import('@vercel/og').ImageResponse
+let prisma: typeof import('@/lib/db').prisma
+
+async function initImports() {
+  if (!ImageResponse) {
+    const og = await import('@vercel/og')
+    ImageResponse = og.ImageResponse
+  }
+  if (!prisma) {
+    const db = await import('@/lib/db')
+    prisma = db.prisma
+  }
+}
 
 // Base URL for images - use environment variable or fallback
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rot.rocks'
@@ -42,6 +54,9 @@ export async function GET(
   let tradeId = 'unknown'
 
   try {
+    debugStep = 'initializing imports'
+    await initImports()
+
     debugStep = 'parsing params'
     const resolvedParams = await params
     tradeId = resolvedParams.tradeId
@@ -306,10 +321,18 @@ export async function GET(
   } catch (error) {
     console.error('OG Image generation error:', error)
 
-    // Return an error image so we can see what went wrong on Vercel
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    const errorStack = error instanceof Error ? error.stack?.split('\n').slice(0, 3).join('\n') : ''
+    const errorStack = error instanceof Error ? error.stack?.split('\n').slice(0, 5).join('\n') : ''
 
+    // If ImageResponse isn't loaded yet, return plain text
+    if (!ImageResponse) {
+      return new Response(
+        `OG Error: ${errorMessage}\nStep: ${debugStep}\nTradeID: ${tradeId}\nStack: ${errorStack}`,
+        { status: 500, headers: { 'Content-Type': 'text/plain' } }
+      )
+    }
+
+    // Return an error image so we can see what went wrong on Vercel
     return new ImageResponse(
       (
         <div
