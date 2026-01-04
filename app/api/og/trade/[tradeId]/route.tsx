@@ -1,8 +1,6 @@
 import { ImageResponse } from '@vercel/og'
 import { prisma } from '@/lib/db'
 import sharp from 'sharp'
-import path from 'path'
-import fs from 'fs/promises'
 
 export const runtime = 'nodejs'
 
@@ -14,11 +12,14 @@ function formatIncome(income: number): string {
   return Math.floor(income).toString()
 }
 
-async function getImageAsBase64(localImagePath: string): Promise<string | null> {
+async function getImageAsBase64(imageUrl: string): Promise<string | null> {
   try {
-    const fullPath = path.join(process.cwd(), 'public', localImagePath)
-    const fileBuffer = await fs.readFile(fullPath)
-    const pngBuffer = await sharp(fileBuffer).png().toBuffer()
+    const response = await fetch(imageUrl)
+    if (!response.ok) return null
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    // Convert webp to png since @vercel/og doesn't support webp
+    const pngBuffer = await sharp(buffer).png().toBuffer()
     return `data:image/png;base64,${pngBuffer.toString('base64')}`
   } catch {
     return null
@@ -31,6 +32,7 @@ export async function GET(
 ) {
   try {
     const { tradeId } = await params
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rot.rocks'
 
     const trade = await prisma.trade.findUnique({
       where: { id: tradeId },
@@ -79,13 +81,14 @@ export async function GET(
     const offerTotal = calculateTotal(offerItems)
     const requestTotal = calculateTotal(requestItems)
 
-    // Pre-load all images
+    // Pre-load all images by fetching from public URL
     const allItems = [...offerItems, ...requestItems]
     const imageMap = new Map<string, string | null>()
     await Promise.all(
       allItems.map(async (item) => {
         if (item.brainrot?.localImage) {
-          const base64 = await getImageAsBase64(item.brainrot.localImage)
+          const imageUrl = `${baseUrl}${item.brainrot.localImage}`
+          const base64 = await getImageAsBase64(imageUrl)
           imageMap.set(item.brainrot.localImage, base64)
         }
       })
