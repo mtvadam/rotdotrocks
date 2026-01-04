@@ -267,6 +267,7 @@ export async function generateTradeOGImage(trade: TradeForOG): Promise<Buffer> {
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
                   fontWeight: '500',
+                  fontFamily: 'Comic Sans MS, Comic Sans, cursive',
                 }}
               >
                 {itemName.length > 14 ? itemName.slice(0, 13) + '...' : itemName}
