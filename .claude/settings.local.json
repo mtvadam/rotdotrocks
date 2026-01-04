@@ -28,7 +28,8 @@
       "Bash(chmod:*)",
       "Bash(/bin/bash:*)",
       "Bash(file:*)",
-      "Bash(do echo -n \"$f: \" file \"public/brainrot-images/brainrots/$f\")"
+      "Bash(do echo -n \"$f: \" file \"public/brainrot-images/brainrots/$f\")",
+      "Bash(git checkout:*)"
     ]
   }
 }
