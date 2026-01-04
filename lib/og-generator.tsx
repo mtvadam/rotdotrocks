@@ -98,10 +98,15 @@ function calculateTotal(items: TradeItemForOG[]): number {
   return total
 }
 
-// Load image from public directory and convert to base64 data URI
+// Load image and convert to base64 data URI
+// Tries filesystem first (works in local dev), then falls back to HTTP (works on Vercel)
 async function loadImageAsDataUri(imagePath: string | null): Promise<string | null> {
   if (!imagePath) return null
 
+  const ext = path.extname(imagePath).toLowerCase()
+  const mimeType = ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png'
+
+  // Try filesystem first (faster, works in local dev and build time)
   try {
     const publicDir = path.join(process.cwd(), 'public')
     const fullPath = imagePath.startsWith('/')
@@ -110,13 +115,29 @@ async function loadImageAsDataUri(imagePath: string | null): Promise<string | nu
 
     const buffer = await fs.readFile(fullPath)
     const base64 = buffer.toString('base64')
-    // Detect mime type from extension
-    const ext = path.extname(fullPath).toLowerCase()
-    const mimeType = ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png'
     return `data:${mimeType};base64,${base64}`
-  } catch (error) {
-    console.error(`Failed to load image: ${imagePath}`, error)
-    return null
+  } catch (fsError) {
+    // Filesystem failed - try HTTP fallback for Vercel runtime
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rot.rocks'
+      const imageUrl = imagePath.startsWith('/') ? `${baseUrl}${imagePath}` : `${baseUrl}/${imagePath}`
+
+      const response = await fetch(imageUrl, {
+        headers: { 'Accept': 'image/*' },
+      })
+
+      if (!response.ok) {
+        console.error(`HTTP image fetch failed: ${response.status} for ${imageUrl}`)
+        return null
+      }
+
+      const arrayBuffer = await response.arrayBuffer()
+      const base64 = Buffer.from(arrayBuffer).toString('base64')
+      return `data:${mimeType};base64,${base64}`
+    } catch (httpError) {
+      console.error(`Failed to load image via HTTP: ${imagePath}`, httpError)
+      return null
+    }
   }
 }
 
@@ -381,11 +402,25 @@ export async function uploadTradeOGImage(tradeId: string, imageBuffer: Buffer): 
 // Main function to generate and upload OG image for a trade
 export async function generateAndUploadTradeOG(trade: TradeForOG): Promise<string | null> {
   try {
+    console.log(`[OG] Generating image for trade ${trade.id}...`)
+
     const imageBuffer = await generateTradeOGImage(trade)
+    console.log(`[OG] Generated ${imageBuffer.length} bytes for trade ${trade.id}`)
+
     const blobUrl = await uploadTradeOGImage(trade.id, imageBuffer)
+    console.log(`[OG] Uploaded to blob: ${blobUrl}`)
+
     return blobUrl
   } catch (error) {
-    console.error('Failed to generate/upload OG image:', error)
+    console.error(`[OG] Failed to generate/upload OG image for trade ${trade.id}:`, error)
+
+    // Log more details for debugging
+    if (error instanceof Error) {
+      console.error(`[OG] Error name: ${error.name}`)
+      console.error(`[OG] Error message: ${error.message}`)
+      console.error(`[OG] Error stack: ${error.stack}`)
+    }
+
     return null
   }
 }
