@@ -18,22 +18,22 @@ const COLORS = {
   textDark: '#1f2937',
 }
 
-// Mutation colors
+// Mutation colors matching globals.css
 function getMutationColor(name: string): string {
   const lowerName = name.toLowerCase()
   switch (lowerName) {
-    case 'gold': return '#fbbf24'
-    case 'diamond': return '#60a5fa'
-    case 'rainbow': return '#f472b6'
+    case 'gold': return '#ffd700'           // Gold
+    case 'diamond': return '#00ffff'        // Cyan
+    case 'rainbow': return '#ff0000'        // Red (first color of gradient)
     case 'bloodrot':
-    case 'bloodroot': return '#ef4444'
-    case 'candy': return '#f472b6'
-    case 'lava': return '#f97316'
-    case 'galaxy': return '#a855f7'
+    case 'bloodroot': return '#800000'      // Dark red
+    case 'candy': return '#ff00e6'          // Pink/magenta
+    case 'lava': return '#ff6200'           // Orange
+    case 'galaxy': return '#ff00ff'         // Magenta (gradient magenta-purple)
     case 'yin yang':
-    case 'yinyang': return '#9ca3af'
-    case 'radioactive': return '#22c55e'
-    case 'cursed': return '#7c3aed'
+    case 'yinyang': return '#888888'        // Gray (black/white gradient)
+    case 'radioactive': return '#00ff00'    // Green
+    case 'cursed': return '#ff0000'         // Red (black-red-black gradient)
     default: return '#9ca3af'
   }
 }
