@@ -107,6 +107,9 @@ export async function generateMetadata(
         description,
         images: [ogImageUrl],
       },
+      other: {
+        'theme-color': '#22c55e', // Green bar on Discord embeds
+      },
     }
   } catch (error) {
     console.error('Error generating metadata:', error)

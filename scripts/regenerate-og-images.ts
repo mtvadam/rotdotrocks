@@ -1,14 +1,15 @@
 /**
- * Script to regenerate OG images for trades that are missing them.
+ * Script to regenerate OG images for trades.
  *
  * Usage:
  *   npx tsx scripts/regenerate-og-images.ts
  *
- * Or with a specific limit:
- *   npx tsx scripts/regenerate-og-images.ts --limit 10
+ * Options:
+ *   --limit 10    Process only 10 trades
+ *   --force       Regenerate ALL trades (even those with existing OG images)
  *
  * This script:
- * 1. Finds all trades without ogImageUrl
+ * 1. Finds trades (without ogImageUrl, or all if --force)
  * 2. Generates OG images for each using @vercel/og
  * 3. Uploads to Vercel Blob
  * 4. Updates the trade with the blob URL
@@ -24,12 +25,13 @@ async function main() {
   const args = process.argv.slice(2)
   const limitIndex = args.indexOf('--limit')
   const limit = limitIndex !== -1 ? parseInt(args[limitIndex + 1], 10) : 100
+  const force = args.includes('--force')
 
-  console.log(`[OG Regeneration] Starting with limit: ${limit}`)
+  console.log(`[OG Regeneration] Starting with limit: ${limit}${force ? ' (FORCE mode - regenerating all)' : ''}`)
 
-  // Find trades without OG images
+  // Find trades (all if force, otherwise only missing OG images)
   const trades = await prisma.trade.findMany({
-    where: {
+    where: force ? {} : {
       ogImageUrl: null,
     },
     include: {
@@ -56,7 +58,7 @@ async function main() {
     take: limit,
   })
 
-  console.log(`[OG Regeneration] Found ${trades.length} trades without OG images`)
+  console.log(`[OG Regeneration] Found ${trades.length} trades to process`)
 
   let successCount = 0
   let failCount = 0

@@ -375,6 +375,8 @@ export async function uploadTradeOGImage(tradeId: string, imageBuffer: Buffer): 
   const blob = await put(`og-images/trades/${tradeId}.png`, imageBuffer, {
     access: 'public',
     contentType: 'image/png',
+    addRandomSuffix: false,
+    allowOverwrite: true,
   })
 
   return blob.url
