@@ -78,17 +78,14 @@ export async function generateMetadata(
     const requestNames = requestItems.slice(0, 3).map(i => i.brainrot?.name || 'Unknown').join(', ')
 
     const title = `Trade by ${trade.user.robloxUsername} | rot.rocks`
-    const description = `Offering: ${offerNames}${offerItems.length > 3 ? ` +${offerItems.length - 3} more` : ''} ($${formatIncome(offerTotal.toString())}/s) | Looking for: ${requestNames}${requestItems.length > 3 ? ` +${requestItems.length - 3} more` : ''} ($${formatIncome(requestTotal.toString())}/s)`
 
     // Use pre-generated OG image from Vercel Blob if available, fallback to dynamic route
     const ogImageUrl = trade.ogImageUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'https://rot.rocks'}/api/og/trade/${tradeId}`
 
     return {
       title,
-      description,
       openGraph: {
         title,
-        description,
         type: 'website',
         url: `https://rot.rocks/trading/${tradeId}`,
         images: [
@@ -104,7 +101,6 @@ export async function generateMetadata(
       twitter: {
         card: 'summary_large_image',
         title,
-        description,
         images: [ogImageUrl],
       },
       other: {

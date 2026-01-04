@@ -224,9 +224,9 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
             <span className="text-xs text-gray-500">?</span>
           )}
         </div>
-        {/* Mutation badge - top right */}
+        {/* Mutation badge - top right, responsive sizing */}
         {item.mutation && (
-          <div className={`animation-always-running absolute -top-1 -right-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-darkbg-800 shadow-md ${getMutationClass(item.mutation.name)}`}>
+          <div className={`animation-always-running absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 lg:-top-2 lg:-right-2 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-2.5 lg:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] lg:text-xs font-bold bg-darkbg-800 shadow-md lg:shadow-lg ${getMutationClass(item.mutation.name)}`}>
             {item.mutation.name.charAt(0)}
           </div>
         )}
@@ -310,9 +310,9 @@ function IPadEnhancedItem({ item, size = 'md' }: { item: TradeCardProps['trade']
             <span className="text-sm text-gray-500">?</span>
           )}
         </div>
-        {/* Mutation badge */}
+        {/* Mutation badge - larger for iPad */}
         {item.mutation && (
-          <div className={`animation-always-running absolute -top-1.5 -right-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-darkbg-800 shadow-lg border border-darkbg-600 ${getMutationClass(item.mutation.name)}`}>
+          <div className={`animation-always-running absolute -top-2 -right-2 px-2.5 py-1 rounded-md text-sm font-bold bg-darkbg-800 shadow-lg border border-darkbg-600 ${getMutationClass(item.mutation.name)}`}>
             {item.mutation.name.charAt(0)}
           </div>
         )}
