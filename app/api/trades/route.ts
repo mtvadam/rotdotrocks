@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { checkRateLimitDynamic } from '@/lib/rate-limit'
+import { generateAndUploadTradeOG, TradeForOG } from '@/lib/og-generator'
 
 const TRADE_COST = 5
 
@@ -431,6 +432,12 @@ export async function POST(request: NextRequest) {
       return newTrade
     })
 
+    // Generate OG image in the background (don't block trade creation)
+    // We need to fetch the full trade with all related data for OG generation
+    generateTradeOGImageAsync(trade.id, user.robloxUsername).catch((error) => {
+      console.error('Background OG generation failed:', error)
+    })
+
     return NextResponse.json({ trade: { id: trade.id } })
   } catch (error) {
     // Handle specific errors
@@ -442,5 +449,64 @@ export async function POST(request: NextRequest) {
     }
     console.error('Create trade error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// Helper function to generate OG image asynchronously
+async function generateTradeOGImageAsync(tradeId: string, username: string) {
+  try {
+    // Fetch the full trade data needed for OG generation
+    const tradeWithItems = await prisma.trade.findUnique({
+      where: { id: tradeId },
+      include: {
+        items: {
+          include: {
+            brainrot: {
+              select: { name: true, baseIncome: true, localImage: true },
+            },
+            mutation: {
+              select: { name: true, multiplier: true },
+            },
+            traits: {
+              include: {
+                trait: { select: { multiplier: true } },
+              },
+            },
+          },
+        },
+      },
+    })
+
+    if (!tradeWithItems) {
+      console.error('Trade not found for OG generation:', tradeId)
+      return
+    }
+
+    // Prepare the trade data for OG generator
+    const tradeForOG: TradeForOG = {
+      id: tradeWithItems.id,
+      user: { robloxUsername: username },
+      items: tradeWithItems.items.map((item) => ({
+        side: item.side,
+        brainrot: item.brainrot,
+        mutation: item.mutation,
+        traits: item.traits,
+        addonType: item.addonType,
+      })),
+    }
+
+    // Generate and upload the OG image
+    const ogImageUrl = await generateAndUploadTradeOG(tradeForOG)
+
+    if (ogImageUrl) {
+      // Update the trade with the OG image URL
+      await prisma.trade.update({
+        where: { id: tradeId },
+        data: { ogImageUrl },
+      })
+      console.log('OG image generated for trade:', tradeId)
+    }
+  } catch (error) {
+    console.error('Failed to generate OG image for trade:', tradeId, error)
   }
 }

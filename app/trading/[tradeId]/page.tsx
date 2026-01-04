@@ -20,7 +20,9 @@ export async function generateMetadata(
   try {
     const trade = await prisma.trade.findUnique({
       where: { id: tradeId },
-      include: {
+      select: {
+        id: true,
+        ogImageUrl: true,
         user: {
           select: { robloxUsername: true },
         },
@@ -78,7 +80,8 @@ export async function generateMetadata(
     const title = `Trade by ${trade.user.robloxUsername} | rot.rocks`
     const description = `Offering: ${offerNames}${offerItems.length > 3 ? ` +${offerItems.length - 3} more` : ''} ($${formatIncome(offerTotal.toString())}/s) | Looking for: ${requestNames}${requestItems.length > 3 ? ` +${requestItems.length - 3} more` : ''} ($${formatIncome(requestTotal.toString())}/s)`
 
-    const ogImageUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://rot.rocks'}/api/og/trade/${tradeId}`
+    // Use pre-generated OG image from Vercel Blob if available, fallback to dynamic route
+    const ogImageUrl = trade.ogImageUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'https://rot.rocks'}/api/og/trade/${tradeId}`
 
     return {
       title,

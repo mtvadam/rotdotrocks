@@ -543,6 +543,7 @@ model Trade {
   verifiedByUserId String?
   verifiedAt      DateTime?
   parentTradeId   String?     // If this is a counter offer, points to original trade
+  ogImageUrl      String?     // Pre-generated OG image URL (Vercel Blob)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
