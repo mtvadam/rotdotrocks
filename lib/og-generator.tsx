@@ -7,6 +7,22 @@ import fs from 'fs/promises'
 const OG_WIDTH = 1200
 const OG_HEIGHT = 630
 
+// Load Comic Neue font for brainrot names
+let comicNeueFont: ArrayBuffer | null = null
+async function loadComicNeueFont(): Promise<ArrayBuffer | null> {
+  if (comicNeueFont) return comicNeueFont
+
+  try {
+    const fontPath = path.join(process.cwd(), 'public', 'ComicNeue-Bold.ttf')
+    const fontBuffer = await fs.readFile(fontPath)
+    comicNeueFont = fontBuffer.buffer.slice(fontBuffer.byteOffset, fontBuffer.byteOffset + fontBuffer.byteLength)
+    return comicNeueFont
+  } catch (error) {
+    console.error('Failed to load Comic Neue font:', error)
+    return null
+  }
+}
+
 // Colors - minimal palette
 const COLORS = {
   white: '#ffffff',
@@ -147,6 +163,9 @@ export async function generateTradeOGImage(trade: TradeForOG): Promise<Buffer> {
   const offerTotal = calculateTotal(offerItems)
   const requestTotal = calculateTotal(requestItems)
 
+  // Load Comic Neue font
+  const fontData = await loadComicNeueFont()
+
   // Pre-load all images as base64 data URIs
   const imageCache = new Map<string, string | null>()
 
@@ -259,18 +278,19 @@ export async function generateTradeOGImage(trade: TradeForOG): Promise<Buffer> {
               </div>
               <span
                 style={{
-                  fontSize: '14px',
-                  color: COLORS.textDark,
+                  fontSize: '18px',
+                  color: '#ffffff',
                   textAlign: 'center',
                   maxWidth: `${imageSize}px`,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
-                  fontWeight: '500',
-                  fontFamily: 'Comic Sans MS, Comic Sans, cursive',
+                  fontWeight: 700,
+                  fontFamily: 'Comic Neue, cursive',
+                  textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000',
                 }}
               >
-                {itemName.length > 14 ? itemName.slice(0, 13) + '...' : itemName}
+                {itemName.length > 12 ? itemName.slice(0, 11) + '...' : itemName}
               </span>
             </div>
           )
@@ -295,7 +315,7 @@ export async function generateTradeOGImage(trade: TradeForOG): Promise<Buffer> {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: COLORS.white,
+          backgroundColor: 'transparent',
           padding: '40px 48px',
           fontFamily: 'system-ui, sans-serif',
         }}
@@ -363,6 +383,14 @@ export async function generateTradeOGImage(trade: TradeForOG): Promise<Buffer> {
     {
       width: OG_WIDTH,
       height: OG_HEIGHT,
+      fonts: fontData ? [
+        {
+          name: 'Comic Neue',
+          data: fontData,
+          style: 'normal',
+          weight: 700,
+        },
+      ] : undefined,
     }
   )
 
