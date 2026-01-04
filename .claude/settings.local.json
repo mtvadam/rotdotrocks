@@ -22,7 +22,13 @@
       "Bash(echo:*)",
       "Bash(else)",
       "Bash(fi:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(for f in *.png)",
+      "Bash(do if file \"$f\")",
+      "Bash(chmod:*)",
+      "Bash(/bin/bash:*)",
+      "Bash(file:*)",
+      "Bash(do echo -n \"$f: \" file \"public/brainrot-images/brainrots/$f\")"
     ]
   }
 }
