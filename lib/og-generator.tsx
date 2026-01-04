@@ -7,17 +7,15 @@ import fs from 'fs/promises'
 const OG_WIDTH = 1200
 const OG_HEIGHT = 630
 
-// Colors
+// Colors - minimal palette
 const COLORS = {
-  background: '#0f1219',
-  cardBg: '#1a1f2e',
-  cardBorder: '#2d3548',
   white: '#ffffff',
-  gray: '#6b7280',
-  darkGray: '#4b5563',
+  gray: '#9ca3af',
+  lightGray: '#e5e7eb',
   green: '#22c55e',
   orange: '#f59e0b',
-  imageBg: '#1f2937',
+  imageBg: 'rgba(0, 0, 0, 0.08)',
+  textDark: '#1f2937',
 }
 
 // Mutation colors
@@ -179,21 +177,29 @@ export async function generateTradeOGImage(trade: TradeForOG): Promise<Buffer> {
     return item.brainrot?.name || '?'
   }
 
-  // Render items grid
+  // Render items grid - maximized for space
   const renderItemGrid = (items: TradeItemForOG[]) => {
     if (items.length === 0) {
       return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100px' }}>
-          <span style={{ fontSize: '14px', color: COLORS.gray }}>No items</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px' }}>
+          <span style={{ fontSize: '20px', color: COLORS.gray }}>No items</span>
         </div>
       )
     }
+
+    // Calculate optimal image size based on item count
+    // For 1-3 items: single row, larger images
+    // For 4-6 items: two rows
+    const itemCount = items.length
+    const isSingleRow = itemCount <= 3
+    const imageSize = isSingleRow ? 140 : 120
+    const gap = isSingleRow ? 24 : 16
 
     const row1 = items.slice(0, 3)
     const row2 = items.slice(3, 6)
 
     const renderRow = (rowItems: TradeItemForOG[]) => (
-      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', gap: `${gap}px`, justifyContent: 'center' }}>
         {rowItems.map((item, i) => {
           const imageDataUri = getImageDataUri(item)
           const itemName = getItemName(item)
@@ -204,16 +210,16 @@ export async function generateTradeOGImage(trade: TradeForOG): Promise<Buffer> {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '4px',
+                gap: '8px',
               }}
             >
               <div style={{ position: 'relative', display: 'flex' }}>
                 <div
                   style={{
-                    width: '80px',
-                    height: '80px',
+                    width: `${imageSize}px`,
+                    height: `${imageSize}px`,
                     backgroundColor: COLORS.imageBg,
-                    borderRadius: '12px',
+                    borderRadius: '16px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -223,27 +229,28 @@ export async function generateTradeOGImage(trade: TradeForOG): Promise<Buffer> {
                   {imageDataUri ? (
                     <img
                       src={imageDataUri}
-                      width={76}
-                      height={76}
+                      width={imageSize - 8}
+                      height={imageSize - 8}
                       style={{ objectFit: 'contain' }}
                     />
                   ) : (
-                    <span style={{ fontSize: '24px', color: COLORS.gray }}>?</span>
+                    <span style={{ fontSize: '32px', color: COLORS.gray }}>?</span>
                   )}
                 </div>
                 {item.mutation && item.mutation.name !== 'Default' && (
                   <div
                     style={{
                       position: 'absolute',
-                      top: '-6px',
-                      right: '-6px',
-                      backgroundColor: COLORS.imageBg,
-                      borderRadius: '4px',
-                      padding: '2px 6px',
-                      fontSize: '11px',
+                      top: '-8px',
+                      right: '-8px',
+                      backgroundColor: COLORS.white,
+                      borderRadius: '6px',
+                      padding: '3px 8px',
+                      fontSize: '14px',
                       fontWeight: 'bold',
                       color: getMutationColor(item.mutation.name),
-                      border: `1px solid ${getMutationColor(item.mutation.name)}`,
+                      border: `2px solid ${getMutationColor(item.mutation.name)}`,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                     }}
                   >
                     {item.mutation.name.charAt(0)}
@@ -252,16 +259,17 @@ export async function generateTradeOGImage(trade: TradeForOG): Promise<Buffer> {
               </div>
               <span
                 style={{
-                  fontSize: '11px',
-                  color: 'white',
+                  fontSize: '14px',
+                  color: COLORS.textDark,
                   textAlign: 'center',
-                  maxWidth: '80px',
+                  maxWidth: `${imageSize}px`,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
+                  fontWeight: '500',
                 }}
               >
-                {itemName.length > 12 ? itemName.slice(0, 11) + '...' : itemName}
+                {itemName.length > 14 ? itemName.slice(0, 13) + '...' : itemName}
               </span>
             </div>
           )
@@ -270,7 +278,7 @@ export async function generateTradeOGImage(trade: TradeForOG): Promise<Buffer> {
     )
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: `${gap}px`, alignItems: 'center' }}>
         {renderRow(row1)}
         {row2.length > 0 && renderRow(row2)}
       </div>
@@ -284,97 +292,70 @@ export async function generateTradeOGImage(trade: TradeForOG): Promise<Buffer> {
           height: '100%',
           width: '100%',
           display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: COLORS.background,
-          padding: '32px 40px',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: COLORS.white,
+          padding: '40px 48px',
           fontFamily: 'system-ui, sans-serif',
         }}
       >
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <span style={{ fontSize: '32px', fontWeight: 'bold', color: 'white' }}>
-            Trade by {trade.user.robloxUsername}
-          </span>
-          <span style={{ fontSize: '24px', fontWeight: 'bold', color: COLORS.green }}>
-            rot.rocks
-          </span>
+        {/* Offer Side */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            flex: 1,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+            <span style={{ fontSize: '24px', color: COLORS.green, textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 'bold' }}>
+              Offering
+            </span>
+            <span style={{ fontSize: '22px', color: COLORS.green, fontWeight: '600', backgroundColor: 'rgba(34, 197, 94, 0.15)', padding: '6px 16px', borderRadius: '9999px' }}>
+              ${formatIncome(offerTotal)}/s
+            </span>
+          </div>
+          {renderItemGrid(offerItems)}
         </div>
 
-        {/* Trade Content */}
-        <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', gap: '24px' }}>
-          {/* Offer Side */}
+        {/* Arrow */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 32px' }}>
           <div
             style={{
+              width: '72px',
+              height: '72px',
+              backgroundColor: 'rgba(34, 197, 94, 0.12)',
+              borderRadius: '9999px',
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              flex: 1,
-              backgroundColor: COLORS.cardBg,
-              borderRadius: '16px',
-              padding: '20px',
-              border: `1px solid ${COLORS.cardBorder}`,
+              justifyContent: 'center',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <span style={{ fontSize: '16px', color: COLORS.green, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 'bold' }}>
-                Offering
-              </span>
-              <span style={{ fontSize: '18px', color: COLORS.green, fontWeight: '600', backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: '4px 12px', borderRadius: '9999px' }}>
-                ${formatIncome(offerTotal)}/s
-              </span>
-            </div>
-            {renderItemGrid(offerItems)}
-          </div>
-
-          {/* Arrow */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div
-              style={{
-                width: '56px',
-                height: '56px',
-                backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                borderRadius: '9999px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={COLORS.green} strokeWidth="2.5">
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </div>
-          </div>
-
-          {/* Request Side */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              flex: 1,
-              backgroundColor: COLORS.cardBg,
-              borderRadius: '16px',
-              padding: '20px',
-              border: `1px solid ${COLORS.cardBorder}`,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <span style={{ fontSize: '16px', color: COLORS.orange, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 'bold' }}>
-                Wants
-              </span>
-              <span style={{ fontSize: '18px', color: COLORS.orange, fontWeight: '600', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '4px 12px', borderRadius: '9999px' }}>
-                ${formatIncome(requestTotal)}/s
-              </span>
-            </div>
-            {renderItemGrid(requestItems)}
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={COLORS.green} strokeWidth="2.5">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
           </div>
         </div>
 
-        {/* Footer */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
-          <span style={{ fontSize: '14px', color: COLORS.darkGray }}>
-            Brainrot Clicker Trading Hub
-          </span>
+        {/* Request Side */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            flex: 1,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+            <span style={{ fontSize: '24px', color: COLORS.orange, textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 'bold' }}>
+              Wants
+            </span>
+            <span style={{ fontSize: '22px', color: COLORS.orange, fontWeight: '600', backgroundColor: 'rgba(245, 158, 11, 0.15)', padding: '6px 16px', borderRadius: '9999px' }}>
+              ${formatIncome(requestTotal)}/s
+            </span>
+          </div>
+          {renderItemGrid(requestItems)}
         </div>
       </div>
     ),
