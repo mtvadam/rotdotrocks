@@ -14,7 +14,15 @@
       "Bash(curl:*)",
       "Bash(ls:*)",
       "Bash(npx next lint:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(for f in 1x1x1x1.png alessio.png burguro-and-fryuro.png bunito-bunito-spinito.png strawberry-elephant.png meowl.png developini-braziliaspidini.png chimpanzini-spiderini.png)",
+      "Bash(do)",
+      "Bash(if [ -f \"/Users/mtvadam/Desktop/CursorProjects/RotDotRocks/public/brainrot-images/brainrots/$f\" ])",
+      "Bash(then)",
+      "Bash(echo:*)",
+      "Bash(else)",
+      "Bash(fi:*)",
+      "Bash(done)"
     ]
   }
 }
