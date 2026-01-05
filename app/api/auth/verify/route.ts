@@ -80,14 +80,6 @@ export async function POST(request: NextRequest) {
 
     const isAdmin = adminUsernames.includes(correctUsername.toLowerCase())
 
-    // Check if user should be mod (from MODS env var)
-    const modUsernames = (process.env.MODS || '')
-      .split(',')
-      .map(u => u.trim().toLowerCase())
-      .filter(u => u.length > 0)
-
-    const isMod = modUsernames.includes(correctUsername.toLowerCase())
-
     // Fetch avatar URL
     const avatarUrl = await fetchRobloxAvatar(profile.userId)
 
@@ -101,10 +93,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Determine role: ADMIN > MOD > USER
+    // Determine role for new users
     const determineRole = () => {
       if (isAdmin) return 'ADMIN'
-      if (isMod) return 'MOD'
       return 'USER'
     }
 
@@ -128,10 +119,6 @@ export async function POST(request: NextRequest) {
       // Upgrade to admin if in ADMINS list
       if (isAdmin && user.role !== 'ADMIN') {
         updates.role = 'ADMIN'
-      }
-      // Upgrade to mod if in MODS list (but not if already admin)
-      if (isMod && user.role !== 'ADMIN' && user.role !== 'MOD') {
-        updates.role = 'MOD'
       }
       // Always update to correct capitalization from Roblox API
       if (user.robloxUsername !== correctUsername) {

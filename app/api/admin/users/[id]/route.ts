@@ -183,7 +183,16 @@ export async function PATCH(
         isBanned: true,
         isFrozen: true,
         gems: true,
+        lastIpAddress: true,
         createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            trades: true,
+            reports: true,
+            tradeRequests: true,
+          },
+        },
       },
     })
 

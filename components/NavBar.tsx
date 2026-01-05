@@ -136,11 +136,11 @@ export function NavBar() {
                   <span className="text-sm font-medium text-gray-300">
                     {user.robloxUsername}
                   </span>
-                  {user.role === 'ADMIN' && (
+                  {(user.role === 'ADMIN' || user.role === 'MOD') && (
                     <Link
                       href="/admin"
-                      className="p-2 text-gray-400 hover:text-red-400 transition-colors"
-                      title="Admin Panel"
+                      className={`p-2 transition-colors ${user.role === 'MOD' ? 'text-gray-400 hover:text-orange-400' : 'text-gray-400 hover:text-red-400'}`}
+                      title={user.role === 'MOD' ? 'Mod Panel' : 'Admin Panel'}
                     >
                       <Shield className="w-5 h-5" />
                     </Link>
@@ -246,14 +246,14 @@ export function NavBar() {
                 {user && (
                   <>
                     <div className="my-2 border-t border-darkbg-700" />
-                    {user.role === 'ADMIN' && (
+                    {(user.role === 'ADMIN' || user.role === 'MOD') && (
                       <Link
                         href="/admin"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-darkbg-800 active:bg-darkbg-700 rounded-xl transition-colors text-base"
+                        className={`flex items-center gap-3 px-4 py-3 hover:bg-darkbg-800 active:bg-darkbg-700 rounded-xl transition-colors text-base ${user.role === 'MOD' ? 'text-orange-400' : 'text-red-400'}`}
                       >
                         <Shield className="w-5 h-5" />
-                        Admin Panel
+                        {user.role === 'MOD' ? 'Mod Panel' : 'Admin Panel'}
                       </Link>
                     )}
                     <button

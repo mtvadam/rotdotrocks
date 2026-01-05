@@ -11,7 +11,7 @@ interface User {
   robloxUsername: string
   robloxUserId: string | null
   robloxAvatarUrl: string | null
-  role: 'USER' | 'SELLER' | 'ADMIN'
+  role: 'USER' | 'SELLER' | 'MOD' | 'ADMIN'
   isBanned: boolean
   isFrozen: boolean
   gems: number
@@ -63,6 +63,12 @@ export default function UsersPage() {
         return (
           <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs font-medium">
             Admin
+          </span>
+        )
+      case 'MOD':
+        return (
+          <span className="px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-xs font-medium">
+            Mod
           </span>
         )
       case 'SELLER':
@@ -128,6 +134,7 @@ export default function UsersPage() {
             { value: '', label: 'All Roles' },
             { value: 'USER', label: 'User' },
             { value: 'SELLER', label: 'Seller' },
+            { value: 'MOD', label: 'Mod' },
             { value: 'ADMIN', label: 'Admin' },
           ]}
         />

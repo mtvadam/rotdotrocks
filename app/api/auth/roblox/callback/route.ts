@@ -126,18 +126,9 @@ export async function GET(request: NextRequest) {
 
     const isAdmin = adminUsernames.includes(robloxUsername.toLowerCase())
 
-    // Check if user should be mod
-    const modUsernames = (process.env.MODS || '')
-      .split(',')
-      .map(u => u.trim().toLowerCase())
-      .filter(u => u.length > 0)
-
-    const isMod = modUsernames.includes(robloxUsername.toLowerCase())
-
-    // Determine role: ADMIN > MOD > USER
+    // Determine role for new users
     const determineRole = () => {
       if (isAdmin) return 'ADMIN'
-      if (isMod) return 'MOD'
       return 'USER'
     }
 
@@ -175,10 +166,6 @@ export async function GET(request: NextRequest) {
       // Upgrade to admin if in ADMINS list
       if (isAdmin && user.role !== 'ADMIN') {
         updates.role = 'ADMIN'
-      }
-      // Upgrade to mod if in MODS list (but not if already admin)
-      if (isMod && user.role !== 'ADMIN' && user.role !== 'MOD') {
-        updates.role = 'MOD'
       }
       if (avatarUrl) {
         updates.robloxAvatarUrl = avatarUrl
