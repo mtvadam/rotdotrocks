@@ -30,6 +30,13 @@ export async function GET(
                 name: true,
                 localImage: true,
                 baseIncome: true,
+                robuxValue: true,
+                mutationValues: {
+                  select: {
+                    mutationId: true,
+                    robuxValue: true,
+                  },
+                },
               },
             },
             mutation: {
@@ -65,6 +72,13 @@ export async function GET(
                     name: true,
                     localImage: true,
                     baseIncome: true,
+                    robuxValue: true,
+                    mutationValues: {
+                      select: {
+                        mutationId: true,
+                        robuxValue: true,
+                      },
+                    },
                   },
                 },
                 mutation: {
@@ -113,26 +127,57 @@ export async function GET(
       DOWNGRADE: { name: 'Downgrade', image: '/trade-only/trade-downgrade.png' },
     }
 
+    // Helper to get resolved Robux value for brainrot + mutation combo
+    const getResolvedRobuxValue = (
+      brainrot: { robuxValue: number | null; mutationValues: Array<{ mutationId: string; robuxValue: number }> },
+      mutationId: string | null
+    ): number | null => {
+      if (mutationId) {
+        const mutationValue = brainrot.mutationValues.find(mv => mv.mutationId === mutationId)
+        if (mutationValue) {
+          return mutationValue.robuxValue
+        }
+      }
+      return brainrot.robuxValue
+    }
+
     // Helper to serialize item with addon support
     const serializeItem = (item: typeof trade.items[0]) => {
       if (item.addonType && !item.brainrot) {
         const addonInfo = ADDON_INFO[item.addonType]
+        // For ROBUX addon, show the amount in the name
+        const displayName = item.addonType === 'ROBUX' && item.robuxAmount
+          ? `R$${item.robuxAmount.toLocaleString()}`
+          : addonInfo?.name || item.addonType
         return {
           ...item,
           calculatedIncome: null,
+          robuxValue: null,
+          hasTraits: false,
+          traitCount: 0,
           brainrot: {
             id: `addon-${item.addonType.toLowerCase()}`,
-            name: addonInfo?.name || item.addonType,
+            name: displayName,
             localImage: addonInfo?.image || null,
             baseIncome: '0',
           },
         }
       }
+      const resolvedRobuxValue = item.brainrot
+        ? getResolvedRobuxValue(item.brainrot, item.mutationId)
+        : null
+      const hasTraits = (item.traits?.length || 0) > 0
+
       return {
         ...item,
         calculatedIncome: item.calculatedIncome?.toString() || null,
+        robuxValue: resolvedRobuxValue,
+        hasTraits,
+        traitCount: item.traits?.length || 0,
         brainrot: item.brainrot ? {
-          ...item.brainrot,
+          id: item.brainrot.id,
+          name: item.brainrot.name,
+          localImage: item.brainrot.localImage,
           baseIncome: item.brainrot.baseIncome.toString(),
         } : null,
       }

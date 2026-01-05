@@ -43,6 +43,12 @@ export async function GET(request: NextRequest) {
     const requestIncomeMax = parseIncomeValue(searchParams.get('requestIncomeMax') || '')
     const offerTradeTypes = searchParams.get('offerTradeTypes')?.split(',').filter(Boolean) || []
     const requestTradeTypes = searchParams.get('requestTradeTypes')?.split(',').filter(Boolean) || []
+    const offerBadges = searchParams.get('offerBadges')?.split(',').filter(Boolean) || []
+    const requestBadges = searchParams.get('requestBadges')?.split(',').filter(Boolean) || []
+
+    // Badge thresholds
+    const LB_VIABLE_THRESHOLD = 2_000_000_000 // 2B
+    const TRAIT_STACKED_THRESHOLD = 5
 
     const user = await getCurrentUser()
 
@@ -145,6 +151,13 @@ export async function GET(request: NextRequest) {
                   name: true,
                   localImage: true,
                   baseIncome: true,
+                  robuxValue: true,
+                  mutationValues: {
+                    select: {
+                      mutationId: true,
+                      robuxValue: true,
+                    },
+                  },
                 },
               },
               mutation: {
@@ -181,6 +194,22 @@ export async function GET(request: NextRequest) {
       DOWNGRADE: { name: 'Downgrade', image: '/trade-only/trade-downgrade.png' },
     }
 
+    // Helper to get resolved Robux value for brainrot + mutation combo
+    const getResolvedRobuxValue = (
+      brainrot: { robuxValue: number | null; mutationValues: Array<{ mutationId: string; robuxValue: number }> },
+      mutationId: string | null
+    ): number | null => {
+      // If there's a mutation, check for mutation-specific value
+      if (mutationId) {
+        const mutationValue = brainrot.mutationValues.find(mv => mv.mutationId === mutationId)
+        if (mutationValue) {
+          return mutationValue.robuxValue
+        }
+      }
+      // Fall back to base robuxValue
+      return brainrot.robuxValue
+    }
+
     // Serialize BigInt values and handle addon items
     let serializedTrades = trades.map((trade) => ({
       ...trade,
@@ -188,23 +217,40 @@ export async function GET(request: NextRequest) {
         // Handle addon items (no brainrot, has addonType)
         if (item.addonType && !item.brainrot) {
           const addonInfo = ADDON_INFO[item.addonType]
+          // For ROBUX addon, show the amount in the name
+          const displayName = item.addonType === 'ROBUX' && item.robuxAmount
+            ? `R$${item.robuxAmount.toLocaleString()}`
+            : addonInfo?.name || item.addonType
           return {
             ...item,
             calculatedIncome: null,
+            robuxValue: null,
+            hasTraits: false,
+            traitCount: 0,
             brainrot: {
               id: `addon-${item.addonType.toLowerCase()}`,
-              name: addonInfo?.name || item.addonType,
+              name: displayName,
               localImage: addonInfo?.image || null,
               baseIncome: '0',
             },
           }
         }
-        // Regular brainrot items
+        // Regular brainrot items - resolve the Robux value
+        const resolvedRobuxValue = item.brainrot
+          ? getResolvedRobuxValue(item.brainrot, item.mutationId)
+          : null
+        const hasTraits = (item.traits?.length || 0) > 0
+
         return {
           ...item,
           calculatedIncome: item.calculatedIncome?.toString() || null,
+          robuxValue: resolvedRobuxValue,
+          hasTraits,
+          traitCount: item.traits?.length || 0,
           brainrot: item.brainrot ? {
-            ...item.brainrot,
+            id: item.brainrot.id,
+            name: item.brainrot.name,
+            localImage: item.brainrot.localImage,
             baseIncome: item.brainrot.baseIncome.toString(),
           } : null,
         }
@@ -261,6 +307,52 @@ export async function GET(request: NextRequest) {
 
         if (requestIncomeMin !== null && requestTotal < requestIncomeMin) return false
         if (requestIncomeMax !== null && requestTotal > requestIncomeMax) return false
+        return true
+      })
+    }
+
+    // Apply offer badge filters
+    if (offerBadges.length > 0) {
+      serializedTrades = serializedTrades.filter((trade) => {
+        const offerItems = trade.items.filter((i) => i.side === 'OFFER')
+
+        for (const badge of offerBadges) {
+          if (badge === 'LB_VIABLE') {
+            // At least one item must have income >= 2B
+            const hasLBViable = offerItems.some((i) => {
+              const income = parseFloat(i.calculatedIncome || '0')
+              return income >= LB_VIABLE_THRESHOLD
+            })
+            if (!hasLBViable) return false
+          }
+          if (badge === 'TRAIT_STACKED') {
+            // At least one item must have 5+ traits
+            const hasTraitStacked = offerItems.some((i) => (i.traitCount || 0) >= TRAIT_STACKED_THRESHOLD)
+            if (!hasTraitStacked) return false
+          }
+        }
+        return true
+      })
+    }
+
+    // Apply request badge filters
+    if (requestBadges.length > 0) {
+      serializedTrades = serializedTrades.filter((trade) => {
+        const requestItems = trade.items.filter((i) => i.side === 'REQUEST')
+
+        for (const badge of requestBadges) {
+          if (badge === 'LB_VIABLE') {
+            const hasLBViable = requestItems.some((i) => {
+              const income = parseFloat(i.calculatedIncome || '0')
+              return income >= LB_VIABLE_THRESHOLD
+            })
+            if (!hasLBViable) return false
+          }
+          if (badge === 'TRAIT_STACKED') {
+            const hasTraitStacked = requestItems.some((i) => (i.traitCount || 0) >= TRAIT_STACKED_THRESHOLD)
+            if (!hasTraitStacked) return false
+          }
+        }
         return true
       })
     }
@@ -385,6 +477,7 @@ export async function POST(request: NextRequest) {
             side: 'OFFER',
             brainrotId: isAddon ? null : item.brainrotId,
             addonType: addonType as 'ROBUX' | 'ADDS' | 'UPGRADE' | 'DOWNGRADE' | null,
+            robuxAmount: addonType === 'ROBUX' && item.robuxAmount ? item.robuxAmount : null,
             mutationId: isAddon ? null : (item.mutationId || null),
             eventId: isAddon ? null : (item.eventId || null),
             calculatedIncome: isAddon ? null : (item.calculatedIncome ? BigInt(item.calculatedIncome) : null),
@@ -413,6 +506,7 @@ export async function POST(request: NextRequest) {
             side: 'REQUEST',
             brainrotId: isAddon ? null : item.brainrotId,
             addonType: addonType as 'ROBUX' | 'ADDS' | 'UPGRADE' | 'DOWNGRADE' | null,
+            robuxAmount: addonType === 'ROBUX' && item.robuxAmount ? item.robuxAmount : null,
             mutationId: isAddon ? null : (item.mutationId || null),
             eventId: isAddon ? null : (item.eventId || null),
             calculatedIncome: isAddon ? null : (item.calculatedIncome ? BigInt(item.calculatedIncome) : null),

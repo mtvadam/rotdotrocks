@@ -99,9 +99,11 @@ export default function TradingPage() {
     filters.offerBrainrots.length > 0 ||
     filters.offerIncomeMin || filters.offerIncomeMax ||
     filters.offerTradeTypes.length > 0 ||
+    filters.offerBadges.length > 0 ||
     filters.requestBrainrots.length > 0 ||
     filters.requestIncomeMin || filters.requestIncomeMax ||
-    filters.requestTradeTypes.length > 0
+    filters.requestTradeTypes.length > 0 ||
+    filters.requestBadges.length > 0
 
   const fetchTrades = useCallback(async (reset = false) => {
     const cacheKey = `${tab}-${sort}`
@@ -145,6 +147,9 @@ export default function TradingPage() {
       if (filters.offerTradeTypes.length > 0) {
         params.set('offerTradeTypes', filters.offerTradeTypes.join(','))
       }
+      if (filters.offerBadges.length > 0) {
+        params.set('offerBadges', filters.offerBadges.join(','))
+      }
       if (filters.requestBrainrots.length > 0) {
         params.set('requestBrainrots', filters.requestBrainrots.map(b => b.id).join(','))
       }
@@ -156,6 +161,9 @@ export default function TradingPage() {
       }
       if (filters.requestTradeTypes.length > 0) {
         params.set('requestTradeTypes', filters.requestTradeTypes.join(','))
+      }
+      if (filters.requestBadges.length > 0) {
+        params.set('requestBadges', filters.requestBadges.join(','))
       }
 
       const res = await fetch(`/api/trades?${params}`)

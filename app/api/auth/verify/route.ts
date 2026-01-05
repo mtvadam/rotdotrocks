@@ -80,6 +80,14 @@ export async function POST(request: NextRequest) {
 
     const isAdmin = adminUsernames.includes(correctUsername.toLowerCase())
 
+    // Check if user should be mod (from MODS env var)
+    const modUsernames = (process.env.MODS || '')
+      .split(',')
+      .map(u => u.trim().toLowerCase())
+      .filter(u => u.length > 0)
+
+    const isMod = modUsernames.includes(correctUsername.toLowerCase())
+
     // Fetch avatar URL
     const avatarUrl = await fetchRobloxAvatar(profile.userId)
 
@@ -93,25 +101,37 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Determine role: ADMIN > MOD > USER
+    const determineRole = () => {
+      if (isAdmin) return 'ADMIN'
+      if (isMod) return 'MOD'
+      return 'USER'
+    }
+
     if (!user) {
       user = await prisma.user.create({
         data: {
           robloxUsername: correctUsername,
           robloxUserId: profile.userId,
           robloxAvatarUrl: avatarUrl,
-          role: isAdmin ? 'ADMIN' : 'USER',
+          role: determineRole(),
           gems: 20, // Starting gems
           lastIpAddress: ip !== 'unknown' ? ip : null,
         },
       })
     } else {
-      // Update robloxUserId if not set, upgrade to admin if in env list, fix username capitalization, and refresh avatar
+      // Update robloxUserId if not set, upgrade role if in env list, fix username capitalization, and refresh avatar
       const updates: any = {}
       if (!user.robloxUserId) {
         updates.robloxUserId = profile.userId
       }
+      // Upgrade to admin if in ADMINS list
       if (isAdmin && user.role !== 'ADMIN') {
         updates.role = 'ADMIN'
+      }
+      // Upgrade to mod if in MODS list (but not if already admin)
+      if (isMod && user.role !== 'ADMIN' && user.role !== 'MOD') {
+        updates.role = 'MOD'
       }
       // Always update to correct capitalization from Roblox API
       if (user.robloxUsername !== correctUsername) {

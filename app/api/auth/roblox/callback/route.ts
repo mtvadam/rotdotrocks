@@ -126,6 +126,21 @@ export async function GET(request: NextRequest) {
 
     const isAdmin = adminUsernames.includes(robloxUsername.toLowerCase())
 
+    // Check if user should be mod
+    const modUsernames = (process.env.MODS || '')
+      .split(',')
+      .map(u => u.trim().toLowerCase())
+      .filter(u => u.length > 0)
+
+    const isMod = modUsernames.includes(robloxUsername.toLowerCase())
+
+    // Determine role: ADMIN > MOD > USER
+    const determineRole = () => {
+      if (isAdmin) return 'ADMIN'
+      if (isMod) return 'MOD'
+      return 'USER'
+    }
+
     // Fetch avatar URL (use our own method for consistent avatars)
     const avatarUrl = await fetchRobloxAvatar(robloxUserId) || userInfo.picture
 
@@ -145,7 +160,7 @@ export async function GET(request: NextRequest) {
           robloxUsername,
           robloxUserId,
           robloxAvatarUrl: avatarUrl,
-          role: isAdmin ? 'ADMIN' : 'USER',
+          role: determineRole(),
           gems: 20, // Starting gems
           lastIpAddress: ip !== 'unknown' ? ip : null,
         },
@@ -157,8 +172,13 @@ export async function GET(request: NextRequest) {
         robloxUsername, // Use OAuth username (properly capitalized)
       }
 
+      // Upgrade to admin if in ADMINS list
       if (isAdmin && user.role !== 'ADMIN') {
         updates.role = 'ADMIN'
+      }
+      // Upgrade to mod if in MODS list (but not if already admin)
+      if (isMod && user.role !== 'ADMIN' && user.role !== 'MOD') {
+        updates.role = 'MOD'
       }
       if (avatarUrl) {
         updates.robloxAvatarUrl = avatarUrl

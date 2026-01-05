@@ -48,6 +48,31 @@ export async function requireAdmin(): Promise<User | null> {
   return user
 }
 
+/**
+ * Returns user if they are a MOD or ADMIN.
+ * Used for USD value management access.
+ */
+export async function requireModOrAdmin(): Promise<User | null> {
+  const user = await getCurrentUser()
+  if (!user) return null
+  if (user.role !== 'MOD' && user.role !== 'ADMIN') return null
+  return user
+}
+
+/**
+ * Check if user is admin (for conditional rendering)
+ */
+export function isAdmin(user: User): boolean {
+  return user.role === 'ADMIN'
+}
+
+/**
+ * Check if user is mod only (for conditional rendering)
+ */
+export function isMod(user: User): boolean {
+  return user.role === 'MOD'
+}
+
 export async function createSession(userId: string): Promise<string> {
   // Use cryptographically secure random token generation
   const token = generateToken(32) // 256 bits of entropy

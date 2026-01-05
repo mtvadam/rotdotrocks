@@ -14,6 +14,7 @@ datasource db {
 enum UserRole {
   USER
   SELLER
+  MOD
   ADMIN
 }
 
@@ -188,6 +189,7 @@ model Brainrot {
   localImage      String?  // Local path to downloaded image
   baseCost        BigInt   // Base cost from JSON
   baseIncome      BigInt   // Base income ($/sec) from JSON
+  robuxValue      Int?     // Base Robux market value (manually set by mods)
   rarity          String?  // Rarity tier (Common, Rare, Epic, etc.)
   isActive        Boolean  @default(true)
   isNew           Boolean  @default(false) // Show in "New Brainrots" section on homepage
@@ -199,6 +201,7 @@ model Brainrot {
   raffles        Raffle[]
   tradeItems     TradeItem[]
   reports        Report[]
+  mutationValues BrainrotMutationValue[]
 
   @@index([slug])
   @@index([isActive])
@@ -249,8 +252,26 @@ model Mutation {
   inventoryItems InventoryItem[]
   tradeItems     TradeItem[]
   reports        Report[]
+  brainrotValues BrainrotMutationValue[]
 
   @@index([name])
+}
+
+// Junction table for brainrot-specific mutation Robux values
+model BrainrotMutationValue {
+  id          String   @id @default(cuid())
+  brainrotId  String
+  mutationId  String
+  robuxValue  Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  brainrot Brainrot @relation(fields: [brainrotId], references: [id], onDelete: Cascade)
+  mutation Mutation @relation(fields: [mutationId], references: [id], onDelete: Cascade)
+
+  @@unique([brainrotId, mutationId])
+  @@index([brainrotId])
+  @@index([mutationId])
 }
 
 model SellerApplication {
@@ -568,6 +589,7 @@ model TradeItem {
   side        TradeSide       // OFFER or REQUEST
   brainrotId  String?         // Nullable for addon items
   addonType   TradeAddonType? // Set when item is an addon (Robux, Adds, Upgrade, Downgrade)
+  robuxAmount Int?            // Amount of Robux for ROBUX addon type
   mutationId  String?
   eventId     String?
   quantity    Int             @default(1)

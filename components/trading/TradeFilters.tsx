@@ -26,16 +26,19 @@ interface Brainrot {
 }
 
 type TradeType = 'UPGRADE' | 'DOWNGRADE' | 'ROBUX' | 'ADDS'
+type BadgeFilter = 'LB_VIABLE' | 'TRAIT_STACKED'
 
 export interface TradeFiltersState {
   offerBrainrots: Brainrot[]
   offerIncomeMin: string
   offerIncomeMax: string
   offerTradeTypes: TradeType[]
+  offerBadges: BadgeFilter[]
   requestBrainrots: Brainrot[]
   requestIncomeMin: string
   requestIncomeMax: string
   requestTradeTypes: TradeType[]
+  requestBadges: BadgeFilter[]
 }
 
 interface TradeFiltersProps {
@@ -49,10 +52,12 @@ export const defaultFilters: TradeFiltersState = {
   offerIncomeMin: '',
   offerIncomeMax: '',
   offerTradeTypes: [],
+  offerBadges: [],
   requestBrainrots: [],
   requestIncomeMin: '',
   requestIncomeMax: '',
   requestTradeTypes: [],
+  requestBadges: [],
 }
 
 const tradeTypeOptions: { value: TradeType; label: string; icon: React.ReactNode }[] = [
@@ -62,6 +67,11 @@ const tradeTypeOptions: { value: TradeType; label: string; icon: React.ReactNode
   { value: 'ADDS', label: 'Adds', icon: <Sparkles className="w-3.5 h-3.5 text-purple-400" /> },
 ]
 
+const badgeOptions: { value: BadgeFilter; label: string; color: string }[] = [
+  { value: 'LB_VIABLE', label: 'LB Viable', color: 'text-purple-400 bg-purple-500/20' },
+  { value: 'TRAIT_STACKED', label: 'Trait Stacked', color: 'text-cyan-400 bg-cyan-500/20' },
+]
+
 export function TradeFilters({ filters, onFiltersChange, brainrots }: TradeFiltersProps) {
   // Count active filters per side
   const offerCount = useMemo(() => {
@@ -69,16 +79,18 @@ export function TradeFilters({ filters, onFiltersChange, brainrots }: TradeFilte
     if (filters.offerBrainrots.length) count++
     if (filters.offerIncomeMin || filters.offerIncomeMax) count++
     if (filters.offerTradeTypes.length) count++
+    if (filters.offerBadges.length) count++
     return count
-  }, [filters.offerBrainrots, filters.offerIncomeMin, filters.offerIncomeMax, filters.offerTradeTypes])
+  }, [filters.offerBrainrots, filters.offerIncomeMin, filters.offerIncomeMax, filters.offerTradeTypes, filters.offerBadges])
 
   const requestCount = useMemo(() => {
     let count = 0
     if (filters.requestBrainrots.length) count++
     if (filters.requestIncomeMin || filters.requestIncomeMax) count++
     if (filters.requestTradeTypes.length) count++
+    if (filters.requestBadges.length) count++
     return count
-  }, [filters.requestBrainrots, filters.requestIncomeMin, filters.requestIncomeMax, filters.requestTradeTypes])
+  }, [filters.requestBrainrots, filters.requestIncomeMin, filters.requestIncomeMax, filters.requestTradeTypes, filters.requestBadges])
 
   return (
     <div className="contents">
@@ -117,9 +129,21 @@ export function TradeFilters({ filters, onFiltersChange, brainrots }: TradeFilte
               })
             }
           />
+          <BadgeSelect
+            label="Badges"
+            selected={filters.offerBadges}
+            onToggle={(badge) =>
+              onFiltersChange({
+                ...filters,
+                offerBadges: filters.offerBadges.includes(badge)
+                  ? filters.offerBadges.filter(b => b !== badge)
+                  : [...filters.offerBadges, badge],
+              })
+            }
+          />
           {offerCount > 0 && (
             <button
-              onClick={() => onFiltersChange({ ...filters, offerBrainrots: [], offerIncomeMin: '', offerIncomeMax: '', offerTradeTypes: [] })}
+              onClick={() => onFiltersChange({ ...filters, offerBrainrots: [], offerIncomeMin: '', offerIncomeMax: '', offerTradeTypes: [], offerBadges: [] })}
               className="w-full py-2 text-sm text-gray-400 hover:text-white transition-colors"
             >
               Clear offer filters
@@ -163,9 +187,21 @@ export function TradeFilters({ filters, onFiltersChange, brainrots }: TradeFilte
               })
             }
           />
+          <BadgeSelect
+            label="Badges"
+            selected={filters.requestBadges}
+            onToggle={(badge) =>
+              onFiltersChange({
+                ...filters,
+                requestBadges: filters.requestBadges.includes(badge)
+                  ? filters.requestBadges.filter(b => b !== badge)
+                  : [...filters.requestBadges, badge],
+              })
+            }
+          />
           {requestCount > 0 && (
             <button
-              onClick={() => onFiltersChange({ ...filters, requestBrainrots: [], requestIncomeMin: '', requestIncomeMax: '', requestTradeTypes: [] })}
+              onClick={() => onFiltersChange({ ...filters, requestBrainrots: [], requestIncomeMin: '', requestIncomeMax: '', requestTradeTypes: [], requestBadges: [] })}
               className="w-full py-2 text-sm text-gray-400 hover:text-white transition-colors"
             >
               Clear request filters
@@ -549,6 +585,40 @@ function TradeTypeSelect({ label, selected, onToggle }: {
               }`}
             >
               {option.icon}
+              <span className="text-xs font-medium">{option.label}</span>
+              {isSelected && <Check className="w-3 h-3 text-green-500 ml-auto" />}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function BadgeSelect({ label, selected, onToggle }: {
+  label: string
+  selected: BadgeFilter[]
+  onToggle: (badge: BadgeFilter) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-semibold text-gray-400">{label}</label>
+      <div className="grid grid-cols-2 gap-1.5">
+        {badgeOptions.map((option) => {
+          const isSelected = selected.includes(option.value)
+          return (
+            <button
+              key={option.value}
+              onClick={() => onToggle(option.value)}
+              className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg border transition-all ${
+                isSelected
+                  ? 'bg-green-900/20 border-green-500 text-white'
+                  : 'bg-darkbg-800 border-transparent hover:border-darkbg-600 text-gray-400'
+              }`}
+            >
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${option.color}`}>
+                {option.value === 'LB_VIABLE' ? 'LB' : '5+T'}
+              </span>
               <span className="text-xs font-medium">{option.label}</span>
               {isSelected && <Check className="w-3 h-3 text-green-500 ml-auto" />}
             </button>

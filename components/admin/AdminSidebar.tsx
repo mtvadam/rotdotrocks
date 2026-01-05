@@ -2,30 +2,48 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, Flag, ScrollText, ArrowLeft, Database, Gauge, Settings } from 'lucide-react'
+import { LayoutDashboard, Users, Flag, ScrollText, ArrowLeft, Database, Gauge, Settings, DollarSign } from 'lucide-react'
 
-const navItems = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/data', label: 'Data Management', icon: Database },
-  { href: '/admin/users', label: 'Users', icon: Users },
-  { href: '/admin/reports', label: 'Reports', icon: Flag },
-  { href: '/admin/rate-limits', label: 'Rate Limits', icon: Gauge },
-  { href: '/admin/settings', label: 'Site Settings', icon: Settings },
-  { href: '/admin/audit-logs', label: 'Audit Logs', icon: ScrollText },
+type NavItem = {
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  adminOnly?: boolean
+}
+
+const navItems: NavItem[] = [
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, adminOnly: true },
+  { href: '/admin/data', label: 'Data Management', icon: Database, adminOnly: true },
+  { href: '/admin/usd-values', label: 'Robux Values', icon: DollarSign },
+  { href: '/admin/users', label: 'Users', icon: Users, adminOnly: true },
+  { href: '/admin/reports', label: 'Reports', icon: Flag, adminOnly: true },
+  { href: '/admin/rate-limits', label: 'Rate Limits', icon: Gauge, adminOnly: true },
+  { href: '/admin/settings', label: 'Site Settings', icon: Settings, adminOnly: true },
+  { href: '/admin/audit-logs', label: 'Audit Logs', icon: ScrollText, adminOnly: true },
 ]
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  role: 'ADMIN' | 'MOD' | 'USER' | 'SELLER'
+}
+
+export function AdminSidebar({ role }: AdminSidebarProps) {
   const pathname = usePathname()
+  const isAdmin = role === 'ADMIN'
+
+  // Filter nav items based on role
+  const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin)
 
   return (
     <aside className="w-64 bg-darkbg-900 border-r border-darkbg-700 min-h-screen flex flex-col">
       <div className="p-4 border-b border-darkbg-700">
-        <h1 className="text-xl font-bold text-white">Admin Panel</h1>
+        <h1 className="text-xl font-bold text-white">
+          {isAdmin ? 'Admin Panel' : 'Mod Panel'}
+        </h1>
         <p className="text-xs text-gray-500 mt-1">RotDotRocks</p>
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
+        {visibleItems.map((item) => {
           const isActive =
             item.href === '/admin'
               ? pathname === '/admin'

@@ -45,6 +45,7 @@ interface TradeItem {
     name: string
   }
   calculatedIncome?: string
+  robuxAmount?: number
 }
 
 interface TradeBuilderModalProps {
@@ -64,6 +65,11 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  // Robux amount input state
+  const [showRobuxInput, setShowRobuxInput] = useState<'OFFER' | 'REQUEST' | null>(null)
+  const [robuxInputValue, setRobuxInputValue] = useState('')
+  const [editingRobuxIndex, setEditingRobuxIndex] = useState<number | null>(null)
 
   const isCounterOffer = !!parentTradeId
   const gemCost = isCounterOffer ? 0 : 5
@@ -137,6 +143,14 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
       return
     }
 
+    // For Robux addon, show input modal
+    if (addon.id === 'addon-robux') {
+      setShowRobuxInput(side)
+      setRobuxInputValue('')
+      setEditingRobuxIndex(null)
+      return
+    }
+
     const addonItem: TradeItem = {
       brainrotId: addon.id,
       brainrot: {
@@ -153,6 +167,54 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
       setRequestItems((prev) => [...prev, addonItem])
     }
     setError('')
+  }
+
+  const handleConfirmRobuxAmount = () => {
+    const amount = parseInt(robuxInputValue.replace(/,/g, ''), 10)
+    if (!amount || amount <= 0) {
+      return
+    }
+
+    const robuxAddon = TRADE_ADDONS.find(a => a.id === 'addon-robux')!
+    const addonItem: TradeItem = {
+      brainrotId: 'addon-robux',
+      brainrot: {
+        id: 'addon-robux',
+        name: `R$${amount.toLocaleString()}`,
+        localImage: robuxAddon.image,
+        baseIncome: '0',
+      },
+      robuxAmount: amount,
+    }
+
+    if (editingRobuxIndex !== null) {
+      // Editing existing robux item
+      if (showRobuxInput === 'OFFER') {
+        setOfferItems((prev) => prev.map((it, i) => i === editingRobuxIndex ? addonItem : it))
+      } else {
+        setRequestItems((prev) => prev.map((it, i) => i === editingRobuxIndex ? addonItem : it))
+      }
+    } else {
+      // Adding new robux item
+      if (showRobuxInput === 'OFFER') {
+        setOfferItems((prev) => [...prev, addonItem])
+      } else {
+        setRequestItems((prev) => [...prev, addonItem])
+      }
+    }
+
+    setShowRobuxInput(null)
+    setRobuxInputValue('')
+    setEditingRobuxIndex(null)
+    setError('')
+  }
+
+  const handleEditRobuxItem = (side: 'OFFER' | 'REQUEST', index: number) => {
+    const items = side === 'OFFER' ? offerItems : requestItems
+    const item = items[index]
+    setShowRobuxInput(side)
+    setRobuxInputValue(item.robuxAmount?.toString() || '')
+    setEditingRobuxIndex(index)
   }
 
   // Check if an addon is already added to a side
@@ -193,6 +255,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
             eventId: item.eventId,
             traitIds: item.traitIds,
             calculatedIncome: item.calculatedIncome,
+            robuxAmount: item.robuxAmount,
           })),
           requestItems: requestItems.map((item) => ({
             brainrotId: item.brainrotId,
@@ -200,6 +263,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
             eventId: item.eventId,
             traitIds: item.traitIds,
             calculatedIncome: item.calculatedIncome,
+            robuxAmount: item.robuxAmount,
           })),
           parentTradeId,
         }),
@@ -294,7 +358,8 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                     <div className="grid grid-cols-3 gap-2">
                       <AnimatePresence mode="popLayout">
                         {offerItems.map((item, index) => {
-                          const isAddon = item.brainrotId.startsWith('addon-')
+                          const isRobuxAddon = item.brainrotId === 'addon-robux'
+                          const isOtherAddon = item.brainrotId.startsWith('addon-') && !isRobuxAddon
                           return (
                             <TradeItemDisplay
                               key={`offer-${index}-${item.brainrotId}`}
@@ -309,7 +374,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                               index={index}
                               layout="compact"
                               interactive
-                              onEdit={isAddon ? undefined : () => handleEditItem('OFFER', index)}
+                              onEdit={isRobuxAddon ? () => handleEditRobuxItem('OFFER', index) : isOtherAddon ? undefined : () => handleEditItem('OFFER', index)}
                               onRemove={() => handleRemoveItem('OFFER', index)}
                             />
                           )
@@ -401,7 +466,8 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                     <div className="grid grid-cols-3 gap-2">
                       <AnimatePresence mode="popLayout">
                         {requestItems.map((item, index) => {
-                          const isAddon = item.brainrotId.startsWith('addon-')
+                          const isRobuxAddon = item.brainrotId === 'addon-robux'
+                          const isOtherAddon = item.brainrotId.startsWith('addon-') && !isRobuxAddon
                           return (
                             <TradeItemDisplay
                               key={`request-${index}-${item.brainrotId}`}
@@ -416,7 +482,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                               index={index}
                               layout="compact"
                               interactive
-                              onEdit={isAddon ? undefined : () => handleEditItem('REQUEST', index)}
+                              onEdit={isRobuxAddon ? () => handleEditRobuxItem('REQUEST', index) : isOtherAddon ? undefined : () => handleEditItem('REQUEST', index)}
                               onRemove={() => handleRemoveItem('REQUEST', index)}
                             />
                           )
@@ -545,6 +611,105 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
             }}
             initialItem={getEditingItem()}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Robux Amount Input Modal */}
+      <AnimatePresence>
+        {showRobuxInput && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => {
+              setShowRobuxInput(null)
+              setRobuxInputValue('')
+              setEditingRobuxIndex(null)
+            }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.2, ease: easeOut }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-darkbg-900 border border-darkbg-700 rounded-2xl p-6 w-[90%] max-w-sm shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <Image
+                  src="/trade-only/add-robux.png"
+                  alt="Add Robux"
+                  width={40}
+                  height={40}
+                  className="rounded-lg"
+                />
+                <div>
+                  <h3 className="text-white font-semibold">
+                    {editingRobuxIndex !== null ? 'Edit Robux Amount' : 'Add Robux'}
+                  </h3>
+                  <p className="text-xs text-gray-400">
+                    {showRobuxInput === 'OFFER' ? 'You\'re offering' : 'You\'re looking for'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative mb-4">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-green-500 font-bold">R$</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoFocus
+                  placeholder="0"
+                  value={robuxInputValue}
+                  onChange={(e) => {
+                    // Only allow numbers, format with commas
+                    const raw = e.target.value.replace(/[^0-9]/g, '')
+                    if (raw) {
+                      const num = parseInt(raw, 10)
+                      setRobuxInputValue(num.toLocaleString())
+                    } else {
+                      setRobuxInputValue('')
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleConfirmRobuxAmount()
+                    } else if (e.key === 'Escape') {
+                      setShowRobuxInput(null)
+                      setRobuxInputValue('')
+                      setEditingRobuxIndex(null)
+                    }
+                  }}
+                  className="w-full bg-darkbg-800 border border-darkbg-600 rounded-xl py-3 pl-10 pr-4 text-white text-lg font-medium placeholder:text-gray-600 focus:outline-none focus:border-green-500/50 focus:ring-2 focus:ring-green-500/20"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setShowRobuxInput(null)
+                    setRobuxInputValue('')
+                    setEditingRobuxIndex(null)
+                  }}
+                  className="flex-1 py-2.5 bg-darkbg-700 hover:bg-darkbg-600 text-gray-300 font-medium rounded-xl transition-colors"
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleConfirmRobuxAmount}
+                  disabled={!robuxInputValue || parseInt(robuxInputValue.replace(/,/g, ''), 10) <= 0}
+                  className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-darkbg-700 disabled:text-gray-500 text-white font-medium rounded-xl transition-colors"
+                >
+                  {editingRobuxIndex !== null ? 'Update' : 'Add'}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </>
