@@ -64,6 +64,8 @@ interface TradeCardProps {
       robuxValue?: number | null
       robuxAmount?: number | null
       hasTraits?: boolean
+      valueFallback?: boolean
+      valueFallbackSource?: string | null
       traitCount?: number
     }>
     _count?: {
@@ -73,11 +75,11 @@ interface TradeCardProps {
   index?: number
 }
 
-// Format Robux value with + for traits
-function formatRobuxValue(value: number | null | undefined, hasTraits: boolean = false): string | null {
+// Format Robux value with + for fallback/inherited values
+function formatRobuxValue(value: number | null | undefined, isFallback: boolean = false): string | null {
   if (value === null || value === undefined) return null
   const formatted = `R$${value.toLocaleString()}`
-  return hasTraits ? `${formatted}+` : formatted
+  return isFallback ? `${formatted}+` : formatted
 }
 
 // Get income badge type based on calculated income
@@ -291,8 +293,8 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
               )}
               {/* Robux value */}
               {item.robuxValue !== null && item.robuxValue !== undefined && (
-                <p className="text-[10px] text-amber-400 mt-0.5 text-center font-semibold">
-                  {formatRobuxValue(item.robuxValue, item.hasTraits)}
+                <p className="text-[10px] text-amber-400 mt-0.5 text-center font-semibold" title={item.valueFallback && item.valueFallbackSource ? `Using ${item.valueFallbackSource} value` : undefined}>
+                  {formatRobuxValue(item.robuxValue, item.valueFallback)}
                 </p>
               )}
               {formattedIncome && (
@@ -391,8 +393,8 @@ function IPadEnhancedItem({ item, size = 'md' }: { item: TradeCardProps['trade']
 
       {/* Robux value */}
       {item.robuxValue !== null && item.robuxValue !== undefined && (
-        <span className={`${size === 'lg' ? 'text-[10px]' : 'text-[9px]'} font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full -mt-0.5`}>
-          {formatRobuxValue(item.robuxValue, item.hasTraits)}
+        <span className={`${size === 'lg' ? 'text-[10px]' : 'text-[9px]'} font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full -mt-0.5`} title={item.valueFallback && item.valueFallbackSource ? `Using ${item.valueFallbackSource} value` : undefined}>
+          {formatRobuxValue(item.robuxValue, item.valueFallback)}
         </span>
       )}
 
@@ -480,7 +482,7 @@ function IPadItemGrid({ items }: { items: TradeCardProps['trade']['items'] }) {
 }
 
 // Income and Value display with tooltip
-function TotalsDisplay({ income, value, align = 'left' }: { income?: string | null; value?: number | null; align?: 'left' | 'center' | 'right' }) {
+function TotalsDisplay({ income, value, hasEstimated = false, fallbackDetails = [], align = 'left' }: { income?: string | null; value?: number | null; hasEstimated?: boolean; fallbackDetails?: Array<{ brainrotName: string; source: string }>; align?: 'left' | 'center' | 'right' }) {
   const [showTooltip, setShowTooltip] = useState<'income' | 'value' | null>(null)
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
   const incomeRef = useRef<HTMLSpanElement>(null)
@@ -521,7 +523,7 @@ function TotalsDisplay({ income, value, align = 'left' }: { income?: string | nu
           onMouseLeave={() => setShowTooltip(null)}
           className="text-xs text-amber-400 font-semibold cursor-default"
         >
-          R${formatCompactValue(value)}
+          R${formatCompactValue(value)}{hasEstimated ? '+' : ''}
         </span>
       )}
       {typeof window !== 'undefined' && createPortal(
@@ -537,6 +539,15 @@ function TotalsDisplay({ income, value, align = 'left' }: { income?: string | nu
               <p className="text-[10px] text-gray-300 whitespace-nowrap text-center">
                 {showTooltip === 'income' ? 'Total Income' : 'Total Value'}
               </p>
+              {showTooltip === 'value' && hasEstimated && fallbackDetails.length > 0 && (
+                <div className="mt-1 pt-1 border-t border-darkbg-600">
+                  {fallbackDetails.map((detail, i) => (
+                    <p key={i} className="text-[9px] text-amber-400/80 whitespace-nowrap">
+                      {detail.brainrotName}: using {detail.source} value
+                    </p>
+                  ))}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>,
@@ -562,15 +573,26 @@ function calculateTotalIncome(items: TradeCardProps['trade']['items']): string |
 }
 
 // Calculate total Robux value from items (includes brainrot values + Robux addon amounts)
-function calculateTotalValue(items: TradeCardProps['trade']['items']): number | null {
+// Returns { value, hasEstimated, fallbackDetails } for tracking inherited values
+function calculateTotalValue(items: TradeCardProps['trade']['items']): { value: number | null; hasEstimated: boolean; fallbackDetails: Array<{ brainrotName: string; source: string }> } {
   let total = 0
   let hasValue = false
+  let hasEstimated = false
+  const fallbackDetails: Array<{ brainrotName: string; source: string }> = []
 
   for (const item of items) {
     // Add brainrot's robux value
     if (item.robuxValue != null) {
       hasValue = true
       total += item.robuxValue
+      // Check if this item has an estimated/inherited value
+      if (item.valueFallback && item.valueFallbackSource && item.brainrot) {
+        hasEstimated = true
+        fallbackDetails.push({
+          brainrotName: item.brainrot.name,
+          source: item.valueFallbackSource
+        })
+      }
     }
     // Add Robux addon amount
     if (item.robuxAmount != null) {
@@ -579,7 +601,7 @@ function calculateTotalValue(items: TradeCardProps['trade']['items']): number | 
     }
   }
 
-  return hasValue ? total : null
+  return { value: hasValue ? total : null, hasEstimated, fallbackDetails }
 }
 
 // Format Robux value compactly (e.g., 1.5K, 2.3M)
@@ -740,7 +762,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
               <div className="hidden sm:block">
                 <ItemGrid items={offerItems} size="sm" compact={isBothSingleRow} />
               </div>
-              <TotalsDisplay income={offerIncome} value={offerValue} align="center" />
+              <TotalsDisplay income={offerIncome} value={offerValue.value} hasEstimated={offerValue.hasEstimated} fallbackDetails={offerValue.fallbackDetails} align="center" />
             </div>
 
             {/* Arrow - vertically centered */}
@@ -757,7 +779,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
               <div className="hidden sm:block">
                 <ItemGrid items={requestItems} size="sm" compact={isBothSingleRow} />
               </div>
-              <TotalsDisplay income={requestIncome} value={requestValue} align="center" />
+              <TotalsDisplay income={requestIncome} value={requestValue.value} hasEstimated={requestValue.hasEstimated} fallbackDetails={requestValue.fallbackDetails} align="center" />
             </div>
           </div>
         </div>
@@ -778,7 +800,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
             {/* Offer Side */}
             <div className="flex-1 min-w-0">
               <ItemGrid items={offerItems} size="sm" />
-              <TotalsDisplay income={offerIncome} value={offerValue} align="center" />
+              <TotalsDisplay income={offerIncome} value={offerValue.value} hasEstimated={offerValue.hasEstimated} fallbackDetails={offerValue.fallbackDetails} align="center" />
             </div>
 
             {/* Arrow - vertically centered */}
@@ -789,7 +811,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
             {/* Request Side */}
             <div className="flex-1 min-w-0">
               <ItemGrid items={requestItems} size="sm" />
-              <TotalsDisplay income={requestIncome} value={requestValue} align="center" />
+              <TotalsDisplay income={requestIncome} value={requestValue.value} hasEstimated={requestValue.hasEstimated} fallbackDetails={requestValue.fallbackDetails} align="center" />
             </div>
           </div>
         </div>
@@ -835,9 +857,9 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
                       <span className="text-white/70">Σ</span> {formatCompactIncome(offerIncome)}/s
                     </span>
                   )}
-                  {offerValue != null && (
+                  {offerValue.value != null && (
                     <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                      R${formatCompactValue(offerValue)}
+                      R${formatCompactValue(offerValue.value)}{offerValue.hasEstimated ? '+' : ''}
                     </span>
                   )}
                 </div>
@@ -862,9 +884,9 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
                       <span className="text-white/70">Σ</span> {formatCompactIncome(requestIncome)}/s
                     </span>
                   )}
-                  {requestValue != null && (
+                  {requestValue.value != null && (
                     <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                      R${formatCompactValue(requestValue)}
+                      R${formatCompactValue(requestValue.value)}{requestValue.hasEstimated ? '+' : ''}
                     </span>
                   )}
                 </div>

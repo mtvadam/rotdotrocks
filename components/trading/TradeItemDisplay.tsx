@@ -73,6 +73,8 @@ interface TradeItemDisplayProps {
     calculatedIncome?: string | null
     robuxValue?: number | null
     hasTraits?: boolean
+    valueFallback?: boolean
+    valueFallbackSource?: string | null
   }
   size?: 'sm' | 'md'
   layout?: 'horizontal' | 'compact' // compact is vertical card for grids
@@ -213,10 +215,16 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
     [item.calculatedIncome]
   )
 
-  // Memoize formatted robux value
+  // Memoize formatted robux value with + for fallback
   const formattedRobuxValue = useMemo(
-    () => item.robuxValue ? `R$${item.robuxValue.toLocaleString()}` : null,
-    [item.robuxValue]
+    () => item.robuxValue ? `R$${item.robuxValue.toLocaleString()}${item.valueFallback ? '+' : ''}` : null,
+    [item.robuxValue, item.valueFallback]
+  )
+
+  // Tooltip for fallback value
+  const robuxValueTitle = useMemo(
+    () => item.valueFallback && item.valueFallbackSource ? `Using ${item.valueFallbackSource} value` : undefined,
+    [item.valueFallback, item.valueFallbackSource]
   )
 
   // Compact vertical card layout for grids
@@ -301,7 +309,7 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
 
         {/* Value */}
         {formattedRobuxValue && (
-          <p className="text-[10px] font-medium text-yellow-400 text-center">
+          <p className="text-[10px] font-medium text-yellow-400 text-center" title={robuxValueTitle}>
             {formattedRobuxValue}
           </p>
         )}
@@ -368,7 +376,7 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
               </span>
             )}
             {formattedRobuxValue && (
-              <span className={`font-medium text-yellow-400 whitespace-nowrap ${size === 'sm' ? 'text-xs' : 'text-sm'}`}>
+              <span className={`font-medium text-yellow-400 whitespace-nowrap ${size === 'sm' ? 'text-xs' : 'text-sm'}`} title={robuxValueTitle}>
                 {formattedRobuxValue}
               </span>
             )}
@@ -403,7 +411,7 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
           )}
           {formattedRobuxValue && (
             <>
-              <p className={`font-medium text-yellow-400 ${size === 'sm' ? 'text-sm' : ''} ${formattedIncome ? 'mt-1' : ''}`}>
+              <p className={`font-medium text-yellow-400 ${size === 'sm' ? 'text-sm' : ''} ${formattedIncome ? 'mt-1' : ''}`} title={robuxValueTitle}>
                 {formattedRobuxValue}
               </p>
               <p className="text-[10px] text-gray-500">value</p>

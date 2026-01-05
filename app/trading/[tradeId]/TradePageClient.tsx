@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowRightLeft, BadgeCheck, MessageSquare, Clock, Send, Trash2, Check, X, ExternalLink, Loader2, CheckCircle } from 'lucide-react'
@@ -39,6 +40,8 @@ interface TradeItem {
   calculatedIncome?: string | null
   robuxValue?: number | null
   hasTraits?: boolean
+  valueFallback?: boolean
+  valueFallbackSource?: string | null
   addonType?: string | null
   robuxAmount?: number | null
 }
@@ -79,6 +82,66 @@ interface Trade {
       robloxAvatarUrl?: string | null
     }
   }>
+}
+
+// Value display with portal tooltip for fallback info
+function ValueWithTooltip({
+  value,
+  hasEstimated,
+  fallbackDetails
+}: {
+  value: number
+  hasEstimated: boolean
+  fallbackDetails: Array<{ brainrotName: string; source: string }>
+}) {
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
+  const valueRef = useRef<HTMLSpanElement>(null)
+
+  const handleMouseEnter = () => {
+    if (valueRef.current && hasEstimated && fallbackDetails.length > 0) {
+      const rect = valueRef.current.getBoundingClientRect()
+      setTooltipPos({
+        top: rect.top - 8,
+        left: rect.left + rect.width / 2,
+      })
+      setShowTooltip(true)
+    }
+  }
+
+  return (
+    <div>
+      <span className="text-gray-500">Value: </span>
+      <span
+        ref={valueRef}
+        className="font-medium text-yellow-400 cursor-default"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        R${value.toLocaleString()}{hasEstimated ? '+' : ''}
+      </span>
+      {typeof window !== 'undefined' && createPortal(
+        showTooltip && hasEstimated && fallbackDetails.length > 0 ? (
+          <div
+            style={{ top: tooltipPos.top, left: tooltipPos.left }}
+            className="fixed z-[9999] -translate-x-1/2 -translate-y-full pointer-events-none"
+          >
+            <div className="bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg px-2 py-1.5 shadow-lg shadow-black/20 whitespace-nowrap">
+              <p className="text-[10px] text-gray-300 text-center mb-1">Total Value</p>
+              <div className="border-t border-darkbg-600 pt-1">
+                {fallbackDetails.map((detail, i) => (
+                  <p key={i} className="text-[9px] text-amber-400/80">
+                    {detail.brainrotName}: using {detail.source} value
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null,
+        document.body
+      )}
+    </div>
+  )
 }
 
 export default function TradePageClient({ tradeId }: { tradeId: string }) {
@@ -294,19 +357,30 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
   const calculateTotals = (items: TradeItem[]) => {
     let totalIncome = BigInt(0)
     let totalValue = 0
+    let hasEstimated = false
+    const fallbackDetails: Array<{ brainrotName: string; source: string }> = []
+
     for (const item of items) {
       if (item.calculatedIncome) {
         totalIncome += BigInt(item.calculatedIncome)
       }
       if (item.robuxValue) {
         totalValue += item.robuxValue
+        // Track fallback values
+        if (item.valueFallback && item.valueFallbackSource) {
+          hasEstimated = true
+          fallbackDetails.push({
+            brainrotName: item.brainrot.name,
+            source: item.valueFallbackSource
+          })
+        }
       }
       // Add robux from "Add Robux" addon
       if (item.addonType === 'ROBUX' && item.robuxAmount) {
         totalValue += item.robuxAmount
       }
     }
-    return { totalIncome, totalValue }
+    return { totalIncome, totalValue, hasEstimated, fallbackDetails }
   }
 
   const offerTotals = calculateTotals(offerItems)
@@ -393,10 +467,11 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
                   </div>
                 ) : <div />}
                 {offerTotals.totalValue > 0 ? (
-                  <div>
-                    <span className="text-gray-500">Value: </span>
-                    <span className="font-medium text-yellow-400">R${offerTotals.totalValue.toLocaleString()}</span>
-                  </div>
+                  <ValueWithTooltip
+                    value={offerTotals.totalValue}
+                    hasEstimated={offerTotals.hasEstimated}
+                    fallbackDetails={offerTotals.fallbackDetails}
+                  />
                 ) : <div />}
               </div>
             </div>
@@ -425,10 +500,11 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
                   </div>
                 ) : <div />}
                 {requestTotals.totalValue > 0 ? (
-                  <div>
-                    <span className="text-gray-500">Value: </span>
-                    <span className="font-medium text-yellow-400">R${requestTotals.totalValue.toLocaleString()}</span>
-                  </div>
+                  <ValueWithTooltip
+                    value={requestTotals.totalValue}
+                    hasEstimated={requestTotals.hasEstimated}
+                    fallbackDetails={requestTotals.fallbackDetails}
+                  />
                 ) : <div />}
               </div>
             </div>

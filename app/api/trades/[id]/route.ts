@@ -35,6 +35,12 @@ export async function GET(
                   select: {
                     mutationId: true,
                     robuxValue: true,
+                    mutation: {
+                      select: {
+                        name: true,
+                        multiplier: true,
+                      },
+                    },
                   },
                 },
               },
@@ -77,6 +83,12 @@ export async function GET(
                       select: {
                         mutationId: true,
                         robuxValue: true,
+                        mutation: {
+                          select: {
+                            name: true,
+                            multiplier: true,
+                          },
+                        },
                       },
                     },
                   },
@@ -128,17 +140,34 @@ export async function GET(
     }
 
     // Helper to get resolved Robux value for brainrot + mutation combo
+    // Returns { value, isFallback, sourceMutationName } for tracking inherited values
     const getResolvedRobuxValue = (
-      brainrot: { robuxValue: number | null; mutationValues: Array<{ mutationId: string; robuxValue: number }> },
-      mutationId: string | null
-    ): number | null => {
+      brainrot: { robuxValue: number | null; mutationValues: Array<{ mutationId: string; robuxValue: number; mutation: { name: string; multiplier: number } }> },
+      mutationId: string | null,
+      targetMutationMultiplier: number | null
+    ): { value: number | null; isFallback: boolean; sourceMutationName: string | null } => {
       if (mutationId) {
         const mutationValue = brainrot.mutationValues.find(mv => mv.mutationId === mutationId)
         if (mutationValue) {
-          return mutationValue.robuxValue
+          return { value: mutationValue.robuxValue, isFallback: false, sourceMutationName: null }
         }
+
+        // No explicit value - try to find fallback from lower mutation
+        if (targetMutationMultiplier !== null) {
+          const sortedValues = brainrot.mutationValues
+            .filter(mv => mv.mutation.multiplier < targetMutationMultiplier)
+            .sort((a, b) => b.mutation.multiplier - a.mutation.multiplier)
+
+          if (sortedValues.length > 0) {
+            const fallback = sortedValues[0]
+            return { value: fallback.robuxValue, isFallback: true, sourceMutationName: fallback.mutation.name }
+          }
+        }
+
+        // Fall back to base value
+        return { value: brainrot.robuxValue, isFallback: brainrot.robuxValue !== null, sourceMutationName: brainrot.robuxValue !== null ? 'Base' : null }
       }
-      return brainrot.robuxValue
+      return { value: brainrot.robuxValue, isFallback: false, sourceMutationName: null }
     }
 
     // Helper to serialize item with addon support
@@ -154,6 +183,8 @@ export async function GET(
           calculatedIncome: null,
           robuxValue: null,
           hasTraits: false,
+          valueFallback: false,
+          valueFallbackSource: null,
           traitCount: 0,
           brainrot: {
             id: `addon-${item.addonType.toLowerCase()}`,
@@ -163,16 +194,18 @@ export async function GET(
           },
         }
       }
-      const resolvedRobuxValue = item.brainrot
-        ? getResolvedRobuxValue(item.brainrot, item.mutationId)
-        : null
+      const resolvedValue = item.brainrot
+        ? getResolvedRobuxValue(item.brainrot, item.mutationId, item.mutation?.multiplier ?? null)
+        : { value: null, isFallback: false, sourceMutationName: null }
       const hasTraits = (item.traits?.length || 0) > 0
 
       return {
         ...item,
         calculatedIncome: item.calculatedIncome?.toString() || null,
-        robuxValue: resolvedRobuxValue,
+        robuxValue: resolvedValue.value,
         hasTraits,
+        valueFallback: resolvedValue.isFallback,
+        valueFallbackSource: resolvedValue.sourceMutationName,
         traitCount: item.traits?.length || 0,
         brainrot: item.brainrot ? {
           id: item.brainrot.id,
