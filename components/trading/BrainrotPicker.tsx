@@ -14,6 +14,7 @@ interface Brainrot {
   localImage: string | null
   baseIncome: string
   rarity: string | null
+  robuxValue: number | null
 }
 
 interface Mutation {
@@ -173,6 +174,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
       localImage: initialItem.brainrot.localImage,
       baseIncome: initialItem.brainrot.baseIncome,
       rarity: null,
+      robuxValue: null,
     } : null
   )
   const [selectedMutation, setSelectedMutation] = useState<Mutation | null>(
@@ -206,6 +208,14 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
   const [reportError, setReportError] = useState<string | null>(null)
 
   const isEditing = !!initialItem
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [])
 
   const handleTraitsScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
@@ -250,18 +260,16 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
         if (traitsForCalc.length === 0) {
           // No traits: just mutation
           combinedMultiplier = mutationMultiplier
-        } else if (traitsForCalc.length === 1) {
-          // Single trait: trait + (mutation - 1)
-          combinedMultiplier = traitsForCalc[0].multiplier + (mutationMultiplier - 1)
         } else {
-          // Multiple traits: first negates 1, rest are full
-          // Example: 3x 6x traits = (6-1) + 6 + 6 = 17 (with default mutation)
-          // With Gold 2x: (6-1) + 6 + 6 + (2-1) = 18
-          const firstTrait = traitsForCalc[0].multiplier - 1
-          const otherTraits = traitsForCalc.slice(1).reduce((sum, t) => sum + t.multiplier, 0)
-          // 5 + 12 + 0 = 17 for 3x6x with default 1x mutation
-          // 5 + 12 + 1 = 18 for 3x6x with Gold 2x mutation
-          combinedMultiplier = firstTrait + otherTraits + (mutationMultiplier - 1)
+          // Traits present: sum all trait multipliers, subtract penalty based on groups
+          // Every group of 2 traits (rounded up) = 1 penalty
+          // e.g. 3 traits = ceil(3/2) = 2 groups = subtract 2
+          // e.g. 5 traits = ceil(5/2) = 3 groups = subtract 3
+          // No penalty for single trait (not stacking)
+          // Mutation bonus only applies if mutation > 1x
+          const traitsSum = traitsForCalc.reduce((sum, t) => sum + t.multiplier, 0)
+          const traitPenalty = traitsForCalc.length >= 2 ? Math.ceil(traitsForCalc.length / 2) : 0
+          combinedMultiplier = traitsSum - traitPenalty + (mutationMultiplier - 1)
         }
 
         // Apply sleepy multiplier at the end to avoid BigInt integer division issues
@@ -585,7 +593,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                   <div className="w-14 h-14 rounded-lg bg-darkbg-700" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-white font-comic">{selectedBrainrot.name}</p>
+                  <p className="font-bold text-white font-comic truncate">{selectedBrainrot.name}</p>
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-gray-500">Base: {formatIncome(selectedBrainrot.baseIncome)}</span>
                     {selectedBrainrot.rarity && (
@@ -715,7 +723,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                       : 'inset 0 0 0 0 rgba(0,0,0,0)',
                     transition: 'box-shadow 0.3s ease'
                   }}
-                  className="max-h-48 overflow-y-auto overflow-x-hidden grid grid-cols-2 sm:grid-cols-3 gap-2 p-1 scrollbar-green rounded-lg"
+                  className="max-h-48 overflow-y-auto overflow-x-hidden grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 p-1 scrollbar-green rounded-lg"
                 >
                     {sortedTraits.map((trait) => {
                       const isSelected = selectedTraits.some((t) => t.id === trait.id)
@@ -836,56 +844,39 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                               </div>
                             )
                           }
-                        } else if (traitsForCalc.length === 1) {
-                          // Single trait: trait + (mutation - 1)
-                          const trait = traitsForCalc[0]
-                          runningMultiplier = trait.multiplier + (mutMult - 1)
-                          steps.push(
-                            <div key="trait-0" className="flex items-center gap-2 p-2 bg-darkbg-800/50 rounded-lg">
-                              <div className="w-20 text-gray-500">× {trait.multiplier}</div>
-                              <div className="flex-1 text-white font-medium">{trait.name}</div>
-                              <div className="text-gray-600 text-[10px]">trait multiplier</div>
-                            </div>
-                          )
-                          if (mutMult !== 1) {
+                        } else {
+                          // Traits present: sum all traits, subtract group penalty (only for 2+), add mutation bonus
+                          // Formula: traitsSum - ceil(traitCount/2) + (mutation - 1)
+                          // No penalty for single trait (not stacking)
+                          const traitsSum = traitsForCalc.reduce((sum, t) => sum + t.multiplier, 0)
+                          const traitPenalty = traitsForCalc.length >= 2 ? Math.ceil(traitsForCalc.length / 2) : 0
+                          runningMultiplier = traitsSum - traitPenalty + (mutMult - 1)
+
+                          // Show each trait
+                          traitsForCalc.forEach((trait, i) => {
                             steps.push(
-                              <div key="mutation" className="flex items-center gap-2 p-2 bg-darkbg-800/50 rounded-lg">
-                                <div className="w-20 text-gray-500">+ {mutMult - 1}</div>
-                                <div className="flex-1">
-                                  <span className={`font-medium ${getMutationClass(selectedMutation!.name)}`}>
-                                    {selectedMutation!.name}
-                                  </span>
-                                </div>
-                                <div className="text-gray-600 text-[10px]">{mutMult}x - 1</div>
+                              <div key={`trait-${i}`} className="flex items-center gap-2 p-2 bg-darkbg-800/50 rounded-lg">
+                                <div className="w-20 text-gray-500">{i === 0 ? '' : '+ '}{trait.multiplier}</div>
+                                <div className="flex-1 text-white font-medium">{trait.name}</div>
+                                <div className="text-gray-600 text-[10px]">{trait.multiplier}x trait</div>
+                              </div>
+                            )
+                          })
+
+                          // Show stacking penalty (only for 2+ traits)
+                          if (traitsForCalc.length >= 2) {
+                            const groupCount = Math.ceil(traitsForCalc.length / 2)
+                            steps.push(
+                              <div key="penalty" className="flex items-center gap-2 p-2 bg-darkbg-800/50 rounded-lg">
+                                <div className="w-20 text-red-400">- {traitPenalty}</div>
+                                <div className="flex-1 text-gray-400">Stacking penalty</div>
+                                <div className="text-gray-600 text-[10px]">{groupCount} group{groupCount > 1 ? 's' : ''} of 2</div>
                               </div>
                             )
                           }
-                        } else {
-                          // Multiple traits: (first - 1) + rest + (mutation - 1)
-                          traitsForCalc.forEach((trait, i) => {
-                            if (i === 0) {
-                              const val = trait.multiplier - 1
-                              runningMultiplier = val
-                              steps.push(
-                                <div key={`trait-${i}`} className="flex items-center gap-2 p-2 bg-darkbg-800/50 rounded-lg">
-                                  <div className="w-20 text-gray-500">{val}</div>
-                                  <div className="flex-1 text-white font-medium">{trait.name}</div>
-                                  <div className="text-gray-600 text-[10px]">{trait.multiplier}x - 1 (first)</div>
-                                </div>
-                              )
-                            } else {
-                              runningMultiplier += trait.multiplier
-                              steps.push(
-                                <div key={`trait-${i}`} className="flex items-center gap-2 p-2 bg-darkbg-800/50 rounded-lg">
-                                  <div className="w-20 text-gray-500">+ {trait.multiplier}</div>
-                                  <div className="flex-1 text-white font-medium">{trait.name}</div>
-                                  <div className="text-gray-600 text-[10px]">{trait.multiplier}x (full)</div>
-                                </div>
-                              )
-                            }
-                          })
+
+                          // Show mutation bonus (only if not default 1x)
                           if (mutMult !== 1) {
-                            runningMultiplier += (mutMult - 1)
                             steps.push(
                               <div key="mutation" className="flex items-center gap-2 p-2 bg-darkbg-800/50 rounded-lg">
                                 <div className="w-20 text-gray-500">+ {mutMult - 1}</div>
@@ -970,8 +961,8 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                       {selectedBrainrot.localImage && (
                         <Image src={selectedBrainrot.localImage} alt={selectedBrainrot.name} width={40} height={40} className="rounded" />
                       )}
-                      <div className="flex-1">
-                        <p className="font-medium text-white text-sm">{selectedBrainrot.name}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-white text-sm truncate">{selectedBrainrot.name}</p>
                         <p className="text-xs text-gray-500">
                           Base: {formatIncome(selectedBrainrot.baseIncome)}
                           {selectedMutation && ` | ${selectedMutation.name} (${selectedMutation.multiplier}x)`}

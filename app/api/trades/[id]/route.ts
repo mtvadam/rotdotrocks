@@ -257,6 +257,17 @@ export async function PATCH(
         }),
       ])
 
+      // Notify the counter offer owner that their offer was accepted
+      await prisma.notification.create({
+        data: {
+          userId: counterOffer.userId,
+          type: 'COUNTER_ACCEPTED',
+          message: `${user.robloxUsername} accepted your counter offer`,
+          tradeId: trade.id,
+          fromUserId: user.id,
+        },
+      })
+
       return NextResponse.json({ success: true })
     }
 

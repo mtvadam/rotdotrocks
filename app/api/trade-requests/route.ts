@@ -73,6 +73,17 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Create notification for trade owner
+    await prisma.notification.create({
+      data: {
+        userId: trade.userId,
+        type: 'TRADE_REQUEST',
+        message: `${user.robloxUsername} wants to trade with you`,
+        tradeId: trade.id,
+        fromUserId: user.id,
+      },
+    })
+
     return NextResponse.json({ request: tradeRequest })
   } catch (error) {
     console.error('Create trade request error:', error)

@@ -85,6 +85,14 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
     return () => document.removeEventListener('keydown', handleEscape)
   }, [onClose, pickerSide])
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [])
+
   const handleAddItem = (side: 'OFFER' | 'REQUEST') => {
     const items = side === 'OFFER' ? offerItems : requestItems
     if (items.length >= 6) {

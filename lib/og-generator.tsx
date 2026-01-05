@@ -96,11 +96,11 @@ function getMutationStyle(name: string): { background: string; textColor: string
 
 // Format income for display
 function formatIncome(income: number): string {
-  if (income >= 1_000_000_000_000) return `${(Math.floor(income / 1_000_000_000_000 * 10) / 10).toFixed(1)}T`
-  if (income >= 1_000_000_000) return `${(Math.floor(income / 1_000_000_000 * 10) / 10).toFixed(1)}B`
-  if (income >= 1_000_000) return `${(Math.floor(income / 1_000_000 * 10) / 10).toFixed(1)}M`
-  if (income >= 1_000) return `${(Math.floor(income / 1_000 * 10) / 10).toFixed(1)}K`
-  return Math.floor(income).toString()
+  if (income >= 1_000_000_000_000) return `${(Math.round(income / 1_000_000_000_000 * 10) / 10).toFixed(1)}T`
+  if (income >= 1_000_000_000) return `${(Math.round(income / 1_000_000_000 * 10) / 10).toFixed(1)}B`
+  if (income >= 1_000_000) return `${(Math.round(income / 1_000_000 * 10) / 10).toFixed(1)}M`
+  if (income >= 1_000) return `${(Math.round(income / 1_000 * 10) / 10).toFixed(1)}K`
+  return Math.round(income).toString()
 }
 
 // Trade item type for the generator

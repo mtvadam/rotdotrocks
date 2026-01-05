@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { RefreshCw, Plus, BadgeCheck, Loader2, ArrowRightLeft } from 'lucide-react'
+import { RefreshCw, Plus, BadgeCheck, Loader2, ArrowRightLeft, ChevronLeft, ChevronRight } from 'lucide-react'
 import { TradeCard, TradeCardSkeleton, TradeBuilderModal, TradeFilters, defaultFilters } from '@/components/trading'
 import type { TradeFiltersState } from '@/components/trading'
 import { useAuth } from '@/components/Providers'
@@ -10,10 +10,10 @@ import { PageTransition, Select } from '@/components/ui'
 import { AdminAbuseCard, LiveEventCard, UpcomingEventCard } from '@/components/AdminAbuseCard'
 import { easeOut, staggerContainer } from '@/lib/animations'
 
-const INITIAL_LIMIT = 12
+const PER_PAGE = 12
 
-// Cache trades by tab for instant navigation
-const tradesCache: Record<string, { trades: Trade[]; hasMore: boolean; timestamp: number }> = {}
+// Cache trades by page for instant navigation
+const tradesCache: Record<string, { trades: Trade[]; totalPages: number; timestamp: number }> = {}
 
 interface Trade {
   id: string
@@ -81,8 +81,9 @@ export default function TradingPage() {
   const [lastRefresh, setLastRefresh] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   const [showBuilder, setShowBuilder] = useState(false)
-  const [hasMore, setHasMore] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [filters, setFilters] = useState<TradeFiltersState>(defaultFilters)
   const [brainrots, setBrainrots] = useState<Brainrot[]>([])
 
@@ -105,33 +106,29 @@ export default function TradingPage() {
     filters.requestTradeTypes.length > 0 ||
     filters.requestBadges.length > 0
 
-  const fetchTrades = useCallback(async (reset = false) => {
-    const cacheKey = `${tab}-${sort}`
+  const fetchTrades = useCallback(async (pageNum: number = 1) => {
+    const cacheKey = `${tab}-${sort}-${pageNum}-${JSON.stringify(filters)}`
 
-    // Use cache for initial load (no filters)
-    if (reset && !hasAdvancedFilters && tradesCache[cacheKey]) {
+    // Use cache if available
+    if (tradesCache[cacheKey]) {
       const cached = tradesCache[cacheKey]
       // Cache valid for 30 seconds
       if (Date.now() - cached.timestamp < 30000) {
         setTrades(cached.trades)
-        setHasMore(cached.hasMore)
+        setTotalPages(cached.totalPages)
         setLoading(false)
         return
       }
     }
 
-    if (reset) {
-      setLoading(true)
-    } else {
-      setLoadingMore(true)
-    }
+    setLoading(true)
 
     try {
       const params = new URLSearchParams({
         tab,
         sort,
-        limit: reset ? INITIAL_LIMIT.toString() : '12',
-        offset: reset ? '0' : trades.length.toString(),
+        page: pageNum.toString(),
+        perPage: PER_PAGE.toString(),
       })
 
       // Add advanced filter params
@@ -169,41 +166,64 @@ export default function TradingPage() {
       const res = await fetch(`/api/trades?${params}`)
       const data = await res.json()
 
-      if (reset) {
-        setTrades(data.trades || [])
-        // Cache if no advanced filters
-        if (!hasAdvancedFilters) {
-          tradesCache[cacheKey] = {
-            trades: data.trades || [],
-            hasMore: data.hasMore || false,
-            timestamp: Date.now(),
-          }
-        }
-      } else {
-        setTrades((prev) => [...prev, ...(data.trades || [])])
+      setTrades(data.trades || [])
+      setTotalPages(data.totalPages || 1)
+
+      // Cache the result
+      tradesCache[cacheKey] = {
+        trades: data.trades || [],
+        totalPages: data.totalPages || 1,
+        timestamp: Date.now(),
       }
-      setHasMore(data.hasMore || false)
     } catch (err) {
       console.error('Failed to fetch trades:', err)
     } finally {
       setLoading(false)
-      setLoadingMore(false)
       setRefreshing(false)
     }
-  }, [tab, sort, trades.length, filters, hasAdvancedFilters])
-
-  useEffect(() => {
-    fetchTrades(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, sort, filters])
+
+  // Track previous values to detect what changed
+  const prevTabRef = useRef(tab)
+  const prevSortRef = useRef(sort)
+  const prevFiltersRef = useRef(filters)
+
+  // Single useEffect to handle all fetch logic - prevents double fetches
+  useEffect(() => {
+    const tabChanged = prevTabRef.current !== tab
+    const sortChanged = prevSortRef.current !== sort
+    const filtersChanged = prevFiltersRef.current !== filters
+
+    // Update refs
+    prevTabRef.current = tab
+    prevSortRef.current = sort
+    prevFiltersRef.current = filters
+
+    // If tab, sort, or filters changed, reset to page 1 and fetch
+    if (tabChanged || sortChanged || filtersChanged) {
+      if (page !== 1) {
+        setPage(1) // This will trigger another render, which will fetch page 1
+        return
+      }
+    }
+
+    // Fetch the current page
+    fetchTrades(page)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, tab, sort, filters, refreshTrigger])
 
   // Force refresh - clears cache and fetches fresh data
   const handleTradeCreated = useCallback(() => {
     // Clear all cache entries
     Object.keys(tradesCache).forEach(key => delete tradesCache[key])
-    // Fetch fresh data
-    fetchTrades(true)
-  }, [fetchTrades])
+    // Reset to page 1 and trigger refetch
+    if (page === 1) {
+      // Already on page 1, need to trigger a refetch
+      setRefreshTrigger(t => t + 1)
+    } else {
+      setPage(1)
+    }
+  }, [page])
 
   // Manual refresh with rate limit (5 seconds)
   const handleRefresh = useCallback(() => {
@@ -214,8 +234,9 @@ export default function TradingPage() {
     setRefreshing(true)
     // Clear cache for current view
     Object.keys(tradesCache).forEach(key => delete tradesCache[key])
-    fetchTrades(true)
-  }, [lastRefresh, fetchTrades])
+    // Trigger refetch via state change
+    setRefreshTrigger(t => t + 1)
+  }, [lastRefresh])
 
   const canRefresh = Date.now() - lastRefresh >= 5000
 
@@ -418,26 +439,93 @@ export default function TradingPage() {
                 ))}
               </div>
 
-              {/* Load More */}
-              {hasMore && (
+              {/* Pagination */}
+              {totalPages > 1 && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.2 }}
-                  className="mt-6 text-center"
+                  className="mt-6 flex items-center justify-center gap-2"
                 >
+                  {/* Previous button */}
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => fetchTrades(false)}
-                    disabled={loadingMore}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-darkbg-800 hover:bg-darkbg-700 text-gray-300 font-medium rounded-xl transition-colors disabled:opacity-50"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="p-2 bg-darkbg-800 hover:bg-darkbg-700 text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loadingMore ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      'Load More'
-                    )}
+                    <ChevronLeft className="w-5 h-5" />
+                  </motion.button>
+
+                  {/* Page numbers */}
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const pages: (number | 'ellipsis')[] = []
+                      const maxVisible = 5
+
+                      if (totalPages <= maxVisible + 2) {
+                        // Show all pages
+                        for (let i = 1; i <= totalPages; i++) pages.push(i)
+                      } else {
+                        // Always show first page
+                        pages.push(1)
+
+                        // Calculate range around current page
+                        let start = Math.max(2, page - 1)
+                        let end = Math.min(totalPages - 1, page + 1)
+
+                        // Adjust if at edges
+                        if (page <= 3) {
+                          end = Math.min(totalPages - 1, 4)
+                        } else if (page >= totalPages - 2) {
+                          start = Math.max(2, totalPages - 3)
+                        }
+
+                        // Add ellipsis if needed
+                        if (start > 2) pages.push('ellipsis')
+
+                        // Add middle pages
+                        for (let i = start; i <= end; i++) pages.push(i)
+
+                        // Add ellipsis if needed
+                        if (end < totalPages - 1) pages.push('ellipsis')
+
+                        // Always show last page
+                        pages.push(totalPages)
+                      }
+
+                      return pages.map((p, i) =>
+                        p === 'ellipsis' ? (
+                          <span key={`ellipsis-${i}`} className="px-2 text-gray-500">...</span>
+                        ) : (
+                          <motion.button
+                            key={p}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setPage(p)}
+                            className={`min-w-[36px] h-9 px-3 rounded-lg font-medium transition-colors ${
+                              page === p
+                                ? 'bg-green-600 text-white'
+                                : 'bg-darkbg-800 hover:bg-darkbg-700 text-gray-300'
+                            }`}
+                          >
+                            {p}
+                          </motion.button>
+                        )
+                      )
+                    })()}
+                  </div>
+
+                  {/* Next button */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="p-2 bg-darkbg-800 hover:bg-darkbg-700 text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight className="w-5 h-5" />
                   </motion.button>
                 </motion.div>
               )}

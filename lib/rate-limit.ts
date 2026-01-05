@@ -51,6 +51,7 @@ export type RateLimitEndpoint =
   | 'mutations'
   | 'traits'
   | 'trades-create'
+  | 'trades-search'
   | 'auth-challenge'
   | 'auth-verify'
   | 'admin-abuse'
@@ -67,6 +68,7 @@ export const DEFAULT_RATE_LIMITS: Record<RateLimitEndpoint, RateLimitConfig> = {
   'mutations': { max: 100, windowMs: 60 * 1000 },        // 100 per min
   'traits': { max: 100, windowMs: 60 * 1000 },           // 100 per min
   'trades-create': { max: 5, windowMs: 60 * 1000 },      // 5 per min
+  'trades-search': { max: 60, windowMs: 60 * 1000 },     // 60 per min
   'auth-challenge': { max: 5, windowMs: 15 * 60 * 1000 }, // 5 per 15 min
   'auth-verify': { max: 10, windowMs: 15 * 60 * 1000 },  // 10 per 15 min
   'admin-abuse': { max: 30, windowMs: 60 * 1000 },       // 30 per min (cached)
@@ -84,6 +86,7 @@ export const RATE_LIMIT_DESCRIPTIONS: Record<RateLimitEndpoint, string> = {
   'mutations': 'Mutation data fetches (per IP)',
   'traits': 'Trait data fetches (per IP)',
   'trades-create': 'Trade creations (per user)',
+  'trades-search': 'Trade searches/filters (per IP)',
   'auth-challenge': 'Login challenge requests (per IP)',
   'auth-verify': 'Login verification attempts (per IP)',
   'admin-abuse': 'Admin abuse event fetches (per IP)',

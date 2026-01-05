@@ -71,6 +71,8 @@ interface TradeItemDisplayProps {
       }
     }>
     calculatedIncome?: string | null
+    robuxValue?: number | null
+    hasTraits?: boolean
   }
   size?: 'sm' | 'md'
   layout?: 'horizontal' | 'compact' // compact is vertical card for grids
@@ -211,6 +213,12 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
     [item.calculatedIncome]
   )
 
+  // Memoize formatted robux value
+  const formattedRobuxValue = useMemo(
+    () => item.robuxValue ? `R$${item.robuxValue.toLocaleString()}` : null,
+    [item.robuxValue]
+  )
+
   // Compact vertical card layout for grids
   if (layout === 'compact') {
     return (
@@ -291,6 +299,13 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
           </p>
         )}
 
+        {/* Value */}
+        {formattedRobuxValue && (
+          <p className="text-[10px] font-medium text-yellow-400 text-center">
+            {formattedRobuxValue}
+          </p>
+        )}
+
         {/* Traits - centered */}
         {item.traits && item.traits.length > 0 && (
           <div className="flex justify-center mt-1">
@@ -345,12 +360,19 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
           <p className={`font-semibold text-white truncate ${size === 'sm' ? 'text-sm' : ''}`}>
             {item.brainrot.name}
           </p>
-          {/* Income - below name on mobile, inline on sm+ */}
-          {formattedIncome && (
-            <span className={`xl:hidden font-bold text-green-500 whitespace-nowrap ${size === 'sm' ? 'text-xs' : 'text-sm'}`}>
-              {formattedIncome}
-            </span>
-          )}
+          {/* Income & Value - below name on mobile, inline on sm+ */}
+          <div className="xl:hidden flex items-center gap-2">
+            {formattedIncome && (
+              <span className={`font-bold text-green-500 whitespace-nowrap ${size === 'sm' ? 'text-xs' : 'text-sm'}`}>
+                {formattedIncome}
+              </span>
+            )}
+            {formattedRobuxValue && (
+              <span className={`font-medium text-yellow-400 whitespace-nowrap ${size === 'sm' ? 'text-xs' : 'text-sm'}`}>
+                {formattedRobuxValue}
+              </span>
+            )}
+          </div>
         </div>
         {item.mutation && (
           <p className={`animation-always-running text-xs font-bold truncate ${mutationClass}`}>
@@ -368,13 +390,25 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
         )}
       </div>
 
-      {/* Income - separate column on xl+ */}
-      {formattedIncome && (
+      {/* Income & Value - separate column on xl+ */}
+      {(formattedIncome || formattedRobuxValue) && (
         <div className="hidden xl:block text-right flex-shrink-0">
-          <p className={`font-bold text-green-500 ${size === 'sm' ? 'text-sm' : ''}`}>
-            {formattedIncome}
-          </p>
-          <p className="text-[10px] text-gray-500">income</p>
+          {formattedIncome && (
+            <>
+              <p className={`font-bold text-green-500 ${size === 'sm' ? 'text-sm' : ''}`}>
+                {formattedIncome}
+              </p>
+              <p className="text-[10px] text-gray-500">income</p>
+            </>
+          )}
+          {formattedRobuxValue && (
+            <>
+              <p className={`font-medium text-yellow-400 ${size === 'sm' ? 'text-sm' : ''} ${formattedIncome ? 'mt-1' : ''}`}>
+                {formattedRobuxValue}
+              </p>
+              <p className="text-[10px] text-gray-500">value</p>
+            </>
+          )}
         </div>
       )}
     </>

@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ArrowRightLeft, BadgeCheck, MessageSquare, Clock, Send, Trash2, Check, X, ExternalLink } from 'lucide-react'
+import { ArrowLeft, ArrowRightLeft, BadgeCheck, MessageSquare, Clock, Send, Trash2, Check, X, ExternalLink, Loader2, CheckCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { TradeItemDisplay, TradeBuilderModal } from '@/components/trading'
 import { useAuth } from '@/components/Providers'
 import { RobloxAvatar } from '@/components/ui'
+import { formatIncome } from '@/lib/utils'
 
 interface TradeItem {
   id: string
@@ -36,6 +37,10 @@ interface TradeItem {
     }
   }>
   calculatedIncome?: string | null
+  robuxValue?: number | null
+  hasTraits?: boolean
+  addonType?: string | null
+  robuxAmount?: number | null
 }
 
 interface Trade {
@@ -83,6 +88,8 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
   const [loading, setLoading] = useState(true)
   const [showCounterOffer, setShowCounterOffer] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [requestSuccess, setRequestSuccess] = useState(false)
+  const [requestError, setRequestError] = useState<string | null>(null)
 
   const fetchTrade = async () => {
     try {
@@ -176,15 +183,25 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
   const handleSendRequest = async () => {
     if (!trade) return
     setActionLoading('request')
+    setRequestError(null)
     try {
-      await fetch('/api/trade-requests', {
+      const res = await fetch('/api/trade-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tradeId: trade.id }),
       })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send request')
+      }
+      setRequestSuccess(true)
       fetchTrade()
+      // Clear success message after 3 seconds
+      setTimeout(() => setRequestSuccess(false), 3000)
     } catch (err) {
       console.error('Failed to send request:', err)
+      setRequestError(err instanceof Error ? err.message : 'Failed to send request')
+      setTimeout(() => setRequestError(null), 3000)
     } finally {
       setActionLoading(null)
     }
@@ -273,6 +290,28 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
   const offerItems = trade.items.filter((i) => i.side === 'OFFER')
   const requestItems = trade.items.filter((i) => i.side === 'REQUEST')
 
+  // Calculate totals for a side
+  const calculateTotals = (items: TradeItem[]) => {
+    let totalIncome = BigInt(0)
+    let totalValue = 0
+    for (const item of items) {
+      if (item.calculatedIncome) {
+        totalIncome += BigInt(item.calculatedIncome)
+      }
+      if (item.robuxValue) {
+        totalValue += item.robuxValue
+      }
+      // Add robux from "Add Robux" addon
+      if (item.addonType === 'ROBUX' && item.robuxAmount) {
+        totalValue += item.robuxAmount
+      }
+    }
+    return { totalIncome, totalValue }
+  }
+
+  const offerTotals = calculateTotals(offerItems)
+  const requestTotals = calculateTotals(requestItems)
+
   return (
     <div className="min-h-[calc(100vh-64px)] bg-darkbg-950">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -336,14 +375,29 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
           {/* Trade Content */}
           <div className="grid md:grid-cols-[1fr_auto_1fr] gap-4 mb-6 overflow-hidden">
             {/* Offer Side */}
-            <div className="min-w-0 overflow-hidden">
-              <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">
+            <div className="min-w-0 overflow-hidden flex flex-col">
+              <h3 className="text-sm font-semibold text-green-500 uppercase mb-3">
                 Offering
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-2 flex-1">
                 {offerItems.map((item) => (
                   <TradeItemDisplay key={item.id} item={item} />
                 ))}
+              </div>
+              {/* Totals - pushed to bottom */}
+              <div className="mt-3 pt-3 border-t border-darkbg-700 flex items-center justify-between text-sm">
+                {offerTotals.totalIncome > 0 ? (
+                  <div>
+                    <span className="text-gray-500">Total: </span>
+                    <span className="font-bold text-green-500">{formatIncome(offerTotals.totalIncome.toString())}</span>
+                  </div>
+                ) : <div />}
+                {offerTotals.totalValue > 0 ? (
+                  <div>
+                    <span className="text-gray-500">Value: </span>
+                    <span className="font-medium text-yellow-400">R${offerTotals.totalValue.toLocaleString()}</span>
+                  </div>
+                ) : <div />}
               </div>
             </div>
 
@@ -353,14 +407,29 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
             </div>
 
             {/* Request Side */}
-            <div className="min-w-0 overflow-hidden">
-              <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">
+            <div className="min-w-0 overflow-hidden flex flex-col">
+              <h3 className="text-sm font-semibold text-green-500 uppercase mb-3">
                 Looking For
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-2 flex-1">
                 {requestItems.map((item) => (
                   <TradeItemDisplay key={item.id} item={item} />
                 ))}
+              </div>
+              {/* Totals - pushed to bottom */}
+              <div className="mt-3 pt-3 border-t border-darkbg-700 flex items-center justify-between text-sm">
+                {requestTotals.totalIncome > 0 ? (
+                  <div>
+                    <span className="text-gray-500">Total: </span>
+                    <span className="font-bold text-green-500">{formatIncome(requestTotals.totalIncome.toString())}</span>
+                  </div>
+                ) : <div />}
+                {requestTotals.totalValue > 0 ? (
+                  <div>
+                    <span className="text-gray-500">Value: </span>
+                    <span className="font-medium text-yellow-400">R${requestTotals.totalValue.toLocaleString()}</span>
+                  </div>
+                ) : <div />}
               </div>
             </div>
           </div>
@@ -414,11 +483,36 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
                 </button>
                 <button
                   onClick={handleSendRequest}
-                  disabled={actionLoading === 'request'}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-darkbg-800 text-gray-300 rounded-lg font-medium hover:bg-darkbg-700 transition-colors"
+                  disabled={actionLoading === 'request' || requestSuccess}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                    requestSuccess
+                      ? 'bg-green-600 text-white'
+                      : requestError
+                        ? 'bg-red-600 text-white'
+                        : 'bg-darkbg-800 text-gray-300 hover:bg-darkbg-700'
+                  }`}
                 >
-                  <Send className="w-4 h-4" />
-                  <span>Request Trade</span>
+                  {actionLoading === 'request' ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Sending...</span>
+                    </>
+                  ) : requestSuccess ? (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Request Sent!</span>
+                    </>
+                  ) : requestError ? (
+                    <>
+                      <X className="w-4 h-4" />
+                      <span>{requestError}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Request Trade</span>
+                    </>
+                  )}
                 </button>
               </>
             )}

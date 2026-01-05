@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, Gem, BadgeCheck, MessageSquare, Calculator, Shield, HelpCircle, ExternalLink } from 'lucide-react'
+import { ChevronDown, Gem, BadgeCheck, MessageSquare, Calculator, Shield, HelpCircle, ExternalLink, TrendingUp } from 'lucide-react'
 import { PageTransition } from '@/components/ui'
 import { easeOut } from '@/lib/animations'
 
@@ -105,14 +105,47 @@ const faqs: FAQItem[] = [
           <p className="font-semibold text-white">Multiplier stacking:</p>
           <ul className="list-disc list-inside space-y-1 text-gray-300 text-sm">
             <li><span className="text-white">No traits:</span> Just mutation multiplier</li>
-            <li><span className="text-white">1 trait:</span> Trait + (Mutation - 1)</li>
-            <li><span className="text-white">Multiple traits:</span> (First trait - 1) + Other traits + (Mutation - 1)</li>
+            <li><span className="text-white">1 trait:</span> Trait multiplier + (Mutation - 1)</li>
+            <li><span className="text-white">2+ traits:</span> Sum of traits - stacking penalty + (Mutation - 1)</li>
+            <li><span className="text-white">Stacking penalty:</span> ceil(trait count ÷ 2) — e.g., 3 traits = -2, 5 traits = -3</li>
             <li><span className="text-white">Sleepy trait:</span> Halves final income (×0.5)</li>
           </ul>
         </div>
         <p className="text-sm text-gray-400">
           Found an error? Use the &quot;Is something incorrect?&quot; link in the calculator to report it.
         </p>
+      </div>
+    ),
+  },
+  {
+    question: 'How are brainrot values determined?',
+    icon: <TrendingUp className="w-5 h-5 text-orange-400" />,
+    answer: (
+      <div className="space-y-3">
+        <p>
+          Values are based on <span className="text-orange-400 font-semibold">recently traded prices</span> and are agreed upon by community experts.
+        </p>
+        <ul className="list-disc list-inside space-y-1 text-gray-300">
+          <li>We track actual trades to determine fair market values</li>
+          <li>Expert traders help validate and adjust pricing</li>
+          <li>Values are updated frequently to reflect market changes</li>
+        </ul>
+        <div className="space-y-2">
+          <p className="font-semibold text-white">Think a value is off?</p>
+          <p className="text-gray-300">
+            We run frequent <span className="text-green-400 font-semibold">community polls</span> to adjust values. Suggest a change in our{' '}
+            <a
+              href="https://discord.gg/N5fnmraeee"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-green-400 hover:underline inline-flex items-center gap-1"
+            >
+              Discord server
+              <ExternalLink className="w-3 h-3" />
+            </a>{' '}
+            and the community votes on whether to raise or lower the value.
+          </p>
+        </div>
       </div>
     ),
   },

@@ -109,6 +109,14 @@ enum ReportStatus {
   DISMISSED
 }
 
+enum NotificationType {
+  TRADE_REQUEST
+  COUNTER_OFFER
+  REQUEST_ACCEPTED
+  REQUEST_DECLINED
+  COUNTER_ACCEPTED
+}
+
 model User {
   id              String   @id @default(cuid())
   robloxUsername  String   @unique
@@ -151,6 +159,8 @@ model User {
   tradeRequests       TradeRequest[]
   reports             Report[]          @relation("UserReports")
   resolvedReports     Report[]          @relation("ResolvedReports")
+  notifications       Notification[]    @relation("UserNotifications")
+  triggeredNotifications Notification[] @relation("TriggeredNotifications")
 
   @@index([robloxUsername])
   @@index([shopName])
@@ -679,5 +689,26 @@ model Report {
   @@index([status])
   @@index([createdAt])
   @@index([reporterId])
+}
+
+// Notifications for trade requests, counter offers, etc.
+model Notification {
+  id              String           @id @default(cuid())
+  userId          String           // Recipient of the notification
+  type            NotificationType
+  message         String
+  isRead          Boolean          @default(false)
+
+  // Related entities
+  tradeId         String?
+  fromUserId      String?          // User who triggered the notification
+
+  createdAt       DateTime         @default(now())
+
+  user            User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  fromUser        User?            @relation("TriggeredNotifications", fields: [fromUserId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }
 

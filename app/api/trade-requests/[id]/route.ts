@@ -61,6 +61,19 @@ export async function PATCH(
       })
     }
 
+    // Create notification for the requester
+    await prisma.notification.create({
+      data: {
+        userId: tradeRequest.requesterId,
+        type: status === 'ACCEPTED' ? 'REQUEST_ACCEPTED' : 'REQUEST_DECLINED',
+        message: status === 'ACCEPTED'
+          ? `${user.robloxUsername} accepted your trade request`
+          : `${user.robloxUsername} declined your trade request`,
+        tradeId: tradeRequest.tradeId,
+        fromUserId: user.id,
+      },
+    })
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Update trade request error:', error)

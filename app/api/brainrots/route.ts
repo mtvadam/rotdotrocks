@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
         localImage: true,
         baseIncome: true,
         rarity: true,
+        robuxValue: true,
       },
       orderBy: { name: 'asc' },
     })
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
     const serialized = brainrots.map((b) => ({
       ...b,
       baseIncome: b.baseIncome.toString(),
+      robuxValue: b.robuxValue,
     }))
 
     return NextResponse.json({ brainrots: serialized })

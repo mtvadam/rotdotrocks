@@ -3,11 +3,27 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
-import { Calculator, Plus, Trash2, ArrowRightLeft, Scale, RotateCcw, Pencil } from 'lucide-react'
+import { Calculator, Plus, Trash2, ArrowRightLeft, Scale, RotateCcw, Pencil, Trophy, Layers } from 'lucide-react'
 import { BrainrotPicker, prefetchPickerData } from '@/components/trading'
 import { PageTransition } from '@/components/ui'
 import { formatIncome, getMutationClass } from '@/lib/utils'
 import { easeOut } from '@/lib/animations'
+
+// Badge thresholds
+const BILLION = 1_000_000_000
+const LB_VIABLE_THRESHOLD = 2 * BILLION // 2B income
+const TRAIT_STACKED_THRESHOLD = 5 // 5+ traits
+
+// Check if income qualifies for LB Viable badge
+function isLBViable(income: string | undefined): boolean {
+  if (!income) return false
+  return parseFloat(income) >= LB_VIABLE_THRESHOLD
+}
+
+// Check if trait count qualifies for Trait Stacked badge
+function isTraitStacked(traitCount: number): boolean {
+  return traitCount >= TRAIT_STACKED_THRESHOLD
+}
 
 interface TradeItem {
   brainrotId: string
@@ -16,6 +32,7 @@ interface TradeItem {
     name: string
     localImage: string | null
     baseIncome: string
+    robuxValue?: number | null
   }
   mutationId?: string
   mutation?: {
@@ -36,6 +53,22 @@ interface TradeItem {
     name: string
   }
   calculatedIncome?: string
+}
+
+// Format value compactly
+function formatValue(value: number): string {
+  if (value >= 1_000_000) {
+    return (Math.round(value / 1_000_000 * 10) / 10).toFixed(1) + 'M'
+  }
+  if (value >= 1_000) {
+    return (Math.round(value / 1_000 * 10) / 10).toFixed(1) + 'K'
+  }
+  return value.toLocaleString()
+}
+
+// Calculate total value from items
+function calculateTotalValue(items: TradeItem[]): number {
+  return items.reduce((sum, item) => sum + (item.brainrot.robuxValue || 0), 0)
 }
 
 type Side = 'left' | 'right'
@@ -99,11 +132,31 @@ function CalculatorItem({
             {item.traits.length} trait{item.traits.length > 1 ? 's' : ''}
           </p>
         )}
+        {/* Badges */}
+        <div className="flex items-center gap-1 mt-1">
+          {isLBViable(item.calculatedIncome) && (
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-[10px] font-medium">
+              <Trophy className="w-3 h-3" />
+              LB
+            </span>
+          )}
+          {isTraitStacked(item.traits?.length || 0) && (
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 text-[10px] font-medium">
+              <Layers className="w-3 h-3" />
+              Stacked
+            </span>
+          )}
+        </div>
       </div>
       <div className="text-right flex-shrink-0">
         <p className="font-bold text-green-400 text-sm">
           {formatIncome(item.calculatedIncome || item.brainrot.baseIncome)}
         </p>
+        {item.brainrot.robuxValue != null && item.brainrot.robuxValue > 0 && (
+          <p className="text-xs text-orange-400 font-medium">
+            R$ {formatValue(item.brainrot.robuxValue)}
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         <motion.button
@@ -138,6 +191,7 @@ export default function CalculatorPage() {
     prefetchPickerData()
   }, [])
 
+  // Income calculations
   const leftTotal = leftItems.reduce(
     (sum, item) => sum + BigInt(item.calculatedIncome || item.brainrot.baseIncome),
     BigInt(0)
@@ -151,6 +205,15 @@ export default function CalculatorPage() {
   const percentDiff = leftTotal > 0
     ? Number((difference * BigInt(10000)) / leftTotal) / 100
     : rightTotal > 0 ? 100 : 0
+
+  // Value calculations
+  const leftValue = calculateTotalValue(leftItems)
+  const rightValue = calculateTotalValue(rightItems)
+  const valueDifference = rightValue - leftValue
+  const valuePercentDiff = leftValue > 0
+    ? ((valueDifference / leftValue) * 100)
+    : rightValue > 0 ? 100 : 0
+  const hasAnyValue = leftValue > 0 || rightValue > 0
 
   const handleSelectItem = (item: TradeItem) => {
     if (editingIndex !== null) {
@@ -270,17 +333,27 @@ export default function CalculatorPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 flex items-center justify-between p-3 bg-darkbg-800 rounded-xl"
+                  className="mt-4 p-3 bg-darkbg-800 rounded-xl space-y-1"
                 >
-                  <span className="text-sm text-gray-400">Total</span>
-                  <motion.span
-                    key={leftTotal.toString()}
-                    initial={{ scale: 1.1 }}
-                    animate={{ scale: 1 }}
-                    className="text-lg font-bold text-green-400"
-                  >
-                    <span className="text-white/70">Σ</span> {formatIncome(leftTotal.toString())}
-                  </motion.span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Income</span>
+                    <motion.span
+                      key={leftTotal.toString()}
+                      initial={{ scale: 1.1 }}
+                      animate={{ scale: 1 }}
+                      className="text-lg font-bold text-green-400"
+                    >
+                      <span className="text-white/70">Σ</span> {formatIncome(leftTotal.toString())}
+                    </motion.span>
+                  </div>
+                  {leftValue > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Value</span>
+                      <span className="text-sm font-bold text-orange-400">
+                        R$ {formatValue(leftValue)}
+                      </span>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </div>
@@ -304,27 +377,48 @@ export default function CalculatorPage() {
               <AnimatePresence mode="wait">
                 {hasItems && (
                   <motion.div
-                    key={difference.toString()}
+                    key={difference.toString() + valueDifference.toString()}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.2 }}
-                    className="text-center"
+                    className="text-center space-y-3"
                   >
-                    <motion.p
-                      className={`text-2xl font-bold ${
-                        difference > 0 ? 'text-green-600' :
-                        difference < 0 ? 'text-red-500' : 'text-gray-500'
-                      }`}
-                    >
-                      {difference > 0 ? '+' : ''}{formatIncome(difference.toString())}
-                    </motion.p>
-                    <p className="text-sm text-gray-500">
-                      {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}%
-                    </p>
+                    {/* Income difference */}
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Income</p>
+                      <motion.p
+                        className={`text-xl font-bold ${
+                          difference > 0 ? 'text-green-500' :
+                          difference < 0 ? 'text-red-500' : 'text-gray-500'
+                        }`}
+                      >
+                        {difference > 0 ? '+' : ''}{formatIncome(difference.toString())}
+                      </motion.p>
+                      <p className="text-xs text-gray-500">
+                        {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}%
+                      </p>
+                    </div>
+                    {/* Value difference */}
+                    {hasAnyValue && (
+                      <div>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Value</p>
+                        <motion.p
+                          className={`text-lg font-bold ${
+                            valueDifference > 0 ? 'text-green-500' :
+                            valueDifference < 0 ? 'text-red-500' : 'text-gray-500'
+                          }`}
+                        >
+                          {valueDifference > 0 ? '+' : ''}R$ {formatValue(Math.abs(valueDifference))}
+                        </motion.p>
+                        <p className="text-xs text-gray-500">
+                          {valuePercentDiff > 0 ? '+' : ''}{valuePercentDiff.toFixed(1)}%
+                        </p>
+                      </div>
+                    )}
                     <p className="text-xs text-gray-400 mt-1">
-                      {difference > 0 ? 'You gain value' :
-                       difference < 0 ? 'You lose value' : 'Fair trade'}
+                      {difference > 0 ? 'You gain income' :
+                       difference < 0 ? 'You lose income' : 'Fair trade'}
                     </p>
                   </motion.div>
                 )}
@@ -369,17 +463,27 @@ export default function CalculatorPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 flex items-center justify-between p-3 bg-darkbg-800 rounded-xl"
+                  className="mt-4 p-3 bg-darkbg-800 rounded-xl space-y-1"
                 >
-                  <span className="text-sm text-gray-400">Total</span>
-                  <motion.span
-                    key={rightTotal.toString()}
-                    initial={{ scale: 1.1 }}
-                    animate={{ scale: 1 }}
-                    className="text-lg font-bold text-green-400"
-                  >
-                    <span className="text-white/70">Σ</span> {formatIncome(rightTotal.toString())}
-                  </motion.span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Income</span>
+                    <motion.span
+                      key={rightTotal.toString()}
+                      initial={{ scale: 1.1 }}
+                      animate={{ scale: 1 }}
+                      className="text-lg font-bold text-green-400"
+                    >
+                      <span className="text-white/70">Σ</span> {formatIncome(rightTotal.toString())}
+                    </motion.span>
+                  </div>
+                  {rightValue > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">Value</span>
+                      <span className="text-sm font-bold text-orange-400">
+                        R$ {formatValue(rightValue)}
+                      </span>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </div>
@@ -392,24 +496,47 @@ export default function CalculatorPage() {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="md:hidden mt-6 p-4 bg-darkbg-800 rounded-xl text-center"
+                className="md:hidden mt-6 p-4 bg-darkbg-800 rounded-xl text-center space-y-3"
               >
                 <Scale className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <motion.p
-                  key={difference.toString()}
-                  initial={{ scale: 1.1 }}
-                  animate={{ scale: 1 }}
-                  className={`text-xl font-bold ${
-                    difference > 0 ? 'text-green-600' :
-                    difference < 0 ? 'text-red-500' : 'text-gray-500'
-                  }`}
-                >
-                  {difference > 0 ? '+' : ''}{formatIncome(difference.toString())}
-                </motion.p>
-                <p className="text-sm text-gray-500">
-                  {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}% •{' '}
-                  {difference > 0 ? 'You gain value' :
-                   difference < 0 ? 'You lose value' : 'Fair trade'}
+                {/* Income difference */}
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Income</p>
+                  <motion.p
+                    key={difference.toString()}
+                    initial={{ scale: 1.1 }}
+                    animate={{ scale: 1 }}
+                    className={`text-xl font-bold ${
+                      difference > 0 ? 'text-green-500' :
+                      difference < 0 ? 'text-red-500' : 'text-gray-500'
+                    }`}
+                  >
+                    {difference > 0 ? '+' : ''}{formatIncome(difference.toString())}
+                  </motion.p>
+                  <p className="text-xs text-gray-500">
+                    {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}%
+                  </p>
+                </div>
+                {/* Value difference */}
+                {hasAnyValue && (
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Value</p>
+                    <motion.p
+                      className={`text-lg font-bold ${
+                        valueDifference > 0 ? 'text-green-500' :
+                        valueDifference < 0 ? 'text-red-500' : 'text-gray-500'
+                      }`}
+                    >
+                      {valueDifference > 0 ? '+' : ''}R$ {formatValue(Math.abs(valueDifference))}
+                    </motion.p>
+                    <p className="text-xs text-gray-500">
+                      {valuePercentDiff > 0 ? '+' : ''}{valuePercentDiff.toFixed(1)}%
+                    </p>
+                  </div>
+                )}
+                <p className="text-xs text-gray-400">
+                  {difference > 0 ? 'You gain income' :
+                   difference < 0 ? 'You lose income' : 'Fair trade'}
                 </p>
               </motion.div>
             )}

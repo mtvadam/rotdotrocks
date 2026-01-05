@@ -5,11 +5,11 @@ import TradePageClient from './TradePageClient'
 // Helper to format income for metadata
 function formatIncome(income: bigint | string): string {
   const num = typeof income === 'bigint' ? Number(income) : parseFloat(String(income))
-  if (num >= 1_000_000_000_000) return `${(Math.floor(num / 1_000_000_000_000 * 10) / 10).toFixed(1)}T`
-  if (num >= 1_000_000_000) return `${(Math.floor(num / 1_000_000_000 * 10) / 10).toFixed(1)}B`
-  if (num >= 1_000_000) return `${(Math.floor(num / 1_000_000 * 10) / 10).toFixed(1)}M`
-  if (num >= 1_000) return `${(Math.floor(num / 1_000 * 10) / 10).toFixed(1)}K`
-  return Math.floor(num).toString()
+  if (num >= 1_000_000_000_000) return `${(Math.round(num / 1_000_000_000_000 * 10) / 10).toFixed(1)}T`
+  if (num >= 1_000_000_000) return `${(Math.round(num / 1_000_000_000 * 10) / 10).toFixed(1)}B`
+  if (num >= 1_000_000) return `${(Math.round(num / 1_000_000 * 10) / 10).toFixed(1)}M`
+  if (num >= 1_000) return `${(Math.round(num / 1_000 * 10) / 10).toFixed(1)}K`
+  return Math.round(num).toString()
 }
 
 export async function generateMetadata(

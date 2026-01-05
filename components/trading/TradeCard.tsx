@@ -585,31 +585,30 @@ function calculateTotalValue(items: TradeCardProps['trade']['items']): number | 
 // Format Robux value compactly (e.g., 1.5K, 2.3M)
 function formatCompactValue(value: number): string {
   if (value >= MILLION) {
-    return (Math.floor(value / MILLION * 10) / 10).toFixed(1) + 'M'
+    return (Math.round(value / MILLION * 10) / 10).toFixed(1) + 'M'
   }
   if (value >= THOUSAND) {
-    return (Math.floor(value / THOUSAND * 10) / 10).toFixed(1) + 'K'
+    return (Math.round(value / THOUSAND * 10) / 10).toFixed(1) + 'K'
   }
   return value.toLocaleString()
 }
 
 // Optimized income formatting using pre-defined constants
-// Uses floor instead of round to avoid misleading higher values
 function formatCompactIncome(income: string): string {
   const num = parseFloat(income)
   if (num >= TRILLION) {
-    return (Math.floor(num / TRILLION * 10) / 10).toFixed(1) + 'T'
+    return (Math.round(num / TRILLION * 10) / 10).toFixed(1) + 'T'
   }
   if (num >= BILLION) {
-    return (Math.floor(num / BILLION * 10) / 10).toFixed(1) + 'B'
+    return (Math.round(num / BILLION * 10) / 10).toFixed(1) + 'B'
   }
   if (num >= MILLION) {
-    return (Math.floor(num / MILLION * 10) / 10).toFixed(1) + 'M'
+    return (Math.round(num / MILLION * 10) / 10).toFixed(1) + 'M'
   }
   if (num >= THOUSAND) {
-    return (Math.floor(num / THOUSAND * 10) / 10).toFixed(1) + 'K'
+    return (Math.round(num / THOUSAND * 10) / 10).toFixed(1) + 'K'
   }
-  return Math.floor(num).toString()
+  return Math.round(num).toString()
 }
 
 // Grid display component - shows items in 3-per-row grid, max 2 rows
@@ -726,8 +725,8 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
         <div className="md:hidden pb-2">
           {/* Labels row */}
           <div className="flex justify-between mb-1.5">
-            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide">Offering</p>
-            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide">Wants</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-green-500 uppercase tracking-wide">Offering</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-green-500 uppercase tracking-wide">Wants</p>
           </div>
 
           {/* Items grid with arrow */}
@@ -770,8 +769,8 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
         <div className="hidden lg:block pb-2">
           {/* Labels row */}
           <div className="flex justify-between mb-1.5">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Offering</p>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Wants</p>
+            <p className="text-xs font-semibold text-green-500 uppercase tracking-wide">Offering</p>
+            <p className="text-xs font-semibold text-green-500 uppercase tracking-wide">Wants</p>
           </div>
 
           {/* Items grid with arrow */}
@@ -856,7 +855,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
             {/* Request Side */}
             <div className="flex-1 bg-darkbg-800/50 rounded-xl p-3">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Wants</p>
+                <p className="text-xs font-bold text-green-400 uppercase tracking-wider">Wants</p>
                 <div className="flex items-center gap-2">
                   {requestIncome && (
                     <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">

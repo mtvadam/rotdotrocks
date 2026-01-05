@@ -27,12 +27,22 @@ function parseIncomeValue(value: string): number | null {
 // GET /api/trades - List trades
 export async function GET(request: NextRequest) {
   try {
+    // Rate limit searches to prevent abuse
+    const clientIP = request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown'
+    const rateLimit = await checkRateLimitDynamic(`trades:search:${clientIP}`, 'trades-search')
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        { status: 429 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const tab = searchParams.get('tab') || 'all'
     const search = searchParams.get('search') || ''
     const sort = searchParams.get('sort') || 'newest'
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const offset = parseInt(searchParams.get('offset') || '0')
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const perPage = Math.min(24, Math.max(1, parseInt(searchParams.get('perPage') || '12')))
 
     // Advanced filter params
     const offerBrainrots = searchParams.get('offerBrainrots')?.split(',').filter(Boolean) || []
@@ -125,64 +135,102 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // LB Viable badge filters - at DB level for 100% reliability
+    if (offerBadges.includes('LB_VIABLE')) {
+      itemConditions.push({
+        items: {
+          some: {
+            side: 'OFFER',
+            calculatedIncome: { gte: LB_VIABLE_THRESHOLD },
+          },
+        },
+      })
+    }
+    if (requestBadges.includes('LB_VIABLE')) {
+      itemConditions.push({
+        items: {
+          some: {
+            side: 'REQUEST',
+            calculatedIncome: { gte: LB_VIABLE_THRESHOLD },
+          },
+        },
+      })
+    }
+
     // Apply item conditions
     if (itemConditions.length > 0) {
       where.AND = [...(where.AND || []), ...itemConditions]
     }
 
-    // Get trades
-    const [trades, total] = await Promise.all([
+    // Check if we have trait stacked badges (these need post-fetch filtering)
+    const hasTraitStackedFilter =
+      offerBadges.includes('TRAIT_STACKED') || requestBadges.includes('TRAIT_STACKED')
+
+    // Determine if we have post-fetch filters that require fetching all trades
+    // Note: LB_VIABLE is now filtered at DB level, so not included here
+    const hasPostFetchFilters =
+      offerIncomeMin !== null || offerIncomeMax !== null ||
+      requestIncomeMin !== null || requestIncomeMax !== null ||
+      hasTraitStackedFilter ||
+      searchTerm // Search relevance sorting also requires all trades
+
+    // Fetch trades - if post-fetch filters exist, get ALL matching trades for 100% accuracy
+    // Rate limiting prevents abuse of this
+    const skipAmount = hasPostFetchFilters ? 0 : (page - 1) * perPage
+
+    // Get trades and count
+    const [trades, dbTotal] = await Promise.all([
       prisma.trade.findMany({
-        where,
-        include: {
-          user: {
-            select: {
-              id: true,
-              robloxUsername: true,
-              robloxUserId: true,
-              robloxAvatarUrl: true,
-            },
-          },
-          items: {
-            include: {
-              brainrot: {
-                select: {
-                  id: true,
-                  name: true,
-                  localImage: true,
-                  baseIncome: true,
-                  robuxValue: true,
-                  mutationValues: {
-                    select: {
-                      mutationId: true,
-                      robuxValue: true,
-                    },
-                  },
-                },
-              },
-              mutation: {
-                select: { id: true, name: true, multiplier: true },
-              },
-              event: {
-                select: { id: true, name: true },
-              },
-              traits: {
-                include: {
-                  trait: {
-                    select: { id: true, name: true, localImage: true, multiplier: true },
-                  },
-                },
-              },
-            },
-          },
-          _count: {
-            select: { counterOffers: true },
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            robloxUsername: true,
+            robloxUserId: true,
+            robloxAvatarUrl: true,
           },
         },
-        orderBy: { createdAt: sort === 'oldest' ? 'asc' : 'desc' },
-        take: limit,
-        skip: offset,
-      }),
+        items: {
+          include: {
+            brainrot: {
+              select: {
+                id: true,
+                name: true,
+                localImage: true,
+                baseIncome: true,
+                robuxValue: true,
+                mutationValues: {
+                  select: {
+                    mutationId: true,
+                    robuxValue: true,
+                  },
+                },
+              },
+            },
+            mutation: {
+              select: { id: true, name: true, multiplier: true },
+            },
+            event: {
+              select: { id: true, name: true },
+            },
+            traits: {
+              include: {
+                trait: {
+                  select: { id: true, name: true, localImage: true, multiplier: true },
+                },
+              },
+            },
+          },
+        },
+        _count: {
+          select: { counterOffers: true },
+        },
+      },
+      orderBy: { createdAt: sort === 'oldest' ? 'asc' : 'desc' },
+      ...(hasPostFetchFilters ? {} : { take: perPage }), // Fetch all when filtering, paginate at DB level otherwise
+      skip: skipAmount,
+    }),
       prisma.trade.count({ where }),
     ])
 
@@ -311,58 +359,45 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Apply offer badge filters
-    if (offerBadges.length > 0) {
+    // Apply TRAIT_STACKED badge filters (post-fetch since it requires counting relations)
+    // Note: LB_VIABLE is filtered at DB level, so not needed here
+    if (offerBadges.includes('TRAIT_STACKED')) {
       serializedTrades = serializedTrades.filter((trade) => {
         const offerItems = trade.items.filter((i) => i.side === 'OFFER')
-
-        for (const badge of offerBadges) {
-          if (badge === 'LB_VIABLE') {
-            // At least one item must have income >= 2B
-            const hasLBViable = offerItems.some((i) => {
-              const income = parseFloat(i.calculatedIncome || '0')
-              return income >= LB_VIABLE_THRESHOLD
-            })
-            if (!hasLBViable) return false
-          }
-          if (badge === 'TRAIT_STACKED') {
-            // At least one item must have 5+ traits
-            const hasTraitStacked = offerItems.some((i) => (i.traitCount || 0) >= TRAIT_STACKED_THRESHOLD)
-            if (!hasTraitStacked) return false
-          }
-        }
-        return true
+        return offerItems.some((i) => (i.traitCount || 0) >= TRAIT_STACKED_THRESHOLD)
       })
     }
 
-    // Apply request badge filters
-    if (requestBadges.length > 0) {
+    if (requestBadges.includes('TRAIT_STACKED')) {
       serializedTrades = serializedTrades.filter((trade) => {
         const requestItems = trade.items.filter((i) => i.side === 'REQUEST')
-
-        for (const badge of requestBadges) {
-          if (badge === 'LB_VIABLE') {
-            const hasLBViable = requestItems.some((i) => {
-              const income = parseFloat(i.calculatedIncome || '0')
-              return income >= LB_VIABLE_THRESHOLD
-            })
-            if (!hasLBViable) return false
-          }
-          if (badge === 'TRAIT_STACKED') {
-            const hasTraitStacked = requestItems.some((i) => (i.traitCount || 0) >= TRAIT_STACKED_THRESHOLD)
-            if (!hasTraitStacked) return false
-          }
-        }
-        return true
+        return requestItems.some((i) => (i.traitCount || 0) >= TRAIT_STACKED_THRESHOLD)
       })
     }
 
-    // Note: total count may not match after income filtering (post-fetch filter)
-    // This is a trade-off for simpler implementation
+    // Calculate pagination after all filters applied
+    let totalFiltered: number
+    let paginatedTrades = serializedTrades
+
+    if (hasPostFetchFilters) {
+      // Post-fetch filters applied - use filtered count
+      totalFiltered = serializedTrades.length
+      const startIndex = (page - 1) * perPage
+      paginatedTrades = serializedTrades.slice(startIndex, startIndex + perPage)
+    } else {
+      // No post-fetch filters - use DB count
+      totalFiltered = dbTotal
+    }
+
+    const totalPages = Math.max(1, Math.ceil(totalFiltered / perPage))
+
     return NextResponse.json({
-      trades: serializedTrades,
-      total: serializedTrades.length + offset, // Adjusted for post-filter
-      hasMore: trades.length === limit && serializedTrades.length > 0,
+      trades: paginatedTrades,
+      total: totalFiltered,
+      page,
+      perPage,
+      totalPages,
+      hasMore: page < totalPages,
     })
   } catch (error) {
     console.error('Get trades error:', error)
@@ -525,6 +560,25 @@ export async function POST(request: NextRequest) {
 
       return newTrade
     })
+
+    // If counter offer, notify the parent trade owner
+    if (isCounterOffer) {
+      const parentTrade = await prisma.trade.findUnique({
+        where: { id: parentTradeId },
+        select: { userId: true },
+      })
+      if (parentTrade) {
+        await prisma.notification.create({
+          data: {
+            userId: parentTrade.userId,
+            type: 'COUNTER_OFFER',
+            message: `${user.robloxUsername} sent you a counter offer`,
+            tradeId: parentTradeId,
+            fromUserId: user.id,
+          },
+        })
+      }
+    }
 
     // Generate OG image in the background (don't block trade creation)
     // Fetch all data needed NOW while we have a connection, then generate async

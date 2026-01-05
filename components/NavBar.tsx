@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from './Providers'
-import { GemDisplay, RobloxAvatar } from './ui'
+import { GemDisplay, RobloxAvatar, NotificationBell } from './ui'
 import { Menu, X, Calculator, ArrowRightLeft, LogOut, User, Sparkles, Shield, HelpCircle } from 'lucide-react'
 import { prefetchBrainrots } from '@/lib/prefetch'
 
@@ -127,6 +127,7 @@ export function NavBar() {
             ) : user ? (
               <div className="flex items-center gap-3">
                 <GemDisplay />
+                <NotificationBell />
                 <RobloxAvatar
                   avatarUrl={user.robloxAvatarUrl}
                   username={user.robloxUsername}
@@ -134,7 +135,9 @@ export function NavBar() {
                 />
                 <div className="hidden sm:flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-300">
-                    {user.robloxUsername}
+                    {user.robloxUsername.length > 15
+                      ? user.robloxUsername.slice(0, 12) + '...'
+                      : user.robloxUsername}
                   </span>
                   {(user.role === 'ADMIN' || user.role === 'MOD') && (
                     <Link
