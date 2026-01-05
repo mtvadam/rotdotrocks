@@ -143,6 +143,12 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
       return
     }
 
+    // Prevent duplicate addons
+    if (items.some((item) => item.brainrotId === addon.id)) {
+      setError('This addon is already added')
+      return
+    }
+
     // For Robux addon, show input modal
     if (addon.id === 'addon-robux') {
       setShowRobuxInput(side)
@@ -172,6 +178,16 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
   const handleConfirmRobuxAmount = () => {
     const amount = parseInt(robuxInputValue.replace(/,/g, ''), 10)
     if (!amount || amount <= 0) {
+      return
+    }
+
+    const items = showRobuxInput === 'OFFER' ? offerItems : requestItems
+
+    // Prevent duplicate robux addon (only when adding new, not editing)
+    if (editingRobuxIndex === null && items.some((item) => item.brainrotId === 'addon-robux')) {
+      setError('Robux addon is already added')
+      setShowRobuxInput(null)
+      setRobuxInputValue('')
       return
     }
 

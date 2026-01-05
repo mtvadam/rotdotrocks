@@ -62,6 +62,7 @@ interface TradeCardProps {
       }>
       calculatedIncome?: string | null
       robuxValue?: number | null
+      robuxAmount?: number | null
       hasTraits?: boolean
       traitCount?: number
     }>
@@ -560,15 +561,21 @@ function calculateTotalIncome(items: TradeCardProps['trade']['items']): string |
   return hasIncome ? total.toFixed(2) : null
 }
 
-// Calculate total Robux value from items
+// Calculate total Robux value from items (includes brainrot values + Robux addon amounts)
 function calculateTotalValue(items: TradeCardProps['trade']['items']): number | null {
   let total = 0
   let hasValue = false
 
   for (const item of items) {
+    // Add brainrot's robux value
     if (item.robuxValue != null) {
       hasValue = true
       total += item.robuxValue
+    }
+    // Add Robux addon amount
+    if (item.robuxAmount != null) {
+      hasValue = true
+      total += item.robuxAmount
     }
   }
 

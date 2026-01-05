@@ -29,20 +29,11 @@ export const metadata: Metadata = {
     type: 'website',
     url: 'https://rot.rocks',
     siteName: 'rot.rocks',
-    images: [
-      {
-        url: '/og-default.png',
-        width: 1200,
-        height: 630,
-        alt: 'rot.rocks - Brainrot Trading',
-      },
-    ],
   },
   twitter: {
-    card: 'summary_large_image',
+    card: 'summary',
     title: 'rot.rocks - Brainrot Trading',
     description: 'Trade Brainrot pets from Steal a Brainrot. Create trades, calculate values, and find fair deals.',
-    images: ['/og-default.png'],
   },
 }
 
