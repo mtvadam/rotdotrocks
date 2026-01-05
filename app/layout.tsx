@@ -13,8 +13,14 @@ export const metadata: Metadata = {
   title: 'rot.rocks - Brainrot Trading',
   description: 'Trade Brainrot pets from Steal a Brainrot. Create trades, calculate values, and find fair deals.',
   icons: {
-    icon: '/logo.png',
-    apple: '/logo.png',
+    icon: [
+      { url: '/favicon.ico', sizes: '32x32' },
+      { url: '/icon.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
   },
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://rot.rocks'),
   openGraph: {
