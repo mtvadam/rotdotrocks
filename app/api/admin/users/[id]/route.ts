@@ -159,7 +159,7 @@ export async function PATCH(
     }
 
     // Handle role change
-    if (role !== undefined && ['USER', 'SELLER', 'ADMIN'].includes(role) && role !== existingUser.role) {
+    if (role !== undefined && ['USER', 'SELLER', 'MOD', 'ADMIN'].includes(role) && role !== existingUser.role) {
       updateData.role = role
       auditLogs.push({
         action: AuditActions.ROLE_CHANGED,

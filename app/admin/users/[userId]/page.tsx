@@ -21,7 +21,7 @@ interface UserDetail {
   robloxUsername: string
   robloxUserId: string | null
   robloxAvatarUrl: string | null
-  role: 'USER' | 'SELLER' | 'ADMIN'
+  role: 'USER' | 'SELLER' | 'MOD' | 'ADMIN'
   isBanned: boolean
   isFrozen: boolean
   gems: number
@@ -157,6 +157,11 @@ export default function UserDetailPage({
               {user.role === 'ADMIN' && (
                 <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-500/20 text-red-400 text-sm">
                   <Shield className="w-3 h-3" /> Admin
+                </span>
+              )}
+              {user.role === 'MOD' && (
+                <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-500/20 text-orange-400 text-sm">
+                  <Shield className="w-3 h-3" /> Mod
                 </span>
               )}
               {user.role === 'SELLER' && (
@@ -295,6 +300,7 @@ export default function UserDetailPage({
               options={[
                 { value: 'USER', label: 'User' },
                 { value: 'SELLER', label: 'Seller' },
+                { value: 'MOD', label: 'Mod' },
                 { value: 'ADMIN', label: 'Admin' },
               ]}
             />
