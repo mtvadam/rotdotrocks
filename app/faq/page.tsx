@@ -150,6 +150,38 @@ const faqs: FAQItem[] = [
     ),
   },
   {
+    question: 'What does the + sign mean on values?',
+    icon: <HelpCircle className="w-5 h-5 text-amber-400" />,
+    answer: (
+      <div className="space-y-3">
+        <p>
+          When you see a value like <span className="text-amber-400 font-semibold">R$50,000+</span>, it means the value is <span className="text-amber-400 font-semibold">estimated</span> based on a lower mutation.
+        </p>
+        <div className="space-y-2">
+          <p className="font-semibold text-white">Why does this happen?</p>
+          <p className="text-gray-300">
+            Higher mutations like Rainbow are rare, so there isn&apos;t always enough trade data to determine an accurate value. When we don&apos;t have enough data for a specific mutation, we use the value from the next lower mutation that we do have data for.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <p className="font-semibold text-white">What the + means:</p>
+          <ul className="list-disc list-inside space-y-1 text-gray-300">
+            <li>The displayed value comes from a lower mutation</li>
+            <li>The <span className="text-amber-400 font-semibold">+</span> indicates the actual value is <span className="text-white">at least</span> this amount, but likely higher</li>
+          </ul>
+        </div>
+        <div className="bg-darkbg-800 rounded-lg p-3 text-sm">
+          <p className="text-gray-300">
+            <span className="text-white font-semibold">Example:</span> A Rainbow brainrot might show <span className="text-amber-400">R$100,000+</span> using Galaxy&apos;s value. The + tells you it&apos;s worth more than Galaxy, but we don&apos;t have enough Rainbow sales data to pin down the exact price yet.
+          </p>
+        </div>
+        <p className="text-sm text-gray-400">
+          Hover over values with + to see which mutation&apos;s value is being used.
+        </p>
+      </div>
+    ),
+  },
+  {
     question: 'How do counter offers work?',
     icon: <MessageSquare className="w-5 h-5 text-amber-400" />,
     answer: (
