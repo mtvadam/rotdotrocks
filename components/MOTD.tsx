@@ -127,7 +127,7 @@ export function MOTD() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className={`relative z-[100] ${config.bg} border-b ${config.border}`}
+        className={`sticky top-16 z-40 ${config.bg} border-b ${config.border}`}
       >
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-center gap-3">
