@@ -30,18 +30,37 @@ export async function GET(request: NextRequest) {
         localImage: true,
         baseIncome: true,
         rarity: true,
-        robuxValue: true,
         demand: true,
         trend: true,
+        mutationValues: {
+          select: {
+            mutationId: true,
+            robuxValue: true,
+            mutation: {
+              select: { name: true, multiplier: true },
+            },
+          },
+        },
       },
       orderBy: { name: 'asc' },
     })
 
-    // Serialize BigInt
+    // Serialize BigInt and include all mutation values
     const serialized = brainrots.map((b) => ({
-      ...b,
+      id: b.id,
+      name: b.name,
+      localImage: b.localImage,
       baseIncome: b.baseIncome.toString(),
-      robuxValue: b.robuxValue,
+      rarity: b.rarity,
+      demand: b.demand,
+      trend: b.trend,
+      robuxValue: b.mutationValues.find(mv => mv.mutation.name === 'Default')?.robuxValue || null,
+      mutationValues: b.mutationValues.map(mv => ({
+        mutationId: mv.mutationId,
+        robuxValue: mv.robuxValue,
+        mutationName: mv.mutation.name,
+        mutationMultiplier: mv.mutation.multiplier,
+      })),
     }))
 
     return NextResponse.json({ brainrots: serialized })

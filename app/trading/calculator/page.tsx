@@ -55,6 +55,9 @@ interface TradeItem {
     name: string
   }
   calculatedIncome?: string
+  robuxValue?: number | null
+  valueFallback?: boolean
+  valueFallbackSource?: string | null
 }
 
 // Format value compactly
@@ -68,9 +71,9 @@ function formatValue(value: number): string {
   return value.toLocaleString()
 }
 
-// Calculate total value from items
+// Calculate total value from items (use resolved robuxValue, fallback to brainrot default)
 function calculateTotalValue(items: TradeItem[]): number {
-  return items.reduce((sum, item) => sum + (item.brainrot.robuxValue || 0), 0)
+  return items.reduce((sum, item) => sum + (item.robuxValue ?? item.brainrot.robuxValue ?? 0), 0)
 }
 
 type Side = 'left' | 'right'
@@ -163,11 +166,17 @@ function CalculatorItem({
         <p className="font-bold text-green-400 text-sm">
           {formatIncome(item.calculatedIncome || item.brainrot.baseIncome)}
         </p>
-        {item.brainrot.robuxValue != null && item.brainrot.robuxValue > 0 && (
-          <p className="text-xs text-orange-400 font-medium">
-            R$ {formatValue(item.brainrot.robuxValue)}
-          </p>
-        )}
+        {(() => {
+          const value = item.robuxValue ?? item.brainrot.robuxValue
+          if (value != null && value > 0) {
+            return (
+              <p className="text-xs text-orange-400 font-medium" title={item.valueFallback ? `Using ${item.valueFallbackSource} value` : undefined}>
+                R$ {formatValue(value)}{item.valueFallback ? '+' : ''}
+              </p>
+            )
+          }
+          return <p className="text-xs text-gray-500">N/A</p>
+        })()}
       </div>
       <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         <motion.button

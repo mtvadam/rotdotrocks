@@ -25,6 +25,7 @@ interface TradeItem {
     name: string
     localImage: string | null
     baseIncome: string
+    rarity?: string | null
   }
   mutationId?: string
   mutation?: {
@@ -46,6 +47,9 @@ interface TradeItem {
   }
   calculatedIncome?: string
   robuxAmount?: number
+  robuxValue?: number | null
+  valueFallback?: boolean
+  valueFallbackSource?: string | null
 }
 
 interface TradeBuilderModalProps {
@@ -394,6 +398,9 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                                 event: item.event,
                                 traits: item.traits?.map((t) => ({ trait: t })),
                                 calculatedIncome: item.calculatedIncome,
+                                robuxValue: item.robuxValue,
+                                valueFallback: item.valueFallback,
+                                valueFallbackSource: item.valueFallbackSource,
                               }}
                               index={index}
                               layout="compact"
@@ -502,6 +509,9 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                                 event: item.event,
                                 traits: item.traits?.map((t) => ({ trait: t })),
                                 calculatedIncome: item.calculatedIncome,
+                                robuxValue: item.robuxValue,
+                                valueFallback: item.valueFallback,
+                                valueFallbackSource: item.valueFallbackSource,
                               }}
                               index={index}
                               layout="compact"

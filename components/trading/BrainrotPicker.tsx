@@ -9,6 +9,13 @@ import { formatIncome, getMutationClass } from '@/lib/utils'
 import { easeOut, modalVariants, backdropVariants, staggerContainer, staggerChild } from '@/lib/animations'
 import { DemandDot, type DemandLevel, type TrendDirection } from './DemandTrendBadge'
 
+interface MutationValue {
+  mutationId: string
+  robuxValue: number
+  mutationName: string
+  mutationMultiplier: number
+}
+
 interface Brainrot {
   id: string
   name: string
@@ -16,6 +23,7 @@ interface Brainrot {
   baseIncome: string
   rarity: string | null
   robuxValue: number | null
+  mutationValues?: MutationValue[]
   demand?: DemandLevel
   trend?: TrendDirection
 }
@@ -105,6 +113,9 @@ interface SelectedItem {
   traitIds?: string[]
   traits?: Trait[]
   calculatedIncome?: string
+  robuxValue?: number | null
+  valueFallback?: boolean
+  valueFallbackSource?: string | null
 }
 
 interface InitialItem {
@@ -150,6 +161,43 @@ function getRarityClass(rarity: string | null): string {
   if (r === 'og') return 'rarity-og animation-always-running'
   if (r === 'admin') return 'rarity-admin animation-always-running'
   return 'text-gray-400'
+}
+
+// Get resolved robux value based on selected mutation with fallback logic
+function getResolvedRobuxValue(
+  brainrot: Brainrot,
+  selectedMutation: Mutation | null
+): { value: number | null; isFallback: boolean; fallbackSource: string | null } {
+  const mutationValues = brainrot.mutationValues || []
+
+  if (!selectedMutation) {
+    // No mutation = Default
+    const defaultValue = mutationValues.find(mv => mv.mutationName === 'Default')
+    return {
+      value: defaultValue?.robuxValue || brainrot.robuxValue || null,
+      isFallback: false,
+      fallbackSource: null
+    }
+  }
+
+  // Look for exact mutation value
+  const exactValue = mutationValues.find(mv => mv.mutationId === selectedMutation.id)
+  if (exactValue) {
+    return { value: exactValue.robuxValue, isFallback: false, fallbackSource: null }
+  }
+
+  // No exact value - find fallback from lower multiplier mutation
+  const sortedValues = mutationValues
+    .filter(mv => mv.mutationMultiplier < selectedMutation.multiplier)
+    .sort((a, b) => b.mutationMultiplier - a.mutationMultiplier)
+
+  if (sortedValues.length > 0) {
+    const fallback = sortedValues[0]
+    return { value: fallback.robuxValue, isFallback: true, fallbackSource: fallback.mutationName }
+  }
+
+  // No fallback found
+  return { value: null, isFallback: false, fallbackSource: null }
 }
 
 function BrainrotTileSkeleton() {
@@ -348,6 +396,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
 
   const handleConfirm = () => {
     if (!selectedBrainrot) return
+    const resolved = getResolvedRobuxValue(selectedBrainrot, selectedMutation)
     onSelect({
       brainrotId: selectedBrainrot.id,
       brainrot: selectedBrainrot,
@@ -356,6 +405,9 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
       traitIds: selectedTraits.map((t) => t.id),
       traits: selectedTraits,
       calculatedIncome: calculatedIncome || undefined,
+      robuxValue: resolved.value,
+      valueFallback: resolved.isFallback,
+      valueFallbackSource: resolved.fallbackSource,
     })
   }
 
@@ -612,9 +664,17 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                       </>
                     )}
                     <span className="text-gray-600">•</span>
-                    <span className={selectedBrainrot.robuxValue ? "text-yellow-400" : "text-gray-500"}>
-                      {selectedBrainrot.robuxValue ? `R$${selectedBrainrot.robuxValue.toLocaleString()}` : 'N/A'}
-                    </span>
+                    {(() => {
+                      const resolved = getResolvedRobuxValue(selectedBrainrot, selectedMutation)
+                      if (resolved.value) {
+                        return (
+                          <span className="text-yellow-400" title={resolved.isFallback ? `Using ${resolved.fallbackSource} value` : undefined}>
+                            R${resolved.value.toLocaleString()}{resolved.isFallback ? '+' : ''}
+                          </span>
+                        )
+                      }
+                      return <span className="text-gray-500">N/A</span>
+                    })()}
                   </div>
                 </div>
                 <motion.button
