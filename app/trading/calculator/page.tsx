@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { Calculator, Plus, Trash2, ArrowRightLeft, Scale, RotateCcw, Pencil, Trophy, Layers } from 'lucide-react'
@@ -72,8 +73,92 @@ function formatValue(value: number): string {
 }
 
 // Calculate total value from items (use resolved robuxValue, fallback to brainrot default)
-function calculateTotalValue(items: TradeItem[]): number {
-  return items.reduce((sum, item) => sum + (item.robuxValue ?? item.brainrot.robuxValue ?? 0), 0)
+// Returns { value, hasEstimated, fallbackDetails } for tracking inherited values
+function calculateTotalValue(items: TradeItem[]): { value: number; hasEstimated: boolean; fallbackDetails: Array<{ brainrotName: string; source: string }> } {
+  let total = 0
+  let hasEstimated = false
+  const fallbackDetails: Array<{ brainrotName: string; source: string }> = []
+
+  for (const item of items) {
+    const value = item.robuxValue ?? item.brainrot.robuxValue ?? 0
+    total += value
+    if (item.valueFallback && item.valueFallbackSource) {
+      hasEstimated = true
+      fallbackDetails.push({
+        brainrotName: item.brainrot.name,
+        source: item.valueFallbackSource
+      })
+    }
+  }
+
+  return { value: total, hasEstimated, fallbackDetails }
+}
+
+// Value tooltip component with proper hover popup
+function ValueTooltip({
+  value,
+  hasEstimated,
+  fallbackDetails,
+  className = ''
+}: {
+  value: number
+  hasEstimated: boolean
+  fallbackDetails: Array<{ brainrotName: string; source: string }>
+  className?: string
+}) {
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
+  const valueRef = useRef<HTMLSpanElement>(null)
+
+  useEffect(() => {
+    if (showTooltip && valueRef.current) {
+      const rect = valueRef.current.getBoundingClientRect()
+      setTooltipPos({
+        top: rect.bottom + 6,
+        left: rect.left + rect.width / 2,
+      })
+    }
+  }, [showTooltip])
+
+  return (
+    <>
+      <span
+        ref={valueRef}
+        className={`cursor-help ${className}`}
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        R$ {formatValue(value)}{hasEstimated ? '+' : ''}
+      </span>
+      {typeof window !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showTooltip && (
+            <motion.div
+              initial={{ opacity: 0, y: 4, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 4, scale: 0.95 }}
+              style={{ top: tooltipPos.top, left: tooltipPos.left }}
+              className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg px-2 py-1 shadow-lg shadow-black/20 -translate-x-1/2"
+            >
+              <p className="text-[10px] text-gray-300 whitespace-nowrap text-center">
+                Total Value
+              </p>
+              {hasEstimated && fallbackDetails.length > 0 && (
+                <div className="mt-1 pt-1 border-t border-darkbg-600">
+                  {fallbackDetails.map((detail, i) => (
+                    <p key={i} className="text-[9px] text-amber-400/80 whitespace-nowrap">
+                      {detail.brainrotName}: using {detail.source} value
+                    </p>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+    </>
+  )
 }
 
 type Side = 'left' | 'right'
@@ -227,13 +312,16 @@ export default function CalculatorPage() {
     : rightTotal > 0 ? 100 : 0
 
   // Value calculations
-  const leftValue = calculateTotalValue(leftItems)
-  const rightValue = calculateTotalValue(rightItems)
+  const leftValueData = calculateTotalValue(leftItems)
+  const rightValueData = calculateTotalValue(rightItems)
+  const leftValue = leftValueData.value
+  const rightValue = rightValueData.value
   const valueDifference = rightValue - leftValue
   const valuePercentDiff = leftValue > 0
     ? ((valueDifference / leftValue) * 100)
     : rightValue > 0 ? 100 : 0
   const hasAnyValue = leftValue > 0 || rightValue > 0
+  const anyHasFallback = leftValueData.hasEstimated || rightValueData.hasEstimated
 
   const handleSelectItem = (item: TradeItem) => {
     if (editingIndex !== null) {
@@ -369,9 +457,12 @@ export default function CalculatorPage() {
                   {leftValue > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-400">Value</span>
-                      <span className="text-sm font-bold text-orange-400">
-                        R$ {formatValue(leftValue)}
-                      </span>
+                      <ValueTooltip
+                        value={leftValue}
+                        hasEstimated={leftValueData.hasEstimated}
+                        fallbackDetails={leftValueData.fallbackDetails}
+                        className="text-sm font-bold text-orange-400"
+                      />
                     </div>
                   )}
                 </motion.div>
@@ -429,18 +520,14 @@ export default function CalculatorPage() {
                             valueDifference < 0 ? 'text-red-500' : 'text-gray-500'
                           }`}
                         >
-                          {valueDifference > 0 ? '+' : ''}R$ {formatValue(Math.abs(valueDifference))}
+                          {valueDifference > 0 ? '+' : ''}R$ {formatValue(Math.abs(valueDifference))}{anyHasFallback ? '+' : ''}
                         </motion.p>
                         <p className="text-xs text-gray-500">
-                          {valuePercentDiff > 0 ? '+' : ''}{valuePercentDiff.toFixed(1)}%
+                          {valuePercentDiff > 0 ? '+' : ''}{valuePercentDiff.toFixed(1)}%{anyHasFallback ? '+' : ''}
                         </p>
                       </div>
                     )}
-                    <p className="text-xs text-gray-400 mt-1">
-                      {difference > 0 ? 'You gain income' :
-                       difference < 0 ? 'You lose income' : 'Fair trade'}
-                    </p>
-                  </motion.div>
+                    </motion.div>
                 )}
               </AnimatePresence>
             </div>
@@ -499,9 +586,12 @@ export default function CalculatorPage() {
                   {rightValue > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-400">Value</span>
-                      <span className="text-sm font-bold text-orange-400">
-                        R$ {formatValue(rightValue)}
-                      </span>
+                      <ValueTooltip
+                        value={rightValue}
+                        hasEstimated={rightValueData.hasEstimated}
+                        fallbackDetails={rightValueData.fallbackDetails}
+                        className="text-sm font-bold text-orange-400"
+                      />
                     </div>
                   )}
                 </motion.div>
@@ -547,18 +637,14 @@ export default function CalculatorPage() {
                         valueDifference < 0 ? 'text-red-500' : 'text-gray-500'
                       }`}
                     >
-                      {valueDifference > 0 ? '+' : ''}R$ {formatValue(Math.abs(valueDifference))}
+                      {valueDifference > 0 ? '+' : ''}R$ {formatValue(Math.abs(valueDifference))}{anyHasFallback ? '+' : ''}
                     </motion.p>
                     <p className="text-xs text-gray-500">
-                      {valuePercentDiff > 0 ? '+' : ''}{valuePercentDiff.toFixed(1)}%
+                      {valuePercentDiff > 0 ? '+' : ''}{valuePercentDiff.toFixed(1)}%{anyHasFallback ? '+' : ''}
                     </p>
                   </div>
                 )}
-                <p className="text-xs text-gray-400">
-                  {difference > 0 ? 'You gain income' :
-                   difference < 0 ? 'You lose income' : 'Fair trade'}
-                </p>
-              </motion.div>
+                </motion.div>
             )}
           </AnimatePresence>
 

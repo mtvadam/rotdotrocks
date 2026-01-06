@@ -174,7 +174,7 @@ function getResolvedRobuxValue(
     // No mutation = Default
     const defaultValue = mutationValues.find(mv => mv.mutationName === 'Default')
     return {
-      value: defaultValue?.robuxValue || brainrot.robuxValue || null,
+      value: defaultValue?.robuxValue ?? brainrot.robuxValue ?? null,
       isFallback: false,
       fallbackSource: null
     }
@@ -187,17 +187,24 @@ function getResolvedRobuxValue(
   }
 
   // No exact value - find fallback from lower multiplier mutation
+  // Use Number() to ensure proper comparison (Prisma Decimal fields may be strings)
+  const selectedMultiplier = Number(selectedMutation.multiplier)
   const sortedValues = mutationValues
-    .filter(mv => mv.mutationMultiplier < selectedMutation.multiplier)
-    .sort((a, b) => b.mutationMultiplier - a.mutationMultiplier)
+    .filter(mv => Number(mv.mutationMultiplier) < selectedMultiplier)
+    .sort((a, b) => Number(b.mutationMultiplier) - Number(a.mutationMultiplier))
 
   if (sortedValues.length > 0) {
     const fallback = sortedValues[0]
     return { value: fallback.robuxValue, isFallback: true, fallbackSource: fallback.mutationName }
   }
 
-  // No fallback found
-  return { value: null, isFallback: false, fallbackSource: null }
+  // No fallback found - try to use Default value as last resort
+  const defaultFallback = mutationValues.find(mv => mv.mutationName === 'Default')
+  if (defaultFallback) {
+    return { value: defaultFallback.robuxValue, isFallback: true, fallbackSource: 'Default' }
+  }
+
+  return { value: brainrot.robuxValue ?? null, isFallback: brainrot.robuxValue != null, fallbackSource: brainrot.robuxValue != null ? 'Base' : null }
 }
 
 function BrainrotTileSkeleton() {

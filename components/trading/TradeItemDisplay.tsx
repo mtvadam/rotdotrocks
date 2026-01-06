@@ -227,9 +227,11 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
 
   // Memoize formatted robux value with + for fallback
   const formattedRobuxValue = useMemo(
-    () => item.robuxValue ? `R$${item.robuxValue.toLocaleString()}${item.valueFallback ? '+' : ''}` : null,
+    () => item.robuxValue ? `R$${item.robuxValue.toLocaleString()}${item.valueFallback ? '+' : ''}` : 'N/A',
     [item.robuxValue, item.valueFallback]
   )
+
+  const hasRobuxValue = item.robuxValue != null && item.robuxValue > 0
 
   // Tooltip for fallback value
   const robuxValueTitle = useMemo(
@@ -325,11 +327,9 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
         )}
 
         {/* Value */}
-        {formattedRobuxValue && (
-          <p className="text-[10px] font-medium text-yellow-400 text-center" title={robuxValueTitle}>
-            {formattedRobuxValue}
-          </p>
-        )}
+        <p className={`text-[10px] font-medium text-center ${hasRobuxValue ? 'text-yellow-400' : 'text-gray-500'}`} title={robuxValueTitle}>
+          {formattedRobuxValue}
+        </p>
 
         {/* Traits - centered */}
         {item.traits && item.traits.length > 0 && (
@@ -392,11 +392,9 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
                 {formattedIncome}
               </span>
             )}
-            {formattedRobuxValue && (
-              <span className={`font-medium text-yellow-400 whitespace-nowrap ${size === 'sm' ? 'text-xs' : 'text-sm'}`} title={robuxValueTitle}>
-                {formattedRobuxValue}
-              </span>
-            )}
+            <span className={`font-medium whitespace-nowrap ${hasRobuxValue ? 'text-yellow-400' : 'text-gray-500'} ${size === 'sm' ? 'text-xs' : 'text-sm'}`} title={robuxValueTitle}>
+              {formattedRobuxValue}
+            </span>
           </div>
         </div>
         {item.mutation && (
@@ -442,14 +440,12 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
               <p className="text-[10px] text-gray-500">income</p>
             </>
           )}
-          {formattedRobuxValue && (
-            <>
-              <p className={`font-medium text-yellow-400 ${size === 'sm' ? 'text-sm' : ''} ${formattedIncome ? 'mt-1' : ''}`} title={robuxValueTitle}>
+          <>
+              <p className={`font-medium ${hasRobuxValue ? 'text-yellow-400' : 'text-gray-500'} ${size === 'sm' ? 'text-sm' : ''} ${formattedIncome ? 'mt-1' : ''}`} title={robuxValueTitle}>
                 {formattedRobuxValue}
               </p>
               <p className="text-[10px] text-gray-500">value</p>
             </>
-          )}
         </div>
       )}
     </>
