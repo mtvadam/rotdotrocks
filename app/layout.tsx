@@ -6,6 +6,8 @@ import { NavBar } from '@/components/NavBar'
 import { Footer } from '@/components/Footer'
 import { Providers } from '@/components/Providers'
 import SeasonalEffects from '@/components/effects/SeasonalEffects'
+import { MOTD } from '@/components/MOTD'
+import { CookieConsent } from '@/components/CookieConsent'
 
 const spaceGrotesk = Space_Grotesk({ subsets: ['latin'] })
 
@@ -48,10 +50,12 @@ export default function RootLayout({
         <Providers>
           <SeasonalEffects />
           <NavBar />
+          <MOTD />
           <main className="relative z-[10] flex-1">
             {children}
           </main>
           <Footer />
+          <CookieConsent />
         </Providers>
         <Analytics />
       </body>

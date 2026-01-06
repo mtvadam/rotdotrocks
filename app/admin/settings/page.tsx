@@ -2,7 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Settings, Save, RotateCcw, Loader2, Check, AlertCircle, Snowflake } from 'lucide-react'
+import { Settings, Save, RotateCcw, Loader2, Check, AlertCircle, Snowflake, MessageSquare } from 'lucide-react'
+
+interface MOTDSettings {
+  enabled: boolean
+  message: string
+  type: 'info' | 'warning' | 'success' | 'error'
+  dismissible: boolean
+  showIcon: boolean
+}
 
 interface SnowSettings {
   variant: 'square' | 'round' | 'snowflake'
@@ -21,6 +29,7 @@ interface SnowSettings {
 interface SiteSettings {
   snowEnabled: boolean
   snow: SnowSettings
+  motd: MOTDSettings
 }
 
 const DEFAULT_SNOW_SETTINGS: SnowSettings = {
@@ -37,15 +46,31 @@ const DEFAULT_SNOW_SETTINGS: SnowSettings = {
   direction: 100,
 }
 
+const DEFAULT_MOTD_SETTINGS: MOTDSettings = {
+  enabled: false,
+  message: '',
+  type: 'info',
+  dismissible: true,
+  showIcon: true,
+}
+
 const DEFAULT_SETTINGS: SiteSettings = {
   snowEnabled: true,
-  snow: DEFAULT_SNOW_SETTINGS
+  snow: DEFAULT_SNOW_SETTINGS,
+  motd: DEFAULT_MOTD_SETTINGS,
 }
 
 const VARIANT_OPTIONS = [
   { value: 'square', label: 'Square', description: 'Pixelated square flakes' },
   { value: 'round', label: 'Round', description: 'Circular soft flakes' },
   { value: 'snowflake', label: 'Snowflake', description: 'Detailed snowflake shapes' },
+]
+
+const MOTD_TYPE_OPTIONS = [
+  { value: 'info', label: 'Info', color: 'blue', description: 'General information' },
+  { value: 'success', label: 'Success', color: 'green', description: 'Good news or updates' },
+  { value: 'warning', label: 'Warning', color: 'yellow', description: 'Important notice' },
+  { value: 'error', label: 'Error', color: 'red', description: 'Critical alert' },
 ]
 
 export default function SettingsPage() {
@@ -66,7 +91,8 @@ export default function SettingsPage() {
         setSettings({
           ...DEFAULT_SETTINGS,
           ...data.settings,
-          snow: { ...DEFAULT_SNOW_SETTINGS, ...(data.settings.snow || {}) }
+          snow: { ...DEFAULT_SNOW_SETTINGS, ...(data.settings.snow || {}) },
+          motd: { ...DEFAULT_MOTD_SETTINGS, ...(data.settings.motd || {}) }
         })
         setIsSnowSeason(data.isSnowSeason)
       }
@@ -90,6 +116,15 @@ export default function SettingsPage() {
     setSettings(prev => ({
       ...prev,
       snow: { ...prev.snow, [key]: value }
+    }))
+    setHasChanges(true)
+    setSaved(false)
+  }
+
+  const updateMOTDSetting = <K extends keyof MOTDSettings>(key: K, value: MOTDSettings[K]) => {
+    setSettings(prev => ({
+      ...prev,
+      motd: { ...prev.motd, [key]: value }
     }))
     setHasChanges(true)
     setSaved(false)
@@ -438,6 +473,157 @@ export default function SettingsPage() {
             </div>
           </motion.div>
 
+          {/* MOTD Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="bg-darkbg-900 rounded-xl border border-darkbg-700 overflow-hidden"
+          >
+            <div className="p-6 border-b border-darkbg-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500/20 rounded-lg">
+                  <MessageSquare className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Message of the Day</h2>
+                  <p className="text-sm text-gray-500">
+                    Display an announcement banner across the site
+                  </p>
+                </div>
+                {settings.motd.enabled && (
+                  <span className="ml-auto px-3 py-1 bg-green-500/20 text-green-400 text-xs font-medium rounded-full">
+                    Active
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* MOTD Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-white">Enable MOTD</p>
+                  <p className="text-sm text-gray-500">
+                    Show the message banner to all users
+                  </p>
+                </div>
+                <button
+                  onClick={() => updateMOTDSetting('enabled', !settings.motd.enabled)}
+                  className={`relative w-14 h-8 rounded-full transition-colors ${
+                    settings.motd.enabled ? 'bg-green-600' : 'bg-darkbg-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${
+                      settings.motd.enabled ? 'left-7' : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Message Type */}
+              <div>
+                <p className="font-medium text-white mb-3">Message Type</p>
+                <div className="grid grid-cols-4 gap-3">
+                  {MOTD_TYPE_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => updateMOTDSetting('type', option.value as MOTDSettings['type'])}
+                      disabled={!settings.motd.enabled}
+                      className={`p-3 rounded-xl border-2 transition-all text-center ${
+                        settings.motd.type === option.value
+                          ? `border-${option.color}-500 bg-${option.color}-500/10`
+                          : 'border-darkbg-600 bg-darkbg-800 hover:border-darkbg-500'
+                      } ${!settings.motd.enabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <p className={`font-medium ${
+                        settings.motd.type === option.value ? `text-${option.color}-400` : 'text-white'
+                      }`}>
+                        {option.label}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Message Content */}
+              <div>
+                <p className="font-medium text-white mb-2">Message</p>
+                <textarea
+                  value={settings.motd.message}
+                  onChange={(e) => updateMOTDSetting('message', e.target.value)}
+                  disabled={!settings.motd.enabled}
+                  placeholder="Enter your announcement message..."
+                  className="w-full px-4 py-3 bg-darkbg-700 border border-darkbg-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none disabled:opacity-50"
+                  rows={3}
+                />
+                <p className="text-xs text-gray-500 mt-1">Supports basic text. Keep it short and clear.</p>
+              </div>
+
+              {/* Dismissible Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-white">Allow Dismiss</p>
+                  <p className="text-sm text-gray-500">
+                    Users can close the message (until message changes)
+                  </p>
+                </div>
+                <button
+                  onClick={() => updateMOTDSetting('dismissible', !settings.motd.dismissible)}
+                  disabled={!settings.motd.enabled}
+                  className={`relative w-14 h-8 rounded-full transition-colors ${
+                    settings.motd.dismissible ? 'bg-green-600' : 'bg-darkbg-600'
+                  } ${!settings.motd.enabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <span
+                    className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${
+                      settings.motd.dismissible ? 'left-7' : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Show Icon Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-white">Show Icon</p>
+                  <p className="text-sm text-gray-500">
+                    Display the type icon next to the message
+                  </p>
+                </div>
+                <button
+                  onClick={() => updateMOTDSetting('showIcon', !settings.motd.showIcon)}
+                  disabled={!settings.motd.enabled}
+                  className={`relative w-14 h-8 rounded-full transition-colors ${
+                    settings.motd.showIcon ? 'bg-green-600' : 'bg-darkbg-600'
+                  } ${!settings.motd.enabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <span
+                    className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${
+                      settings.motd.showIcon ? 'left-7' : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Preview */}
+              {settings.motd.enabled && settings.motd.message && (
+                <div>
+                  <p className="font-medium text-white mb-2">Preview</p>
+                  <div className={`p-4 rounded-lg border ${
+                    settings.motd.type === 'info' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' :
+                    settings.motd.type === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-400' :
+                    settings.motd.type === 'warning' ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' :
+                    'bg-red-500/10 border-red-500/30 text-red-400'
+                  }`}>
+                    <p className="text-sm">{settings.motd.message}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
           {/* Info Box */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -445,12 +631,12 @@ export default function SettingsPage() {
             transition={{ delay: 0.2 }}
             className="p-4 bg-darkbg-800 rounded-lg border border-darkbg-700"
           >
-            <h3 className="text-sm font-medium text-white mb-2">How Seasonal Effects Work</h3>
+            <h3 className="text-sm font-medium text-white mb-2">How Settings Work</h3>
             <ul className="text-sm text-gray-400 space-y-1">
               <li>• Snow only appears during the winter season (December 1st through January 31st)</li>
-              <li>• When enabled, a pixel snow effect displays behind page content</li>
+              <li>• MOTD displays as a banner at the top of every page when enabled</li>
               <li>• Changes take effect within 60 seconds due to caching</li>
-              <li>• The effect is GPU-accelerated and only renders when visible</li>
+              <li>• Snow effect is GPU-accelerated and only renders when visible</li>
             </ul>
           </motion.div>
         </div>

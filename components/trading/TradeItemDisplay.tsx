@@ -415,13 +415,15 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
         )}
         {/* Demand/Trend badge */}
         {item.brainrot.demand && item.brainrot.trend && (
-          <DemandTrendBadge
-            demand={item.brainrot.demand}
-            trend={item.brainrot.trend}
-            size="sm"
-            variant="badge"
-            hideIfNormal
-          />
+          <div className="mt-1">
+            <DemandTrendBadge
+              demand={item.brainrot.demand}
+              trend={item.brainrot.trend}
+              size="sm"
+              variant="badge"
+              hideIfNormal
+            />
+          </div>
         )}
         {/* Traits */}
         {item.traits && item.traits.length > 0 && (

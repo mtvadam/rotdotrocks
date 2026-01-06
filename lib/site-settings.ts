@@ -19,10 +19,20 @@ export interface SnowSettings {
   direction: number
 }
 
+export interface MOTDSettings {
+  enabled: boolean
+  message: string
+  type: 'info' | 'warning' | 'success' | 'error'
+  dismissible: boolean
+  showIcon: boolean
+}
+
 export interface SiteSettings {
   // Seasonal snow effect
   snowEnabled: boolean
   snow: SnowSettings
+  // Message of the day
+  motd: MOTDSettings
 }
 
 // Default settings
@@ -40,9 +50,18 @@ export const DEFAULT_SNOW_SETTINGS: SnowSettings = {
   direction: 100,
 }
 
+export const DEFAULT_MOTD_SETTINGS: MOTDSettings = {
+  enabled: false,
+  message: '',
+  type: 'info',
+  dismissible: true,
+  showIcon: true,
+}
+
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   snowEnabled: true,
   snow: DEFAULT_SNOW_SETTINGS,
+  motd: DEFAULT_MOTD_SETTINGS,
 }
 
 // In-memory cache for site settings
@@ -72,7 +91,8 @@ export async function loadSiteSettings(): Promise<SiteSettings> {
       settingsCache = {
         ...DEFAULT_SITE_SETTINGS,
         ...parsed,
-        snow: { ...DEFAULT_SNOW_SETTINGS, ...(parsed.snow || {}) }
+        snow: { ...DEFAULT_SNOW_SETTINGS, ...(parsed.snow || {}) },
+        motd: { ...DEFAULT_MOTD_SETTINGS, ...(parsed.motd || {}) }
       }
     } else {
       settingsCache = { ...DEFAULT_SITE_SETTINGS }
