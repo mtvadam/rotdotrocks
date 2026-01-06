@@ -652,10 +652,14 @@ export async function POST(request: NextRequest) {
         })),
       }
 
-      // Generate in background - pass all data so no extra DB calls needed
-      generateAndSaveOGImage(trade.id, tradeForOG).catch((error) => {
-        console.error('Background OG generation failed:', error)
-      })
+      // Generate OG image synchronously so it's ready when user shares the link
+      // This adds ~2-3s to trade creation but ensures Discord/Twitter embeds work immediately
+      try {
+        await generateAndSaveOGImage(trade.id, tradeForOG)
+      } catch (error) {
+        // Don't fail the trade creation if OG generation fails
+        console.error('OG generation failed (trade still created):', error)
+      }
     }
 
     return NextResponse.json({ trade: { id: trade.id } })

@@ -11,7 +11,7 @@ const spaceGrotesk = Space_Grotesk({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'rot.rocks - Brainrot Trading',
-  description: 'Trade Brainrot pets from Steal a Brainrot. Create trades, calculate values, and find fair deals.',
+  description: 'The ultimate trading hub for Steal a Brainrot collectors.',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: '32x32' },
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://rot.rocks'),
   openGraph: {
     title: 'rot.rocks - Brainrot Trading',
-    description: 'Trade Brainrot pets from Steal a Brainrot. Create trades, calculate values, and find fair deals.',
+    description: 'The ultimate trading hub for Steal a Brainrot collectors.',
     type: 'website',
     url: 'https://rot.rocks',
     siteName: 'rot.rocks',
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary',
     title: 'rot.rocks - Brainrot Trading',
-    description: 'Trade Brainrot pets from Steal a Brainrot. Create trades, calculate values, and find fair deals.',
+    description: 'The ultimate trading hub for Steal a Brainrot collectors.',
   },
 }
 
