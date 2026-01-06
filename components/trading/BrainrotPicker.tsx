@@ -224,17 +224,22 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
   const [traits, setTraits] = useState<Trait[]>(dataCache.traits)
   const [loading, setLoading] = useState(!dataCache.loaded)
 
-  // Initialize from initialItem if editing
-  const [selectedBrainrot, setSelectedBrainrot] = useState<Brainrot | null>(
-    initialItem ? {
+  // Initialize from initialItem if editing - will be enriched with full data once cache loads
+  const [selectedBrainrot, setSelectedBrainrot] = useState<Brainrot | null>(() => {
+    if (!initialItem) return null
+    // Try to get full brainrot data from cache if available
+    const cachedBrainrot = dataCache.brainrots.find(b => b.id === initialItem.brainrot.id)
+    if (cachedBrainrot) return cachedBrainrot
+    // Fallback to partial data (will be enriched when cache loads)
+    return {
       id: initialItem.brainrot.id,
       name: initialItem.brainrot.name,
       localImage: initialItem.brainrot.localImage,
       baseIncome: initialItem.brainrot.baseIncome,
       rarity: null,
       robuxValue: null,
-    } : null
-  )
+    }
+  })
   const [selectedMutation, setSelectedMutation] = useState<Mutation | null>(
     initialItem?.mutation ? {
       id: initialItem.mutation.id,
@@ -266,6 +271,19 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
   const [reportError, setReportError] = useState<string | null>(null)
 
   const isEditing = !!initialItem
+
+  // When editing, enrich selectedBrainrot with full data from cache once loaded
+  useEffect(() => {
+    if (isEditing && selectedBrainrot && brainrots.length > 0) {
+      // Check if selectedBrainrot is missing mutationValues (partial data)
+      if (!selectedBrainrot.mutationValues) {
+        const fullBrainrot = brainrots.find(b => b.id === selectedBrainrot.id)
+        if (fullBrainrot) {
+          setSelectedBrainrot(fullBrainrot)
+        }
+      }
+    }
+  }, [isEditing, selectedBrainrot, brainrots])
 
   // Lock body scroll when modal is open
   useEffect(() => {

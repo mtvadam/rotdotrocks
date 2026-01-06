@@ -184,7 +184,7 @@ export default function HomePage() {
   }, [checkCarouselScroll])
 
   return (
-    <div ref={containerRef} className="min-h-[calc(100vh-64px)] bg-darkbg-950 overflow-hidden">
+    <div ref={containerRef} className="relative bg-darkbg-950 overflow-hidden">
       {/* Floating Brainrots Background with parallax */}
       <motion.div
         className="absolute inset-0 pointer-events-none overflow-hidden z-[2]"
@@ -467,7 +467,7 @@ export default function HomePage() {
               <div
                 ref={carouselRef}
                 onScroll={checkCarouselScroll}
-                className="flex gap-4 md:gap-5 overflow-x-auto overflow-y-visible scrollbar-hide scroll-smooth py-8 -my-8 px-8 -mx-8"
+                className="flex gap-4 md:gap-5 overflow-x-auto scrollbar-hide scroll-smooth py-8 -my-8 px-8 -mx-8"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {/* Skeleton Loading State - Premium Card Design */}
