@@ -23,15 +23,29 @@ export async function GET() {
         baseCost: true,
         baseIncome: true,
         rarity: true,
+        mutationValues: {
+          where: {
+            mutation: { name: 'Default' }
+          },
+          select: {
+            robuxValue: true,
+          },
+          take: 1,
+        },
       },
       orderBy: { baseIncome: 'desc' },
     })
 
-    // Serialize BigInt
+    // Serialize BigInt and extract default robux value
     const serialized = brainrots.map((b) => ({
-      ...b,
+      id: b.id,
+      name: b.name,
+      imageUrl: b.imageUrl,
+      localImage: b.localImage,
       baseCost: b.baseCost.toString(),
       baseIncome: b.baseIncome.toString(),
+      rarity: b.rarity,
+      robuxValue: b.mutationValues[0]?.robuxValue || null,
     }))
 
     return NextResponse.json({ brainrots: serialized })

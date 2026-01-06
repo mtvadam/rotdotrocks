@@ -15,6 +15,7 @@ interface Brainrot {
   baseCost: string
   baseIncome: string
   rarity: string | null
+  robuxValue: number | null
 }
 
 function formatNumber(numStr: string): string {
@@ -204,44 +205,53 @@ export default function BrainrotsPage() {
                   </div>
 
                   {/* Stats overlay - hover on desktop, tap on mobile */}
-                  <div className={`absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-200 flex flex-col items-center justify-center p-3 sm:p-4 ${isActive ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}>
+                  <div className={`absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-200 flex flex-col items-center justify-center p-2 sm:p-3 overflow-hidden ${isActive ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}>
                     <Image
                       src={brainrot.localImage || brainrot.imageUrl}
                       alt={brainrot.name}
-                      width={60}
-                      height={60}
-                      className="object-contain mb-2 sm:mb-3"
+                      width={40}
+                      height={40}
+                      className="object-contain mb-1 sm:mb-2 flex-shrink-0"
                     />
-                    <p className="text-white font-bold text-center text-xs sm:text-sm mb-2 sm:mb-3">{brainrot.name}</p>
+                    <p className="text-white font-bold text-center text-[10px] sm:text-xs mb-1 sm:mb-2 truncate w-full px-1">{brainrot.name}</p>
 
-                    <div className="w-full space-y-1.5 sm:space-y-2">
-                      <div className="flex items-center justify-between text-[10px] sm:text-xs">
-                        <span className="text-gray-400 flex items-center gap-1">
-                          <DollarSign className="w-3 h-3" />
+                    <div className="w-full space-y-1 sm:space-y-1.5 flex-shrink-0">
+                      <div className="flex items-center justify-between text-[9px] sm:text-[10px]">
+                        <span className="text-gray-400 flex items-center gap-0.5">
+                          <DollarSign className="w-2.5 h-2.5" />
                           cost
                         </span>
                         <span className="text-white font-mono">${formatNumber(brainrot.baseCost)}</span>
                       </div>
-                      <div className="flex items-center justify-between text-[10px] sm:text-xs">
-                        <span className="text-gray-400 flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3" />
+                      <div className="flex items-center justify-between text-[9px] sm:text-[10px]">
+                        <span className="text-gray-400 flex items-center gap-0.5">
+                          <TrendingUp className="w-2.5 h-2.5" />
                           income
                         </span>
                         <span className="text-green-400 font-mono">${formatNumber(brainrot.baseIncome)}/s</span>
                       </div>
                       {brainrot.rarity && (
-                        <div className="flex items-center justify-between text-[10px] sm:text-xs">
-                          <span className="text-gray-400 flex items-center gap-1">
-                            <Sparkles className="w-3 h-3" />
+                        <div className="flex items-center justify-between text-[9px] sm:text-[10px]">
+                          <span className="text-gray-400 flex items-center gap-0.5">
+                            <Sparkles className="w-2.5 h-2.5" />
                             rarity
                           </span>
                           <span className={getRarityColor(brainrot.rarity)}>{brainrot.rarity}</span>
                         </div>
                       )}
+                      <div className="flex items-center justify-between text-[9px] sm:text-[10px]">
+                        <span className="text-gray-400 flex items-center gap-0.5">
+                          <DollarSign className="w-2.5 h-2.5" />
+                          value
+                        </span>
+                        <span className={brainrot.robuxValue ? "text-yellow-400 font-mono" : "text-gray-500"}>
+                          {brainrot.robuxValue ? `R$${brainrot.robuxValue.toLocaleString()}` : 'N/A'}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Tap hint on mobile */}
-                    <p className="text-[9px] text-gray-500 mt-2 md:hidden">tap to close</p>
+                    <p className="text-[8px] text-gray-500 mt-1 md:hidden flex-shrink-0">tap to close</p>
                   </div>
                 </motion.div>
               )

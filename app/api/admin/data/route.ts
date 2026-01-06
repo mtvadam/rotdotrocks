@@ -20,6 +20,8 @@ export async function GET() {
           baseCost: true,
           baseIncome: true,
           rarity: true,
+          demand: true,
+          trend: true,
           isActive: true,
           isNew: true,
           newDisplayOrder: true,

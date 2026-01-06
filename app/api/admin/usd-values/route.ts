@@ -21,6 +21,8 @@ export async function GET() {
           localImage: true,
           robuxValue: true,
           rarity: true,
+          demand: true,
+          trend: true,
           mutationValues: {
             include: {
               mutation: {

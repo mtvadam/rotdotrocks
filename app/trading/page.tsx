@@ -99,12 +99,12 @@ export default function TradingPage() {
   const hasAdvancedFilters =
     filters.offerBrainrots.length > 0 ||
     filters.offerIncomeMin || filters.offerIncomeMax ||
+    filters.offerValueMin || filters.offerValueMax ||
     filters.offerTradeTypes.length > 0 ||
-    filters.offerBadges.length > 0 ||
     filters.requestBrainrots.length > 0 ||
     filters.requestIncomeMin || filters.requestIncomeMax ||
-    filters.requestTradeTypes.length > 0 ||
-    filters.requestBadges.length > 0
+    filters.requestValueMin || filters.requestValueMax ||
+    filters.requestTradeTypes.length > 0
 
   const fetchTrades = useCallback(async (pageNum: number = 1) => {
     const cacheKey = `${tab}-${sort}-${pageNum}-${JSON.stringify(filters)}`
@@ -141,11 +141,14 @@ export default function TradingPage() {
       if (filters.offerIncomeMax) {
         params.set('offerIncomeMax', filters.offerIncomeMax)
       }
+      if (filters.offerValueMin) {
+        params.set('offerValueMin', filters.offerValueMin)
+      }
+      if (filters.offerValueMax) {
+        params.set('offerValueMax', filters.offerValueMax)
+      }
       if (filters.offerTradeTypes.length > 0) {
         params.set('offerTradeTypes', filters.offerTradeTypes.join(','))
-      }
-      if (filters.offerBadges.length > 0) {
-        params.set('offerBadges', filters.offerBadges.join(','))
       }
       if (filters.requestBrainrots.length > 0) {
         params.set('requestBrainrots', filters.requestBrainrots.map(b => b.id).join(','))
@@ -156,11 +159,14 @@ export default function TradingPage() {
       if (filters.requestIncomeMax) {
         params.set('requestIncomeMax', filters.requestIncomeMax)
       }
+      if (filters.requestValueMin) {
+        params.set('requestValueMin', filters.requestValueMin)
+      }
+      if (filters.requestValueMax) {
+        params.set('requestValueMax', filters.requestValueMax)
+      }
       if (filters.requestTradeTypes.length > 0) {
         params.set('requestTradeTypes', filters.requestTradeTypes.join(','))
-      }
-      if (filters.requestBadges.length > 0) {
-        params.set('requestBadges', filters.requestBadges.join(','))
       }
 
       const res = await fetch(`/api/trades?${params}`)

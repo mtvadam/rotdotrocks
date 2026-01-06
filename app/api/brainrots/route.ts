@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
         baseIncome: true,
         rarity: true,
         robuxValue: true,
+        demand: true,
+        trend: true,
       },
       orderBy: { name: 'asc' },
     })

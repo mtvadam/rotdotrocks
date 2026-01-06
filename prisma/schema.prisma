@@ -117,6 +117,20 @@ enum NotificationType {
   COUNTER_ACCEPTED
 }
 
+enum DemandLevel {
+  TERRIBLE
+  LOW
+  NORMAL
+  HIGH
+  AMAZING
+}
+
+enum TrendIndicator {
+  LOWERING
+  STABLE
+  RISING
+}
+
 model User {
   id              String   @id @default(cuid())
   robloxUsername  String   @unique
@@ -201,6 +215,8 @@ model Brainrot {
   baseIncome      BigInt   // Base income ($/sec) from JSON
   robuxValue      Int?     // Base Robux market value (manually set by mods)
   rarity          String?  // Rarity tier (Common, Rare, Epic, etc.)
+  demand          DemandLevel    @default(NORMAL)  // Market demand indicator
+  trend           TrendIndicator @default(STABLE)  // Trend direction
   isActive        Boolean  @default(true)
   isNew           Boolean  @default(false) // Show in "New Brainrots" section on homepage
   newDisplayOrder Int?     // Order in "New Brainrots" section (lower = first)

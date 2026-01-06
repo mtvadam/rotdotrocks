@@ -29,7 +29,11 @@
       "Bash(/bin/bash:*)",
       "Bash(file:*)",
       "Bash(do echo -n \"$f: \" file \"public/brainrot-images/brainrots/$f\")",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "WebFetch(domain:www.eldorado.gg)",
+      "WebSearch",
+      "Bash(python3:*)",
+      "Bash(node -e:*)"
     ]
   }
 }

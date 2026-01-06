@@ -10,6 +10,7 @@ import { TradeItemDisplay, TradeBuilderModal } from '@/components/trading'
 import { useAuth } from '@/components/Providers'
 import { RobloxAvatar } from '@/components/ui'
 import { formatIncome } from '@/lib/utils'
+import type { DemandLevel, TrendDirection } from '@/components/trading/DemandTrendBadge'
 
 interface TradeItem {
   id: string
@@ -19,6 +20,8 @@ interface TradeItem {
     name: string
     localImage: string | null
     baseIncome: string
+    demand?: DemandLevel
+    trend?: TrendDirection
   }
   mutation?: {
     id: string

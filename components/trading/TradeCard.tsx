@@ -10,6 +10,7 @@ import { BadgeCheck, MessageSquare, MoveRight, ArrowRightLeft } from 'lucide-rea
 import { RobloxAvatar } from '@/components/ui'
 import { easeOut } from '@/lib/animations'
 import { getMutationClass } from '@/lib/utils'
+import { DemandTrendBadge, type DemandLevel, type TrendDirection } from './DemandTrendBadge'
 
 // Income formatting thresholds as constants to avoid recreation
 const TRILLION = 1_000_000_000_000
@@ -42,6 +43,8 @@ interface TradeCardProps {
         name: string
         localImage: string | null
         baseIncome: string
+        demand?: DemandLevel
+        trend?: TrendDirection
       }
       mutation?: {
         id: string
@@ -290,6 +293,19 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
                 <p className={`text-[10px] font-medium text-center ${getMutationClass(item.mutation.name)}`}>
                   {item.mutation.name}
                 </p>
+              )}
+              {/* Demand/Trend badge */}
+              {item.brainrot.demand && item.brainrot.trend && (
+                <div className="flex justify-center mt-0.5">
+                  <DemandTrendBadge
+                    demand={item.brainrot.demand}
+                    trend={item.brainrot.trend}
+                    size="xs"
+                    variant="icon-only"
+                    hideIfNormal
+                    showTooltip={false}
+                  />
+                </div>
               )}
               {/* Robux value */}
               {item.robuxValue !== null && item.robuxValue !== undefined && (

@@ -200,6 +200,8 @@ export async function GET(request: NextRequest) {
                 localImage: true,
                 baseIncome: true,
                 robuxValue: true,
+                demand: true,
+                trend: true,
                 mutationValues: {
                   select: {
                     mutationId: true,
@@ -274,11 +276,15 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Fall back to base value
-        return { value: brainrot.robuxValue, isFallback: brainrot.robuxValue !== null, sourceMutationName: brainrot.robuxValue !== null ? 'Base' : null }
+        // No fallback found - return null (Default mutation should have explicit value)
+        return { value: null, isFallback: false, sourceMutationName: null }
       }
-      // No mutation, return base value
-      return { value: brainrot.robuxValue, isFallback: false, sourceMutationName: null }
+      // No mutation specified - look for Default mutation value
+      const defaultMutation = brainrot.mutationValues.find(mv => mv.mutation.name.toLowerCase() === 'default')
+      if (defaultMutation) {
+        return { value: defaultMutation.robuxValue, isFallback: false, sourceMutationName: null }
+      }
+      return { value: null, isFallback: false, sourceMutationName: null }
     }
 
     // Serialize BigInt values and handle addon items
@@ -327,6 +333,8 @@ export async function GET(request: NextRequest) {
             name: item.brainrot.name,
             localImage: item.brainrot.localImage,
             baseIncome: item.brainrot.baseIncome.toString(),
+            demand: item.brainrot.demand,
+            trend: item.brainrot.trend,
           } : null,
         }
       }),

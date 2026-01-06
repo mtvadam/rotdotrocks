@@ -7,6 +7,7 @@ import { Search, X, Plus, Check, ArrowDownUp, ArrowLeft, Flag, Send, AlertCircle
 import { TruncatedText } from '@/components/ui'
 import { formatIncome, getMutationClass } from '@/lib/utils'
 import { easeOut, modalVariants, backdropVariants, staggerContainer, staggerChild } from '@/lib/animations'
+import { DemandDot, type DemandLevel, type TrendDirection } from './DemandTrendBadge'
 
 interface Brainrot {
   id: string
@@ -15,6 +16,8 @@ interface Brainrot {
   baseIncome: string
   rarity: string | null
   robuxValue: number | null
+  demand?: DemandLevel
+  trend?: TrendDirection
 }
 
 interface Mutation {
@@ -556,6 +559,12 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                         {brainrot.rarity}
                       </span>
                     )}
+                    {/* Demand indicator dot */}
+                    {brainrot.demand && brainrot.trend && (
+                      <div className="absolute top-1.5 right-1.5">
+                        <DemandDot demand={brainrot.demand} trend={brainrot.trend} size="xs" />
+                      </div>
+                    )}
                   </motion.button>
                 ))}
                 </motion.div>
@@ -594,7 +603,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-white font-comic truncate">{selectedBrainrot.name}</p>
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-2 text-sm flex-wrap">
                     <span className="text-gray-500">Base: {formatIncome(selectedBrainrot.baseIncome)}</span>
                     {selectedBrainrot.rarity && (
                       <>
@@ -602,6 +611,10 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                         <span className={getRarityClass(selectedBrainrot.rarity)}>{selectedBrainrot.rarity}</span>
                       </>
                     )}
+                    <span className="text-gray-600">•</span>
+                    <span className={selectedBrainrot.robuxValue ? "text-yellow-400" : "text-gray-500"}>
+                      {selectedBrainrot.robuxValue ? `R$${selectedBrainrot.robuxValue.toLocaleString()}` : 'N/A'}
+                    </span>
                   </div>
                 </div>
                 <motion.button

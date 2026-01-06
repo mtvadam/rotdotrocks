@@ -96,45 +96,44 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'updates array is required' }, { status: 400 })
     }
 
-    await prisma.$transaction(async (tx) => {
-      for (const update of updates) {
-        if (update.mutationId) {
-          // Mutation-specific value
-          if (update.robuxValue === null || update.robuxValue === '' || update.robuxValue === undefined) {
-            await tx.brainrotMutationValue.deleteMany({
-              where: { brainrotId: update.brainrotId, mutationId: update.mutationId },
-            })
-          } else {
-            await tx.brainrotMutationValue.upsert({
-              where: {
-                brainrotId_mutationId: {
-                  brainrotId: update.brainrotId,
-                  mutationId: update.mutationId,
-                },
-              },
-              create: {
+    // Process updates individually to avoid transaction timeout
+    for (const update of updates) {
+      if (update.mutationId) {
+        // Mutation-specific value
+        if (update.robuxValue === null || update.robuxValue === '' || update.robuxValue === undefined) {
+          await prisma.brainrotMutationValue.deleteMany({
+            where: { brainrotId: update.brainrotId, mutationId: update.mutationId },
+          })
+        } else {
+          await prisma.brainrotMutationValue.upsert({
+            where: {
+              brainrotId_mutationId: {
                 brainrotId: update.brainrotId,
                 mutationId: update.mutationId,
-                robuxValue: parseInt(update.robuxValue, 10),
               },
-              update: {
-                robuxValue: parseInt(update.robuxValue, 10),
-              },
-            })
-          }
-        } else {
-          // Base brainrot value
-          await tx.brainrot.update({
-            where: { id: update.brainrotId },
-            data: {
-              robuxValue: update.robuxValue === null || update.robuxValue === ''
-                ? null
-                : parseInt(update.robuxValue, 10),
+            },
+            create: {
+              brainrotId: update.brainrotId,
+              mutationId: update.mutationId,
+              robuxValue: parseInt(update.robuxValue, 10),
+            },
+            update: {
+              robuxValue: parseInt(update.robuxValue, 10),
             },
           })
         }
+      } else {
+        // Base brainrot value
+        await prisma.brainrot.update({
+          where: { id: update.brainrotId },
+          data: {
+            robuxValue: update.robuxValue === null || update.robuxValue === ''
+              ? null
+              : parseInt(update.robuxValue, 10),
+          },
+        })
       }
-    })
+    }
 
     // Create audit log for bulk update
     await prisma.auditLog.create({

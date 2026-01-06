@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth'
+import { isValidDemandLevel, isValidTrendIndicator } from '@/lib/demand-trend'
 
 // PATCH /api/admin/data/brainrots/[id] - Update a brainrot
 export async function PATCH(
@@ -15,7 +16,7 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
-    const { baseCost, baseIncome, rarity, isActive, isNew, newDisplayOrder } = body
+    const { baseCost, baseIncome, rarity, isActive, isNew, newDisplayOrder, demand, trend } = body
 
     // Validate the brainrot exists
     const existing = await prisma.brainrot.findUnique({ where: { id } })
@@ -42,6 +43,12 @@ export async function PATCH(
     }
     if (newDisplayOrder !== undefined) {
       updateData.newDisplayOrder = newDisplayOrder === null || newDisplayOrder === '' ? null : parseInt(newDisplayOrder)
+    }
+    if (demand !== undefined && isValidDemandLevel(demand)) {
+      updateData.demand = demand
+    }
+    if (trend !== undefined && isValidTrendIndicator(trend)) {
+      updateData.trend = trend
     }
 
     const updated = await prisma.brainrot.update({

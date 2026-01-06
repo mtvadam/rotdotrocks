@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { Calculator, Plus, Trash2, ArrowRightLeft, Scale, RotateCcw, Pencil, Trophy, Layers } from 'lucide-react'
-import { BrainrotPicker, prefetchPickerData } from '@/components/trading'
+import { BrainrotPicker, prefetchPickerData, DemandTrendBadge, type DemandLevel, type TrendDirection } from '@/components/trading'
 import { PageTransition } from '@/components/ui'
 import { formatIncome, getMutationClass } from '@/lib/utils'
 import { easeOut } from '@/lib/animations'
@@ -33,6 +33,8 @@ interface TradeItem {
     localImage: string | null
     baseIncome: string
     robuxValue?: number | null
+    demand?: DemandLevel
+    trend?: TrendDirection
   }
   mutationId?: string
   mutation?: {
@@ -133,7 +135,7 @@ function CalculatorItem({
           </p>
         )}
         {/* Badges */}
-        <div className="flex items-center gap-1 mt-1">
+        <div className="flex items-center gap-1 mt-1 flex-wrap">
           {isLBViable(item.calculatedIncome) && (
             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-[10px] font-medium">
               <Trophy className="w-3 h-3" />
@@ -145,6 +147,15 @@ function CalculatorItem({
               <Layers className="w-3 h-3" />
               Stacked
             </span>
+          )}
+          {item.brainrot.demand && item.brainrot.trend && (
+            <DemandTrendBadge
+              demand={item.brainrot.demand}
+              trend={item.brainrot.trend}
+              size="xs"
+              variant="badge"
+              hideIfNormal
+            />
           )}
         </div>
       </div>

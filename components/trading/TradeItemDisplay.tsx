@@ -5,8 +5,9 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { Pencil, X } from 'lucide-react'
-import { formatIncome, getMutationClass } from '@/lib/utils'
+import { formatIncome, getMutationClass, getRarityColorClass } from '@/lib/utils'
 import { easeOut } from '@/lib/animations'
+import { DemandTrendBadge, type DemandLevel, type TrendDirection } from './DemandTrendBadge'
 
 // Animation variants defined outside component to prevent recreation
 const traitIconAnimation = {
@@ -52,6 +53,9 @@ interface TradeItemDisplayProps {
       name: string
       localImage: string | null
       baseIncome: string
+      rarity?: string | null
+      demand?: DemandLevel
+      trend?: TrendDirection
     }
     mutation?: {
       id: string
@@ -209,6 +213,12 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
     [item.mutation]
   )
 
+  // Memoize rarity class
+  const rarityClass = useMemo(
+    () => getRarityColorClass(item.brainrot.rarity),
+    [item.brainrot.rarity]
+  )
+
   // Memoize formatted income
   const formattedIncome = useMemo(
     () => item.calculatedIncome ? formatIncome(item.calculatedIncome) : null,
@@ -297,6 +307,13 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
         {item.mutation && (
           <p className={`animation-always-running text-[10px] font-bold text-center ${mutationClass}`}>
             {item.mutation.name}
+          </p>
+        )}
+
+        {/* Rarity */}
+        {item.brainrot.rarity && (
+          <p className={`text-[9px] text-center ${rarityClass}`}>
+            {item.brainrot.rarity}
           </p>
         )}
 
@@ -391,6 +408,22 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
           <p className="text-xs text-green-500 truncate">
             {item.event.name}
           </p>
+        )}
+        {/* Rarity */}
+        {item.brainrot.rarity && (
+          <p className={`text-[10px] ${rarityClass}`}>
+            {item.brainrot.rarity}
+          </p>
+        )}
+        {/* Demand/Trend badge */}
+        {item.brainrot.demand && item.brainrot.trend && (
+          <DemandTrendBadge
+            demand={item.brainrot.demand}
+            trend={item.brainrot.trend}
+            size="sm"
+            variant="badge"
+            hideIfNormal
+          />
         )}
         {/* Traits */}
         {item.traits && item.traits.length > 0 && (

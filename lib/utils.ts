@@ -70,3 +70,22 @@ export function getMutationClass(name: string): string {
     default: return 'text-gray-400'
   }
 }
+
+export function getRarityColorClass(rarity: string | null | undefined): string {
+  if (!rarity) return 'text-gray-400'
+  const r = rarity.toLowerCase()
+  switch (r) {
+    case 'common': return 'rarity-common'
+    case 'rare': return 'rarity-rare'
+    case 'epic': return 'rarity-epic'
+    case 'legendary': return 'rarity-legendary'
+    case 'mythic': return 'rarity-mythic'
+    case 'brainrot god':
+    case 'god': return 'rarity-god animation-always-running'
+    case 'secret': return 'rarity-secret animation-always-running'
+    case 'festive': return 'rarity-festive animation-always-running'
+    case 'og': return 'rarity-og animation-always-running'
+    case 'admin': return 'rarity-admin animation-always-running'
+    default: return 'text-gray-400'
+  }
+}

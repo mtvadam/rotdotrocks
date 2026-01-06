@@ -6,6 +6,7 @@ interface Brainrot {
   baseCost: string
   baseIncome: string
   rarity: string | null
+  robuxValue: number | null
 }
 
 // Module-level cache for instant load
