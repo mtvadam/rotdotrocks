@@ -66,9 +66,9 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: () => void }) 
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -16, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -16, scale: 0.95, transition: { duration: 0.15 } }}
+      initial={{ y: -16, scale: 0.95 }}
+      animate={{ y: 0, scale: 1 }}
+      exit={{ y: -16, scale: 0.95, transition: { duration: 0.15 } }}
       transition={{ duration: 0.2, ease: easeOut }}
       className={`
         flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg backdrop-blur-sm

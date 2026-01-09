@@ -4,27 +4,12 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
-import { Calculator, Plus, Trash2, ArrowRightLeft, Scale, RotateCcw, Pencil, Trophy, Layers } from 'lucide-react'
+import { Calculator, Plus, Trash2, Scale, RotateCcw, Pencil, HelpCircle, ChevronDown, Minus, X, Info } from 'lucide-react'
 import { BrainrotPicker, prefetchPickerData, DemandTrendBadge, type DemandLevel, type TrendDirection } from '@/components/trading'
 import { PageTransition } from '@/components/ui'
 import { formatIncome, getMutationClass } from '@/lib/utils'
 import { easeOut } from '@/lib/animations'
-
-// Badge thresholds
-const BILLION = 1_000_000_000
-const LB_VIABLE_THRESHOLD = 2 * BILLION // 2B income
-const TRAIT_STACKED_THRESHOLD = 5 // 5+ traits
-
-// Check if income qualifies for LB Viable badge
-function isLBViable(income: string | undefined): boolean {
-  if (!income) return false
-  return parseFloat(income) >= LB_VIABLE_THRESHOLD
-}
-
-// Check if trait count qualifies for Trait Stacked badge
-function isTraitStacked(traitCount: number): boolean {
-  return traitCount >= TRAIT_STACKED_THRESHOLD
-}
+import { calculateTraitValueMultiplier, getTraitValueMultiplier } from '@/lib/trait-value'
 
 interface TradeItem {
   brainrotId: string
@@ -50,111 +35,215 @@ interface TradeItem {
     localImage: string | null
     multiplier: number
   }>
-  eventId?: string
-  event?: {
-    id: string
-    name: string
-  }
   calculatedIncome?: string
   robuxValue?: number | null
   valueFallback?: boolean
   valueFallbackSource?: string | null
+  quantity: number
 }
 
-// Format value compactly
 function formatValue(value: number): string {
-  if (value >= 1_000_000) {
-    return (Math.round(value / 1_000_000 * 10) / 10).toFixed(1) + 'M'
-  }
-  if (value >= 1_000) {
-    return (Math.round(value / 1_000 * 10) / 10).toFixed(1) + 'K'
-  }
+  if (value >= 1_000_000) return (value / 1_000_000).toFixed(1) + 'M'
+  if (value >= 1_000) return (value / 1_000).toFixed(1) + 'K'
   return value.toLocaleString()
 }
 
-// Calculate total value from items (use resolved robuxValue, fallback to brainrot default)
-// Returns { value, hasEstimated, fallbackDetails } for tracking inherited values
-function calculateTotalValue(items: TradeItem[]): { value: number; hasEstimated: boolean; fallbackDetails: Array<{ brainrotName: string; source: string }> } {
-  let total = 0
+// Calculate with quantity support
+function calculateTotals(items: TradeItem[]) {
+  let totalIncome = BigInt(0)
+  let totalValue = 0
   let hasEstimated = false
-  const fallbackDetails: Array<{ brainrotName: string; source: string }> = []
+  const breakdown: Array<{ name: string; income: bigint; value: number; qty: number; source?: string }> = []
 
   for (const item of items) {
-    const value = item.robuxValue ?? item.brainrot.robuxValue ?? 0
-    total += value
-    if (item.valueFallback && item.valueFallbackSource) {
-      hasEstimated = true
-      fallbackDetails.push({
-        brainrotName: item.brainrot.name,
-        source: item.valueFallbackSource
-      })
-    }
+    const income = BigInt(item.calculatedIncome || item.brainrot.baseIncome) * BigInt(item.quantity)
+    const value = (item.robuxValue ?? item.brainrot.robuxValue ?? 0) * item.quantity
+
+    totalIncome += income
+    totalValue += value
+
+    if (item.valueFallback) hasEstimated = true
+
+    breakdown.push({
+      name: item.brainrot.name,
+      income,
+      value,
+      qty: item.quantity,
+      source: item.valueFallback ? item.valueFallbackSource || undefined : undefined
+    })
   }
 
-  return { value: total, hasEstimated, fallbackDetails }
+  return { totalIncome, totalValue, hasEstimated, breakdown }
 }
 
-// Value tooltip component with proper hover popup
-function ValueTooltip({
-  value,
-  hasEstimated,
-  fallbackDetails,
-  className = ''
-}: {
-  value: number
-  hasEstimated: boolean
-  fallbackDetails: Array<{ brainrotName: string; source: string }>
-  className?: string
-}) {
-  const [showTooltip, setShowTooltip] = useState(false)
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
-  const valueRef = useRef<HTMLSpanElement>(null)
+// Value breakdown tooltip
+function ValueBreakdown({ item }: { item: TradeItem }) {
+  const [show, setShow] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const ref = useRef<HTMLButtonElement>(null)
+
+  const traitNames = item.traits?.map(t => t.name) || []
+  const traitMult = calculateTraitValueMultiplier(traitNames)
+  const finalValue = item.robuxValue ?? 0
+
+  // Back-calculate the mutation base value (finalValue = mutationBase * traitMult)
+  const mutationBaseValue = traitMult !== 0 ? Math.round(finalValue / traitMult) : finalValue
 
   useEffect(() => {
-    if (showTooltip && valueRef.current) {
-      const rect = valueRef.current.getBoundingClientRect()
-      setTooltipPos({
-        top: rect.bottom + 6,
-        left: rect.left + rect.width / 2,
-      })
+    if (show && ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      setPos({ top: rect.bottom + 8, left: rect.left })
     }
-  }, [showTooltip])
+  }, [show])
+
+  if (finalValue === 0) return <span className="text-gray-500 text-xs">N/A</span>
 
   return (
     <>
-      <span
-        ref={valueRef}
-        className={`cursor-help ${className}`}
+      <button
+        ref={ref}
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        className="text-orange-400 font-medium text-sm hover:text-orange-300 transition-colors flex items-center gap-1"
+      >
+        R${formatValue(finalValue * item.quantity)}
+        {(item.valueFallback || traitMult !== 1) && <Info className="w-3 h-3 opacity-60" />}
+      </button>
+      {typeof window !== 'undefined' && show && createPortal(
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          style={{ top: pos.top, left: pos.left }}
+          className="fixed z-[100] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-3 shadow-xl shadow-black/30 min-w-[200px]"
+        >
+          <p className="text-xs font-medium text-gray-300 mb-2">Value Breakdown</p>
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between text-gray-400">
+              <span>Base ({item.mutation?.name || 'Default'})</span>
+              <span>R${mutationBaseValue.toLocaleString()}</span>
+            </div>
+            {traitNames.length > 0 && (
+              <>
+                {traitNames.map((name, i) => {
+                  const mult = getTraitValueMultiplier(name)
+                  const bonus = mult - 1
+                  if (bonus === 0) return null
+                  return (
+                    <div key={i} className="flex justify-between text-gray-400">
+                      <span className="truncate mr-2">{name}</span>
+                      <span className={bonus > 0 ? 'text-green-400' : 'text-red-400'}>
+                        {bonus > 0 ? '+' : ''}{(bonus * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  )
+                })}
+                <div className="flex justify-between text-gray-300 pt-1 border-t border-darkbg-600">
+                  <span>Trait multiplier</span>
+                  <span className={traitMult > 1 ? 'text-green-400' : traitMult < 1 ? 'text-red-400' : ''}>
+                    {traitMult.toFixed(2)}x
+                  </span>
+                </div>
+              </>
+            )}
+            {item.quantity > 1 && (
+              <div className="flex justify-between text-gray-400">
+                <span>Quantity</span>
+                <span>x{item.quantity}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-orange-400 font-medium pt-1 border-t border-darkbg-600">
+              <span>Total</span>
+              <span>R${(finalValue * item.quantity).toLocaleString()}</span>
+            </div>
+          </div>
+          {item.valueFallback && (
+            <p className="text-[10px] text-amber-400/80 mt-2">
+              Using {item.valueFallbackSource} value (estimated)
+            </p>
+          )}
+        </motion.div>,
+        document.body
+      )}
+    </>
+  )
+}
+
+// Trait icons with hover tooltip (similar to TradeCard)
+function TraitIcons({ traits, maxShow = 4 }: { traits: Array<{ id: string; name: string; localImage: string | null; multiplier: number }>; maxShow?: number }) {
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
+  const iconsRef = useRef<HTMLDivElement>(null)
+
+  // Sort by highest multiplier first
+  const sortedTraits = [...traits].sort((a, b) => b.multiplier - a.multiplier)
+
+  const hasOverflow = sortedTraits.length > maxShow
+  const visibleCount = hasOverflow ? maxShow - 1 : sortedTraits.length
+  const visible = sortedTraits.slice(0, visibleCount)
+  const overflow = sortedTraits.length - visibleCount
+
+  useEffect(() => {
+    if (showTooltip && iconsRef.current) {
+      const rect = iconsRef.current.getBoundingClientRect()
+      setTooltipPos({ top: rect.bottom + 8, left: rect.left })
+    }
+  }, [showTooltip])
+
+  if (traits.length === 0) return null
+
+  return (
+    <>
+      <div
+        ref={iconsRef}
+        className="flex gap-0.5 cursor-pointer"
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >
-        R$ {formatValue(value)}{hasEstimated ? '+' : ''}
-      </span>
-      {typeof window !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {showTooltip && (
-            <motion.div
-              initial={{ opacity: 0, y: 4, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4, scale: 0.95 }}
-              style={{ top: tooltipPos.top, left: tooltipPos.left }}
-              className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg px-2 py-1 shadow-lg shadow-black/20 -translate-x-1/2"
-            >
-              <p className="text-[10px] text-gray-300 whitespace-nowrap text-center">
-                Total Value
-              </p>
-              {hasEstimated && fallbackDetails.length > 0 && (
-                <div className="mt-1 pt-1 border-t border-darkbg-600">
-                  {fallbackDetails.map((detail, i) => (
-                    <p key={i} className="text-[9px] text-amber-400/80 whitespace-nowrap">
-                      {detail.brainrotName}: using {detail.source} value
-                    </p>
-                  ))}
+        {visible.map((t) => (
+          <div key={t.id} className="w-4 h-4 rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0">
+            {t.localImage ? (
+              <Image src={t.localImage} alt={t.name} width={16} height={16} className="object-cover" />
+            ) : (
+              <span className="w-full h-full flex items-center justify-center text-[7px] text-gray-400">{t.name.charAt(0)}</span>
+            )}
+          </div>
+        ))}
+        {overflow > 0 && (
+          <div className="w-4 h-4 rounded-full bg-darkbg-600 flex items-center justify-center text-[8px] text-gray-300 font-medium flex-shrink-0">
+            +{overflow}
+          </div>
+        )}
+      </div>
+      {typeof window !== 'undefined' && showTooltip && createPortal(
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ top: tooltipPos.top, left: tooltipPos.left }}
+          className="fixed z-[100] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-xl shadow-black/30 min-w-[140px]"
+        >
+          {sortedTraits.map((t) => {
+            const valueBonus = getTraitValueMultiplier(t.name) - 1
+            return (
+              <div key={t.id} className="flex items-center gap-2 py-0.5">
+                <div className="w-5 h-5 rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0">
+                  {t.localImage ? (
+                    <Image src={t.localImage} alt={t.name} width={20} height={20} className="object-cover" />
+                  ) : (
+                    <span className="w-full h-full flex items-center justify-center text-[8px] text-gray-400">{t.name.charAt(0)}</span>
+                  )}
                 </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>,
+                <span className="text-xs text-gray-300 flex-1">{t.name}</span>
+                <span className="text-[10px] text-gray-500">{t.multiplier}x</span>
+                {valueBonus !== 0 && (
+                  <span className={`text-[10px] ${valueBonus > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {valueBonus > 0 ? '+' : ''}{(valueBonus * 100).toFixed(0)}%
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </motion.div>,
         document.body
       )}
     </>
@@ -165,123 +254,281 @@ type Side = 'left' | 'right'
 
 function CalculatorItem({
   item,
-  index,
   onEdit,
   onRemove,
+  onQuantityChange,
 }: {
   item: TradeItem
-  index: number
   onEdit: () => void
   onRemove: () => void
+  onQuantityChange: (qty: number) => void
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, x: -8, scale: 0.95 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 8, scale: 0.95 }}
-      transition={{ duration: 0.2, delay: index * 0.03, ease: easeOut }}
-      whileHover={{ scale: 1.01, backgroundColor: 'rgba(34, 197, 94, 0.05)' }}
-      className="flex items-center gap-3 p-3 bg-darkbg-800 rounded-xl group border border-transparent hover:border-green-500/30 transition-colors"
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="flex items-center gap-3 p-3 bg-darkbg-800/80 rounded-xl group hover:bg-darkbg-800 transition-colors"
     >
-      <div className="relative flex-shrink-0">
+      {/* Image */}
+      <div className="flex-shrink-0">
         {item.brainrot.localImage ? (
           <Image
             src={item.brainrot.localImage}
             alt={item.brainrot.name}
-            width={48}
-            height={48}
+            width={44}
+            height={44}
             className="rounded-lg"
           />
         ) : (
-          <div className="w-12 h-12 rounded-lg bg-darkbg-700" />
-        )}
-        {item.mutation && (
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-            className="animation-always-running absolute -top-1 -right-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-darkbg-900 shadow-lg"
-          >
-            <span className={getMutationClass(item.mutation.name)}>
-              {item.mutation.name.charAt(0)}
-            </span>
-          </motion.div>
+          <div className="w-11 h-11 rounded-lg bg-darkbg-700" />
         )}
       </div>
+
+      {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-white truncate text-sm">
-          {item.brainrot.name}
-        </p>
-        {item.mutation && (
-          <p className={`animation-always-running text-xs font-bold ${getMutationClass(item.mutation.name)}`}>
+        <p className="font-medium text-white text-sm truncate">{item.brainrot.name}</p>
+        {item.mutation && item.mutation.name !== 'Default' && (
+          <p className={`animation-always-running font-medium text-xs ${getMutationClass(item.mutation.name)}`}>
             {item.mutation.name}
           </p>
         )}
         {item.traits && item.traits.length > 0 && (
-          <p className="text-xs text-gray-400">
-            {item.traits.length} trait{item.traits.length > 1 ? 's' : ''}
-          </p>
+          <div className="mt-1">
+            <TraitIcons traits={item.traits} maxShow={5} />
+          </div>
         )}
-        {/* Badges */}
-        <div className="flex items-center gap-1 mt-1 flex-wrap">
-          {isLBViable(item.calculatedIncome) && (
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-[10px] font-medium">
-              <Trophy className="w-3 h-3" />
-              LB
-            </span>
-          )}
-          {isTraitStacked(item.traits?.length || 0) && (
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 text-[10px] font-medium">
-              <Layers className="w-3 h-3" />
-              Stacked
-            </span>
-          )}
-          {item.brainrot.demand && item.brainrot.trend && (
-            <DemandTrendBadge
-              demand={item.brainrot.demand}
-              trend={item.brainrot.trend}
-              size="xs"
-              variant="badge"
-              hideIfNormal
-            />
-          )}
-        </div>
+        {item.brainrot.demand && item.brainrot.trend && (
+          <DemandTrendBadge demand={item.brainrot.demand} trend={item.brainrot.trend} size="xs" variant="badge" hideIfNormal />
+        )}
       </div>
+
+      {/* Values */}
       <div className="text-right flex-shrink-0">
         <p className="font-bold text-green-400 text-sm">
-          {formatIncome(item.calculatedIncome || item.brainrot.baseIncome)}
+          {formatIncome((BigInt(item.calculatedIncome || item.brainrot.baseIncome) * BigInt(item.quantity)).toString())}
         </p>
-        {(() => {
-          const value = item.robuxValue ?? item.brainrot.robuxValue
-          if (value != null && value > 0) {
-            return (
-              <p className="text-xs text-orange-400 font-medium" title={item.valueFallback ? `Using ${item.valueFallbackSource} value` : undefined}>
-                R$ {formatValue(value)}{item.valueFallback ? '+' : ''}
-              </p>
-            )
-          }
-          return <p className="text-xs text-gray-500">N/A</p>
-        })()}
+        <ValueBreakdown item={item} />
       </div>
-      <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={onEdit}
-          className="p-1.5 text-gray-400 hover:text-green-400"
+
+      {/* Quantity */}
+      <div className="flex items-center gap-1 bg-darkbg-700 rounded-lg p-0.5">
+        <button
+          onClick={() => onQuantityChange(Math.max(1, item.quantity - 1))}
+          className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
         >
-          <Pencil className="w-4 h-4" />
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={onRemove}
-          className="p-1.5 text-gray-400 hover:text-red-500"
+          <Minus className="w-3 h-3" />
+        </button>
+        <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+        <button
+          onClick={() => onQuantityChange(item.quantity + 1)}
+          className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
         >
-          <Trash2 className="w-4 h-4" />
-        </motion.button>
+          <Plus className="w-3 h-3" />
+        </button>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-0.5">
+        <button onClick={onEdit} className="p-1.5 text-gray-500 hover:text-green-400 transition-colors">
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+        <button onClick={onRemove} className="p-1.5 text-gray-500 hover:text-red-400 transition-colors">
+          <X className="w-3.5 h-3.5" />
+        </button>
       </div>
     </motion.div>
+  )
+}
+
+// How it works section
+function HowItWorks() {
+  const [open, setOpen] = useState(false)
+
+  const traitTiers = [
+    {
+      bonus: '+50%',
+      badgeColor: 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-green-500/30',
+      dotColor: 'bg-green-400',
+      traits: ['Strawberry', 'Meowl', '10B', 'Skibidi', 'Lightning']
+    },
+    {
+      bonus: '+20%',
+      badgeColor: 'bg-gradient-to-r from-emerald-500/15 to-teal-500/15 text-emerald-400 border-emerald-500/25',
+      dotColor: 'bg-emerald-400',
+      traits: ['UFO', 'Brazil', 'Indonesian', '26', 'Glitched', 'Zombie', 'Extinct', 'Jack O\'Lantern', 'Fireworks', 'Santa Hat', 'Reindeer Pet', 'Sleepy', 'Snowy', 'Wet', 'Tie', 'Witching Hour']
+    },
+    {
+      bonus: '+10%',
+      badgeColor: 'bg-gradient-to-r from-cyan-500/15 to-blue-500/15 text-cyan-400 border-cyan-500/25',
+      dotColor: 'bg-cyan-400',
+      traits: ['Shark Fin', 'Spider', 'Paint', 'Fire', 'Galactic', 'Comet-struck', 'Disco', 'Matteo Hat', 'RIP Tombstone', 'Nyan', 'Explosive']
+    },
+    {
+      bonus: '+0.2%',
+      badgeColor: 'bg-darkbg-700/50 text-gray-400 border-darkbg-600',
+      dotColor: 'bg-gray-500',
+      traits: ['Bubblegum']
+    },
+    {
+      bonus: '0%',
+      badgeColor: 'bg-darkbg-800/50 text-gray-500 border-darkbg-700',
+      dotColor: 'bg-gray-600',
+      traits: ['Crab Claw']
+    },
+    {
+      bonus: '-10%',
+      badgeColor: 'bg-gradient-to-r from-red-500/15 to-rose-500/15 text-red-400 border-red-500/25',
+      dotColor: 'bg-red-400',
+      traits: ['Sombrero', 'Taco']
+    },
+  ]
+
+  return (
+    <div className="bg-darkbg-900/60 backdrop-blur-sm rounded-2xl border border-darkbg-700/80 overflow-hidden shadow-lg shadow-black/10">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between p-4 text-left hover:bg-darkbg-800/30 transition-all duration-200 group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center group-hover:bg-green-500/15 transition-colors">
+            <HelpCircle className="w-4 h-4 text-green-500" />
+          </div>
+          <div>
+            <span className="font-medium text-white text-sm">How values are calculated</span>
+            <p className="text-xs text-gray-500 mt-0.5">Formulas and trait bonuses</p>
+          </div>
+        </div>
+        <motion.div
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="w-6 h-6 rounded-full bg-darkbg-800 flex items-center justify-center"
+        >
+          <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+        </motion.div>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-4">
+              {/* Divider */}
+              <div className="h-px bg-gradient-to-r from-transparent via-darkbg-700 to-transparent" />
+
+              {/* Formulas Section */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 }}
+                  className="relative bg-gradient-to-br from-darkbg-800/80 to-darkbg-850/60 rounded-xl p-4 border border-darkbg-700/60 overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+                  <div className="relative">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                      <p className="font-semibold text-green-400 text-sm">Income Formula</p>
+                    </div>
+                    <p className="text-xs text-gray-300 font-mono bg-darkbg-900/50 rounded-lg px-3 py-2">
+                      Base <span className="text-gray-500">x</span> Mutation <span className="text-gray-500">x</span> Traits
+                    </p>
+                    <p className="text-[11px] text-gray-500 mt-2 flex items-center gap-1.5">
+                      <Info className="w-3 h-3" />
+                      Sleepy trait halves income
+                    </p>
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="relative bg-gradient-to-br from-darkbg-800/80 to-darkbg-850/60 rounded-xl p-4 border border-darkbg-700/60 overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+                  <div className="relative">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                      <p className="font-semibold text-orange-400 text-sm">Value Formula (R$)</p>
+                    </div>
+                    <p className="text-xs text-gray-300 font-mono bg-darkbg-900/50 rounded-lg px-3 py-2">
+                      Base Value <span className="text-gray-500">x</span> Trait Bonus
+                    </p>
+                    <p className="text-[11px] text-gray-500 mt-2 flex items-center gap-1.5">
+                      <Info className="w-3 h-3" />
+                      Hover values to see breakdown
+                    </p>
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Trait Tiers Section */}
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="bg-gradient-to-br from-darkbg-800/60 to-darkbg-900/40 rounded-xl border border-darkbg-700/60 overflow-hidden"
+              >
+                <div className="px-4 py-3 border-b border-darkbg-700/60 bg-darkbg-800/30">
+                  <p className="font-semibold text-white text-sm">Trait Value Bonuses</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Bonuses stack additively</p>
+                </div>
+
+                <div className="p-3 space-y-2">
+                  {traitTiers.map((tier, index) => (
+                    <motion.div
+                      key={tier.bonus}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 + index * 0.03 }}
+                      className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-darkbg-800/40 transition-colors group"
+                    >
+                      <div className={`flex-shrink-0 px-2.5 py-1 rounded-md text-xs font-semibold border ${tier.badgeColor}`}>
+                        {tier.bonus}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {tier.traits.map((trait) => (
+                          <span
+                            key={trait}
+                            className="inline-flex items-center gap-1 text-[11px] text-gray-400 bg-darkbg-800/60 px-2 py-0.5 rounded-md border border-darkbg-700/50 hover:border-darkbg-600 hover:text-gray-300 transition-colors"
+                          >
+                            <span className={`w-1 h-1 rounded-full ${tier.dotColor} opacity-60`} />
+                            {trait}
+                          </span>
+                        ))}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+
+                <div className="px-4 py-2.5 border-t border-darkbg-700/60 bg-darkbg-900/30">
+                  <p className="text-[11px] text-gray-500">
+                    Example: +50% + +50% = 2x total multiplier
+                  </p>
+                </div>
+              </motion.div>
+
+              {/* Disclaimer */}
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="text-[11px] text-gray-600 text-center"
+              >
+                Values marked with + are estimates. Actual market prices may vary.
+              </motion.p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 
@@ -291,56 +538,48 @@ export default function CalculatorPage() {
   const [pickerSide, setPickerSide] = useState<Side | null>(null)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
 
-  // Prefetch picker data on page load for instant picker
-  useEffect(() => {
-    prefetchPickerData()
-  }, [])
+  useEffect(() => { prefetchPickerData() }, [])
 
-  // Income calculations
-  const leftTotal = leftItems.reduce(
-    (sum, item) => sum + BigInt(item.calculatedIncome || item.brainrot.baseIncome),
-    BigInt(0)
-  )
-  const rightTotal = rightItems.reduce(
-    (sum, item) => sum + BigInt(item.calculatedIncome || item.brainrot.baseIncome),
-    BigInt(0)
-  )
+  const leftTotals = calculateTotals(leftItems)
+  const rightTotals = calculateTotals(rightItems)
 
-  const difference = rightTotal - leftTotal
-  const percentDiff = leftTotal > 0
-    ? Number((difference * BigInt(10000)) / leftTotal) / 100
-    : rightTotal > 0 ? 100 : 0
+  const incomeDiff = rightTotals.totalIncome - leftTotals.totalIncome
+  const valueDiff = rightTotals.totalValue - leftTotals.totalValue
+  const incomePercent = leftTotals.totalIncome > 0
+    ? Number((incomeDiff * BigInt(10000)) / leftTotals.totalIncome) / 100
+    : rightTotals.totalIncome > 0 ? 100 : 0
+  const valuePercent = leftTotals.totalValue > 0
+    ? (valueDiff / leftTotals.totalValue) * 100
+    : rightTotals.totalValue > 0 ? 100 : 0
 
-  // Value calculations
-  const leftValueData = calculateTotalValue(leftItems)
-  const rightValueData = calculateTotalValue(rightItems)
-  const leftValue = leftValueData.value
-  const rightValue = rightValueData.value
-  const valueDifference = rightValue - leftValue
-  const valuePercentDiff = leftValue > 0
-    ? ((valueDifference / leftValue) * 100)
-    : rightValue > 0 ? 100 : 0
-  const hasAnyValue = leftValue > 0 || rightValue > 0
-  const anyHasFallback = leftValueData.hasEstimated || rightValueData.hasEstimated
-
-  const handleSelectItem = (item: TradeItem) => {
+  const handleSelectItem = (item: Omit<TradeItem, 'quantity'>) => {
+    const itemWithQty = { ...item, quantity: 1 }
     if (editingIndex !== null) {
-      // Editing existing item
+      const items = pickerSide === 'left' ? leftItems : rightItems
+      const existingQty = items[editingIndex]?.quantity || 1
+      itemWithQty.quantity = existingQty
       if (pickerSide === 'left') {
-        setLeftItems((prev) => prev.map((it, i) => i === editingIndex ? item : it))
+        setLeftItems(prev => prev.map((it, i) => i === editingIndex ? itemWithQty : it))
       } else {
-        setRightItems((prev) => prev.map((it, i) => i === editingIndex ? item : it))
+        setRightItems(prev => prev.map((it, i) => i === editingIndex ? itemWithQty : it))
       }
     } else {
-      // Adding new item
       if (pickerSide === 'left') {
-        setLeftItems((prev) => [...prev, item])
+        setLeftItems(prev => [...prev, itemWithQty])
       } else {
-        setRightItems((prev) => [...prev, item])
+        setRightItems(prev => [...prev, itemWithQty])
       }
     }
     setPickerSide(null)
     setEditingIndex(null)
+  }
+
+  const handleQuantityChange = (side: Side, index: number, qty: number) => {
+    if (side === 'left') {
+      setLeftItems(prev => prev.map((it, i) => i === index ? { ...it, quantity: qty } : it))
+    } else {
+      setRightItems(prev => prev.map((it, i) => i === index ? { ...it, quantity: qty } : it))
+    }
   }
 
   const handleEditItem = (side: Side, index: number) => {
@@ -356,333 +595,221 @@ export default function CalculatorPage() {
 
   const handleRemoveItem = (side: Side, index: number) => {
     if (side === 'left') {
-      setLeftItems((prev) => prev.filter((_, i) => i !== index))
+      setLeftItems(prev => prev.filter((_, i) => i !== index))
     } else {
-      setRightItems((prev) => prev.filter((_, i) => i !== index))
+      setRightItems(prev => prev.filter((_, i) => i !== index))
     }
   }
 
-  const handleClearAll = () => {
-    setLeftItems([])
-    setRightItems([])
-  }
-
   const hasItems = leftItems.length > 0 || rightItems.length > 0
+  const hasValue = leftTotals.totalValue > 0 || rightTotals.totalValue > 0
 
   return (
     <PageTransition className="min-h-[calc(100vh-64px)] bg-darkbg-950">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 max-w-5xl">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: easeOut }}
-          className="text-center mb-8"
-        >
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="inline-flex items-center justify-center w-16 h-16 bg-green-900/30 rounded-2xl mb-4"
-          >
-            <Calculator className="w-8 h-8 text-green-400" />
-          </motion.div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
-            Trade Calculator
-          </h1>
-          <p className="text-gray-400">
-            Compare trade values to see if a deal is fair
-          </p>
-        </motion.div>
-
-        {/* Calculator */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1, ease: easeOut }}
-          className="bg-darkbg-900/90 backdrop-blur-sm rounded-2xl border border-darkbg-700 p-6 max-w-5xl mx-auto shadow-xl shadow-black/20"
-        >
-          <div className="grid md:grid-cols-[1fr_auto_1fr] gap-6">
-            {/* Left Side */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-10 bg-green-500 rounded-full" />
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-white">Your Offer</h3>
-                <span className="text-sm text-gray-500">{leftItems.length} items</span>
+              <h1 className="text-xl font-bold text-white tracking-tight">Trade Calculator</h1>
+              <p className="text-sm text-gray-500">Compare values before you trade</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Calculator */}
+        <div className="bg-darkbg-900/80 backdrop-blur-sm rounded-2xl border border-darkbg-700 overflow-hidden">
+          <div className="grid md:grid-cols-[1fr_auto_1fr]">
+            {/* Left Side */}
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-white text-sm">Your Offer</h3>
+                <span className="text-xs text-gray-500">
+                  {leftItems.reduce((sum, i) => sum + i.quantity, 0)} item{leftItems.length !== 1 ? 's' : ''}
+                </span>
               </div>
-              <div className="space-y-3">
+
+              <div className="space-y-2 mb-3">
                 <AnimatePresence mode="popLayout">
                   {leftItems.map((item, index) => (
                     <CalculatorItem
                       key={`left-${index}-${item.brainrotId}`}
                       item={item}
-                      index={index}
                       onEdit={() => handleEditItem('left', index)}
                       onRemove={() => handleRemoveItem('left', index)}
+                      onQuantityChange={(qty) => handleQuantityChange('left', index, qty)}
                     />
                   ))}
                 </AnimatePresence>
-                <motion.button
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  whileHover={{
-                    scale: 1.01,
-                    borderColor: 'rgba(34, 197, 94, 0.5)',
-                  }}
-                  whileTap={{ scale: 0.99 }}
-                  onClick={() => setPickerSide('left')}
-                  className="w-full py-4 border-2 border-dashed border-darkbg-600 rounded-xl text-gray-500 hover:text-green-500 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add Item
-                </motion.button>
               </div>
-              {/* Left Total */}
+
+              <button
+                onClick={() => setPickerSide('left')}
+                className="w-full py-3 border border-dashed border-darkbg-600 rounded-xl text-gray-500 hover:text-green-500 hover:border-green-500/50 transition-colors flex items-center justify-center gap-2 text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Add Item
+              </button>
+
+              {/* Left Totals */}
               {leftItems.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 p-3 bg-darkbg-800 rounded-xl space-y-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Income</span>
-                    <motion.span
-                      key={leftTotal.toString()}
-                      initial={{ scale: 1.1 }}
-                      animate={{ scale: 1 }}
-                      className="text-lg font-bold text-green-400"
-                    >
-                      <span className="text-white/70">Σ</span> {formatIncome(leftTotal.toString())}
-                    </motion.span>
+                <div className="mt-3 p-3 bg-darkbg-800/50 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Total Income</span>
+                    <span className="font-bold text-green-400">{formatIncome(leftTotals.totalIncome.toString())}</span>
                   </div>
-                  {leftValue > 0 && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Value</span>
-                      <ValueTooltip
-                        value={leftValue}
-                        hasEstimated={leftValueData.hasEstimated}
-                        fallbackDetails={leftValueData.fallbackDetails}
-                        className="text-sm font-bold text-orange-400"
-                      />
+                  {leftTotals.totalValue > 0 && (
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs text-gray-500">Total Value</span>
+                      <span className="font-bold text-orange-400">
+                        R${formatValue(leftTotals.totalValue)}{leftTotals.hasEstimated ? '+' : ''}
+                      </span>
                     </div>
                   )}
-                </motion.div>
+                </div>
               )}
             </div>
 
-            {/* Middle - Comparison */}
-            <div className="hidden md:flex flex-col items-center justify-center px-4">
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.15 }}
-                className="w-20 h-20 bg-darkbg-800 rounded-full flex items-center justify-center mb-4"
-              >
-                <Scale className="w-10 h-10 text-gray-400" />
-              </motion.div>
-              <motion.div
-                animate={{ x: [0, 4, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              >
-                <ArrowRightLeft className="w-6 h-6 text-green-500/60 mb-4" />
-              </motion.div>
-              <AnimatePresence mode="wait">
-                {hasItems && (
-                  <motion.div
-                    key={difference.toString() + valueDifference.toString()}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.2 }}
-                    className="text-center space-y-3"
-                  >
-                    {/* Income difference */}
+            {/* Center - Comparison */}
+            <div className="hidden md:flex flex-col items-center justify-center px-6 py-4 bg-darkbg-800/30 border-x border-darkbg-700">
+              <Scale className="w-8 h-8 text-gray-600 mb-3" />
+
+              {hasItems ? (
+                <div className="text-center space-y-4">
+                  {/* Income comparison */}
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Income</p>
+                    <p className={`text-lg font-bold ${incomeDiff > 0 ? 'text-green-500' : incomeDiff < 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                      {incomeDiff > 0 ? '+' : ''}{formatIncome(incomeDiff.toString())}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {incomePercent > 0 ? '+' : ''}{incomePercent.toFixed(1)}%
+                    </p>
+                  </div>
+
+                  {/* Value comparison */}
+                  {hasValue && (
                     <div>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Income</p>
-                      <motion.p
-                        className={`text-xl font-bold ${
-                          difference > 0 ? 'text-green-500' :
-                          difference < 0 ? 'text-red-500' : 'text-gray-500'
-                        }`}
-                      >
-                        {difference > 0 ? '+' : ''}{formatIncome(difference.toString())}
-                      </motion.p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Value</p>
+                      <p className={`text-lg font-bold ${valueDiff > 0 ? 'text-green-500' : valueDiff < 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                        {valueDiff > 0 ? '+' : ''}R${formatValue(Math.abs(valueDiff))}
+                      </p>
                       <p className="text-xs text-gray-500">
-                        {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}%
+                        {valuePercent > 0 ? '+' : ''}{valuePercent.toFixed(1)}%
                       </p>
                     </div>
-                    {/* Value difference */}
-                    {hasAnyValue && (
-                      <div>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Value</p>
-                        <motion.p
-                          className={`text-lg font-bold ${
-                            valueDifference > 0 ? 'text-green-500' :
-                            valueDifference < 0 ? 'text-red-500' : 'text-gray-500'
-                          }`}
-                        >
-                          {valueDifference > 0 ? '+' : ''}R$ {formatValue(Math.abs(valueDifference))}{anyHasFallback ? '+' : ''}
-                        </motion.p>
-                        <p className="text-xs text-gray-500">
-                          {valuePercentDiff > 0 ? '+' : ''}{valuePercentDiff.toFixed(1)}%{anyHasFallback ? '+' : ''}
-                        </p>
-                      </div>
-                    )}
-                    </motion.div>
-                )}
-              </AnimatePresence>
+                  )}
+
+                  {/* Verdict */}
+                  {(leftItems.length > 0 && rightItems.length > 0) && (
+                    <div className={`mt-2 px-3 py-1.5 rounded-full text-xs font-medium ${
+                      valueDiff > leftTotals.totalValue * 0.1 ? 'bg-green-500/20 text-green-400' :
+                      valueDiff < -leftTotals.totalValue * 0.1 ? 'bg-red-500/20 text-red-400' :
+                      'bg-gray-500/20 text-gray-400'
+                    }`}>
+                      {valueDiff > leftTotals.totalValue * 0.1 ? 'Good deal' :
+                       valueDiff < -leftTotals.totalValue * 0.1 ? 'Bad deal' :
+                       'Fair trade'}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 text-center">Add items to<br/>compare trades</p>
+              )}
             </div>
 
             {/* Right Side */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-white">You Receive</h3>
-                <span className="text-sm text-gray-500">{rightItems.length} items</span>
+            <div className="p-4 border-t md:border-t-0 border-darkbg-700">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-white text-sm">You Receive</h3>
+                <span className="text-xs text-gray-500">
+                  {rightItems.reduce((sum, i) => sum + i.quantity, 0)} item{rightItems.length !== 1 ? 's' : ''}
+                </span>
               </div>
-              <div className="space-y-3">
+
+              <div className="space-y-2 mb-3">
                 <AnimatePresence mode="popLayout">
                   {rightItems.map((item, index) => (
                     <CalculatorItem
                       key={`right-${index}-${item.brainrotId}`}
                       item={item}
-                      index={index}
                       onEdit={() => handleEditItem('right', index)}
                       onRemove={() => handleRemoveItem('right', index)}
+                      onQuantityChange={(qty) => handleQuantityChange('right', index, qty)}
                     />
                   ))}
                 </AnimatePresence>
-                <motion.button
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  whileHover={{
-                    scale: 1.01,
-                    borderColor: 'rgba(34, 197, 94, 0.5)',
-                  }}
-                  whileTap={{ scale: 0.99 }}
-                  onClick={() => setPickerSide('right')}
-                  className="w-full py-4 border-2 border-dashed border-darkbg-600 rounded-xl text-gray-500 hover:text-green-500 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add Item
-                </motion.button>
               </div>
-              {/* Right Total */}
+
+              <button
+                onClick={() => setPickerSide('right')}
+                className="w-full py-3 border border-dashed border-darkbg-600 rounded-xl text-gray-500 hover:text-green-500 hover:border-green-500/50 transition-colors flex items-center justify-center gap-2 text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Add Item
+              </button>
+
+              {/* Right Totals */}
               {rightItems.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 p-3 bg-darkbg-800 rounded-xl space-y-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Income</span>
-                    <motion.span
-                      key={rightTotal.toString()}
-                      initial={{ scale: 1.1 }}
-                      animate={{ scale: 1 }}
-                      className="text-lg font-bold text-green-400"
-                    >
-                      <span className="text-white/70">Σ</span> {formatIncome(rightTotal.toString())}
-                    </motion.span>
+                <div className="mt-3 p-3 bg-darkbg-800/50 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Total Income</span>
+                    <span className="font-bold text-green-400">{formatIncome(rightTotals.totalIncome.toString())}</span>
                   </div>
-                  {rightValue > 0 && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Value</span>
-                      <ValueTooltip
-                        value={rightValue}
-                        hasEstimated={rightValueData.hasEstimated}
-                        fallbackDetails={rightValueData.fallbackDetails}
-                        className="text-sm font-bold text-orange-400"
-                      />
+                  {rightTotals.totalValue > 0 && (
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs text-gray-500">Total Value</span>
+                      <span className="font-bold text-orange-400">
+                        R${formatValue(rightTotals.totalValue)}{rightTotals.hasEstimated ? '+' : ''}
+                      </span>
                     </div>
                   )}
-                </motion.div>
+                </div>
               )}
             </div>
           </div>
 
           {/* Mobile Comparison */}
-          <AnimatePresence>
-            {hasItems && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="md:hidden mt-6 p-4 bg-darkbg-800 rounded-xl text-center space-y-3"
-              >
-                <Scale className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                {/* Income difference */}
-                <div>
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Income</p>
-                  <motion.p
-                    key={difference.toString()}
-                    initial={{ scale: 1.1 }}
-                    animate={{ scale: 1 }}
-                    className={`text-xl font-bold ${
-                      difference > 0 ? 'text-green-500' :
-                      difference < 0 ? 'text-red-500' : 'text-gray-500'
-                    }`}
-                  >
-                    {difference > 0 ? '+' : ''}{formatIncome(difference.toString())}
-                  </motion.p>
-                  <p className="text-xs text-gray-500">
-                    {percentDiff > 0 ? '+' : ''}{percentDiff.toFixed(1)}%
+          {hasItems && (
+            <div className="md:hidden p-4 bg-darkbg-800/50 border-t border-darkbg-700">
+              <div className="flex items-center justify-center gap-6">
+                <div className="text-center">
+                  <p className="text-[10px] text-gray-500 uppercase">Income</p>
+                  <p className={`font-bold ${incomeDiff > 0 ? 'text-green-500' : incomeDiff < 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                    {incomeDiff > 0 ? '+' : ''}{formatIncome(incomeDiff.toString())}
                   </p>
                 </div>
-                {/* Value difference */}
-                {hasAnyValue && (
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Value</p>
-                    <motion.p
-                      className={`text-lg font-bold ${
-                        valueDifference > 0 ? 'text-green-500' :
-                        valueDifference < 0 ? 'text-red-500' : 'text-gray-500'
-                      }`}
-                    >
-                      {valueDifference > 0 ? '+' : ''}R$ {formatValue(Math.abs(valueDifference))}{anyHasFallback ? '+' : ''}
-                    </motion.p>
-                    <p className="text-xs text-gray-500">
-                      {valuePercentDiff > 0 ? '+' : ''}{valuePercentDiff.toFixed(1)}%{anyHasFallback ? '+' : ''}
+                {hasValue && (
+                  <div className="text-center">
+                    <p className="text-[10px] text-gray-500 uppercase">Value</p>
+                    <p className={`font-bold ${valueDiff > 0 ? 'text-green-500' : valueDiff < 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                      {valueDiff > 0 ? '+' : ''}R${formatValue(Math.abs(valueDiff))}
                     </p>
                   </div>
                 )}
-                </motion.div>
-            )}
-          </AnimatePresence>
+              </div>
+            </div>
+          )}
 
-          {/* Clear Button */}
-          <AnimatePresence>
-            {hasItems && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                className="mt-6 text-center"
+          {/* Clear All */}
+          {hasItems && (
+            <div className="p-3 border-t border-darkbg-700 flex justify-center">
+              <button
+                onClick={() => { setLeftItems([]); setRightItems([]) }}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:text-red-400 transition-colors"
               >
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleClearAll}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-red-500 transition-colors"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  Clear All
-                </motion.button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
+                <RotateCcw className="w-3.5 h-3.5" />
+                Clear All
+              </button>
+            </div>
+          )}
+        </div>
 
-        {/* Info */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="mt-8 max-w-2xl mx-auto text-center"
-        >
-          <p className="text-sm text-gray-400">
-            Values are calculated based on base income, mutations, and traits.
-            Use this as a guide—actual trade values may vary based on demand.
-          </p>
-        </motion.div>
+        {/* How it works */}
+        <div className="mt-4">
+          <HowItWorks />
+        </div>
       </div>
 
       {/* Brainrot Picker */}
@@ -690,10 +817,7 @@ export default function CalculatorPage() {
         {pickerSide && (
           <BrainrotPicker
             onSelect={handleSelectItem}
-            onClose={() => {
-              setPickerSide(null)
-              setEditingIndex(null)
-            }}
+            onClose={() => { setPickerSide(null); setEditingIndex(null) }}
             initialItem={getEditingItem()}
           />
         )}

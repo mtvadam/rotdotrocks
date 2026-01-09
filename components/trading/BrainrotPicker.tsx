@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { Search, X, Plus, Check, ArrowDownUp, ArrowLeft, Flag, Send, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import { TruncatedText } from '@/components/ui'
 import { formatIncome, getMutationClass } from '@/lib/utils'
+import { calculateTraitValueMultiplier } from '@/lib/trait-value'
 import { easeOut, modalVariants, backdropVariants, staggerContainer, staggerChild } from '@/lib/animations'
 import { DemandDot, type DemandLevel, type TrendDirection } from './DemandTrendBadge'
 
@@ -422,6 +423,13 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
   const handleConfirm = () => {
     if (!selectedBrainrot) return
     const resolved = getResolvedRobuxValue(selectedBrainrot, selectedMutation)
+
+    // Apply trait value multiplier to the base robux value
+    const traitValueMult = calculateTraitValueMultiplier(selectedTraits.map(t => t.name))
+    const adjustedValue = resolved.value !== null
+      ? Math.round(resolved.value * traitValueMult)
+      : null
+
     onSelect({
       brainrotId: selectedBrainrot.id,
       brainrot: selectedBrainrot,
@@ -430,7 +438,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
       traitIds: selectedTraits.map((t) => t.id),
       traits: selectedTraits,
       calculatedIncome: calculatedIncome || undefined,
-      robuxValue: resolved.value,
+      robuxValue: adjustedValue,
       valueFallback: resolved.isFallback,
       valueFallbackSource: resolved.fallbackSource,
     })
@@ -491,19 +499,15 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
   ]
 
   return (
-    <motion.div
-      variants={backdropVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
+    <div
       onClick={onClose}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md"
     >
       <motion.div
-        variants={modalVariants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
+        initial={{ scale: 0.95, y: 10 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.95, y: 10 }}
+        transition={{ duration: 0.2 }}
         onClick={(e) => e.stopPropagation()}
         className="bg-darkbg-900/90 backdrop-blur-xl rounded-2xl w-full max-w-2xl h-[80vh] mx-4 overflow-hidden flex flex-col shadow-2xl border border-darkbg-700"
       >
@@ -692,9 +696,12 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                     {(() => {
                       const resolved = getResolvedRobuxValue(selectedBrainrot, selectedMutation)
                       if (resolved.value) {
+                        const traitMult = calculateTraitValueMultiplier(selectedTraits.map(t => t.name))
+                        const adjustedValue = Math.round(resolved.value * traitMult)
+                        const hasTraitBonus = traitMult !== 1
                         return (
-                          <span className="text-yellow-400" title={resolved.isFallback ? `Using ${resolved.fallbackSource} value` : undefined}>
-                            R${resolved.value.toLocaleString()}{resolved.isFallback ? '+' : ''}
+                          <span className="text-yellow-400" title={resolved.isFallback ? `Using ${resolved.fallbackSource} value` : hasTraitBonus ? `Base: R$${resolved.value.toLocaleString()} × ${traitMult.toFixed(2)} trait bonus` : undefined}>
+                            R${adjustedValue.toLocaleString()}{resolved.isFallback ? '+' : ''}{hasTraitBonus ? '*' : ''}
                           </span>
                         )
                       }
@@ -1176,6 +1183,6 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
             )}
           </AnimatePresence>
         </motion.div>
-      </motion.div>
+      </div>
   )
 }

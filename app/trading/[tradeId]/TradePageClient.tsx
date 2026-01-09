@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowRightLeft, BadgeCheck, MessageSquare, Clock, Send, Trash2, Check, X, ExternalLink, Loader2, CheckCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { TradeItemDisplay, TradeBuilderModal } from '@/components/trading'
+import { TradeItemDisplay, TradeBuilderModal, TotalValueBreakdown, TradeVoting } from '@/components/trading'
 import { useAuth } from '@/components/Providers'
 import { RobloxAvatar } from '@/components/ui'
 import { formatIncome } from '@/lib/utils'
+import { calculateTraitValueMultiplier } from '@/lib/trait-value'
 import type { DemandLevel, TrendDirection } from '@/components/trading/DemandTrendBadge'
 
 interface TradeItem {
@@ -87,65 +87,6 @@ interface Trade {
   }>
 }
 
-// Value display with portal tooltip for fallback info
-function ValueWithTooltip({
-  value,
-  hasEstimated,
-  fallbackDetails
-}: {
-  value: number
-  hasEstimated: boolean
-  fallbackDetails: Array<{ brainrotName: string; source: string }>
-}) {
-  const [showTooltip, setShowTooltip] = useState(false)
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
-  const valueRef = useRef<HTMLSpanElement>(null)
-
-  const handleMouseEnter = () => {
-    if (valueRef.current && hasEstimated && fallbackDetails.length > 0) {
-      const rect = valueRef.current.getBoundingClientRect()
-      setTooltipPos({
-        top: rect.top - 8,
-        left: rect.left + rect.width / 2,
-      })
-      setShowTooltip(true)
-    }
-  }
-
-  return (
-    <div>
-      <span className="text-gray-500">Value: </span>
-      <span
-        ref={valueRef}
-        className="font-medium text-yellow-400 cursor-default"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={() => setShowTooltip(false)}
-      >
-        R${value.toLocaleString()}{hasEstimated ? '+' : ''}
-      </span>
-      {typeof window !== 'undefined' && createPortal(
-        showTooltip && hasEstimated && fallbackDetails.length > 0 ? (
-          <div
-            style={{ top: tooltipPos.top, left: tooltipPos.left }}
-            className="fixed z-[9999] -translate-x-1/2 -translate-y-full pointer-events-none"
-          >
-            <div className="bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg px-2 py-1.5 shadow-lg shadow-black/20 whitespace-nowrap">
-              <p className="text-[10px] text-gray-300 text-center mb-1">Total Value</p>
-              <div className="border-t border-darkbg-600 pt-1">
-                {fallbackDetails.map((detail, i) => (
-                  <p key={i} className="text-[9px] text-amber-400/80">
-                    {detail.brainrotName}: using {detail.source} value
-                  </p>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : null,
-        document.body
-      )}
-    </div>
-  )
-}
 
 export default function TradePageClient({ tradeId }: { tradeId: string }) {
   const router = useRouter()
@@ -361,29 +302,49 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
     let totalIncome = BigInt(0)
     let totalValue = 0
     let hasEstimated = false
-    const fallbackDetails: Array<{ brainrotName: string; source: string }> = []
+    const itemBreakdowns: Array<{
+      brainrotName: string
+      mutationName: string
+      robuxValue: number
+      traitNames: string[]
+      valueFallback?: boolean
+      valueFallbackSource?: string | null
+    }> = []
 
     for (const item of items) {
       if (item.calculatedIncome) {
         totalIncome += BigInt(item.calculatedIncome)
       }
       if (item.robuxValue) {
-        totalValue += item.robuxValue
-        // Track fallback values
-        if (item.valueFallback && item.valueFallbackSource) {
+        // Apply trait value multiplier
+        const traitNames = item.traits?.map(t => t.trait.name) || []
+        const traitMult = calculateTraitValueMultiplier(traitNames)
+        totalValue += Math.round(item.robuxValue * traitMult)
+        // Track for breakdown
+        if (item.valueFallback) {
           hasEstimated = true
-          fallbackDetails.push({
-            brainrotName: item.brainrot.name,
-            source: item.valueFallbackSource
-          })
         }
+        itemBreakdowns.push({
+          brainrotName: item.brainrot.name,
+          mutationName: item.mutation?.name || 'Default',
+          robuxValue: item.robuxValue,
+          traitNames,
+          valueFallback: item.valueFallback,
+          valueFallbackSource: item.valueFallbackSource,
+        })
       }
       // Add robux from "Add Robux" addon
       if (item.addonType === 'ROBUX' && item.robuxAmount) {
         totalValue += item.robuxAmount
+        itemBreakdowns.push({
+          brainrotName: 'Robux',
+          mutationName: '',
+          robuxValue: item.robuxAmount,
+          traitNames: [],
+        })
       }
     }
-    return { totalIncome, totalValue, hasEstimated, fallbackDetails }
+    return { totalIncome, totalValue, hasEstimated, itemBreakdowns }
   }
 
   const offerTotals = calculateTotals(offerItems)
@@ -454,7 +415,7 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
             {/* Offer Side */}
             <div className="min-w-0 overflow-hidden flex flex-col">
               <h3 className="text-sm font-semibold text-green-500 uppercase mb-3">
-                Offering
+                {trade.isVerified ? 'Gave' : 'Offering'}
               </h3>
               <div className="space-y-2 flex-1">
                 {offerItems.map((item) => (
@@ -470,10 +431,11 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
                   </div>
                 ) : <div />}
                 {offerTotals.totalValue > 0 ? (
-                  <ValueWithTooltip
-                    value={offerTotals.totalValue}
+                  <TotalValueBreakdown
+                    items={offerTotals.itemBreakdowns}
+                    totalValue={offerTotals.totalValue}
                     hasEstimated={offerTotals.hasEstimated}
-                    fallbackDetails={offerTotals.fallbackDetails}
+                    showLabel
                   />
                 ) : <div />}
               </div>
@@ -487,7 +449,7 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
             {/* Request Side */}
             <div className="min-w-0 overflow-hidden flex flex-col">
               <h3 className="text-sm font-semibold text-green-500 uppercase mb-3">
-                Looking For
+                {trade.isVerified ? 'Received' : 'Looking For'}
               </h3>
               <div className="space-y-2 flex-1">
                 {requestItems.map((item) => (
@@ -503,15 +465,23 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
                   </div>
                 ) : <div />}
                 {requestTotals.totalValue > 0 ? (
-                  <ValueWithTooltip
-                    value={requestTotals.totalValue}
+                  <TotalValueBreakdown
+                    items={requestTotals.itemBreakdowns}
+                    totalValue={requestTotals.totalValue}
                     hasEstimated={requestTotals.hasEstimated}
-                    fallbackDetails={requestTotals.fallbackDetails}
+                    showLabel
                   />
                 ) : <div />}
               </div>
             </div>
           </div>
+
+          {/* Voting - only for verified trades */}
+          {trade.isVerified && (
+            <div className="border-t border-darkbg-700">
+              <TradeVoting tradeId={trade.id} />
+            </div>
+          )}
 
           {/* Actions - all buttons fill row evenly */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-2 pt-4 border-t border-darkbg-700">

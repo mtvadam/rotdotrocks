@@ -71,10 +71,13 @@ export default function PriceImportPage() {
     load()
   }, [])
 
-  const getMinListings = (rarity: string) => {
-    if (rarity === 'OG') return 3
-    if (rarity === 'Secret') return 10
-    return 15
+  const getMinListings = (rarity: string, mutationName: string) => {
+    // Rarer mutations (past Gold) have fewer listings, so be less strict
+    const isRareMutation = !['Default', 'Gold'].includes(mutationName)
+
+    if (rarity === 'OG') return isRareMutation ? 1 : 3
+    if (rarity === 'Secret') return isRareMutation ? 3 : 10
+    return isRareMutation ? 5 : 15
   }
 
   const fetchPrice = useCallback(async (brainrot: Brainrot, mutation: Mutation) => {
@@ -90,7 +93,7 @@ export default function PriceImportPage() {
       const res = await fetch(`/api/admin/price-import?${params}`)
       const data = await res.json()
 
-      const minListings = getMinListings(brainrot.rarity)
+      const minListings = getMinListings(brainrot.rarity, mutation.name)
       const isOutlier = data.listingCount < minListings
 
       const result: PriceResult = {
@@ -107,8 +110,9 @@ export default function PriceImportPage() {
 
       setResults(prev => new Map(prev).set(key, result))
 
-      // Auto-fill edited value if not outlier and has price
-      if (data.robuxPrice && !isOutlier) {
+      // Auto-fill edited value if not outlier, has price, and >= 100 Robux
+      // ($0.50 is Eldorado minimum listing price, likely placeholder - skip values below $0.95/100R$)
+      if (data.robuxPrice && data.robuxPrice >= 100 && !isOutlier) {
         setEditedValues(prev => new Map(prev).set(key, data.robuxPrice))
       }
 

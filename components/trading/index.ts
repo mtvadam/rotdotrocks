@@ -4,6 +4,8 @@ export { TradeBuilderModal } from './TradeBuilderModal'
 export { BrainrotPicker, prefetchPickerData } from './BrainrotPicker'
 export { TradeFilters, defaultFilters } from './TradeFilters'
 export type { TradeFiltersState } from './TradeFilters'
+export { ItemValueBreakdown, TotalValueBreakdown, formatValue } from './ValueBreakdown'
+export { TradeVoting, CompactTradeVoting } from './TradeVoting'
 export {
   DemandTrendBadge,
   DemandDot,

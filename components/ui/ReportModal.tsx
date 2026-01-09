@@ -119,19 +119,15 @@ export function ReportModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          variants={backdropVariants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
+        <div
           onClick={onClose}
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-md"
         >
           <motion.div
-            variants={modalVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
+            initial={{ scale: 0.95, y: 10 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.95, y: 10 }}
+            transition={{ duration: 0.2 }}
             onClick={(e) => e.stopPropagation()}
             className="bg-darkbg-900/90 backdrop-blur-xl rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl border border-darkbg-700"
           >
@@ -304,7 +300,7 @@ export function ReportModal({
               </div>
             )}
           </motion.div>
-        </motion.div>
+        </div>
       )}
     </AnimatePresence>
   )

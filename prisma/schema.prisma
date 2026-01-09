@@ -117,6 +117,12 @@ enum NotificationType {
   COUNTER_ACCEPTED
 }
 
+enum TradeVoteType {
+  WIN
+  FAIR
+  LOSS
+}
+
 enum DemandLevel {
   TERRIBLE
   LOW
@@ -601,6 +607,7 @@ model Trade {
   counterOffers   Trade[]     @relation("CounterOffers")
   items           TradeItem[]
   requests        TradeRequest[]
+  votes           TradeVote[]
 
   @@index([userId])
   @@index([status])
@@ -726,5 +733,21 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([userId, createdAt])
+}
+
+// Trade votes (Win/Fair/Loss) - session-based voting for verified trades
+model TradeVote {
+  id          String        @id @default(cuid())
+  tradeId     String
+  sessionId   String        // Browser session identifier (cookie-based)
+  vote        TradeVoteType
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  trade       Trade         @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+
+  @@unique([tradeId, sessionId]) // One vote per session per trade
+  @@index([tradeId])
+  @@index([sessionId])
 }
 

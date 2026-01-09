@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { ReactNode, useEffect } from 'react'
 import { X } from 'lucide-react'
-import { overlayVariants, modalVariants } from '@/lib/animations'
+import { modalVariants } from '@/lib/animations'
 
 interface ModalProps {
   isOpen: boolean
@@ -57,13 +57,8 @@ export function Modal({
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <motion.div
-            variants={overlayVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ duration: 0.2 }}
+          {/* Backdrop - no opacity animation to prevent blur delay */}
+          <div
             onClick={onClose}
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />

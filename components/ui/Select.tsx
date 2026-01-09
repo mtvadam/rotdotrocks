@@ -83,11 +83,7 @@ export function Select({ value, onChange, options, className = '', disabled = fa
       {typeof window !== 'undefined' && createPortal(
         <AnimatePresence>
           {isOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -8, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.95 }}
-              transition={{ duration: 0.15 }}
+            <div
               style={{ top: position.top, left: position.left, width: position.width }}
               className="fixed z-[60] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-xl shadow-2xl shadow-black/50 overflow-hidden"
             >
@@ -123,7 +119,7 @@ export function Select({ value, onChange, options, className = '', disabled = fa
                 </motion.button>
               )
             })}
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>,
       document.body

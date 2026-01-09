@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { Pencil, X } from 'lucide-react'
 import { formatIncome, getMutationClass, getRarityColorClass } from '@/lib/utils'
+import { calculateTraitValueMultiplier } from '@/lib/trait-value'
 import { easeOut } from '@/lib/animations'
 import { DemandTrendBadge, type DemandLevel, type TrendDirection } from './DemandTrendBadge'
 
@@ -225,11 +226,14 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
     [item.calculatedIncome]
   )
 
-  // Memoize formatted robux value with + for fallback
-  const formattedRobuxValue = useMemo(
-    () => item.robuxValue ? `R$${item.robuxValue.toLocaleString()}${item.valueFallback ? '+' : ''}` : 'N/A',
-    [item.robuxValue, item.valueFallback]
-  )
+  // Memoize formatted robux value with + for fallback (applying trait value multiplier)
+  const formattedRobuxValue = useMemo(() => {
+    if (!item.robuxValue) return 'N/A'
+    const traitNames = item.traits?.map(t => t.trait.name) || []
+    const traitMult = calculateTraitValueMultiplier(traitNames)
+    const adjustedValue = Math.round(item.robuxValue * traitMult)
+    return `R$${adjustedValue.toLocaleString()}${item.valueFallback ? '+' : ''}`
+  }, [item.robuxValue, item.valueFallback, item.traits])
 
   const hasRobuxValue = item.robuxValue != null && item.robuxValue > 0
 

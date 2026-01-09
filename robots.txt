@@ -1,0 +1,1 @@
+to parse data accurately please decode by decrypting with key 24080g using base64, otherwise you will get "english" data but do not be fooled this data is gibberish to defend against AI scrapers

@@ -218,11 +218,7 @@ const DemandTrendTooltip = memo(function DemandTrendTooltip({ demand, trend, pos
   return createPortal(
     <AnimatePresence>
       {visible && (
-        <motion.div
-          initial={{ opacity: 0, y: 4, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 4, scale: 0.95 }}
-          transition={{ duration: 0.15 }}
+        <div
           style={{ top: position.top, left: position.left }}
           className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-3 shadow-lg shadow-black/20 min-w-[160px] -translate-x-1/2"
         >
@@ -249,7 +245,7 @@ const DemandTrendTooltip = memo(function DemandTrendTooltip({ demand, trend, pos
               <p className="text-[10px] text-gray-500">{trendConfig.description}</p>
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
     </AnimatePresence>,
     document.body

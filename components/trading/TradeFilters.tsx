@@ -297,22 +297,14 @@ function FilterButton({
       </button>
 
       {/* Desktop Dropdown */}
-      {typeof window !== 'undefined' && !isMobile && createPortal(
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              ref={panelRef}
-              initial={{ opacity: 0, y: -8, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.95 }}
-              transition={{ duration: 0.15 }}
-              style={{ top: position.top, left: position.left }}
-              className="fixed w-[300px] bg-darkbg-900/95 backdrop-blur-xl border border-darkbg-700 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden z-50"
-            >
-              {children}
-            </motion.div>
-          )}
-        </AnimatePresence>,
+      {typeof window !== 'undefined' && !isMobile && isOpen && createPortal(
+        <div
+          ref={panelRef}
+          style={{ top: position.top, left: position.left }}
+          className="fixed w-[300px] bg-darkbg-900/95 backdrop-blur-xl border border-darkbg-700 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden z-50"
+        >
+          {children}
+        </div>,
         document.body
       )}
 
@@ -321,10 +313,7 @@ function FilterButton({
         <AnimatePresence>
           {isOpen && (
             <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+              <div
                 onClick={() => setIsOpen(false)}
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
               />
@@ -442,32 +431,25 @@ function BrainrotSearch({ label, placeholder, selected, onSelect, onRemove, brai
           className="w-full pl-9 pr-3 py-2 bg-darkbg-800 border-2 border-transparent focus:border-green-500 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none transition-colors"
         />
         {/* Portal for suggestions dropdown */}
-        {typeof window !== 'undefined' && createPortal(
-          <AnimatePresence>
-            {showSuggestions && suggestions.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
-                className="fixed z-[100] max-h-40 overflow-y-auto bg-darkbg-900/90 backdrop-blur-xl border border-darkbg-600 rounded-xl shadow-2xl shadow-black/50"
+        {typeof window !== 'undefined' && showSuggestions && suggestions.length > 0 && createPortal(
+          <div
+            style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+            className="fixed z-[100] max-h-40 overflow-y-auto bg-darkbg-900/90 backdrop-blur-xl border border-darkbg-600 rounded-xl shadow-2xl shadow-black/50"
+          >
+            {suggestions.map((brainrot) => (
+              <button
+                key={brainrot.id}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { onSelect(brainrot); setSearch(''); setShowSuggestions(false) }}
+                className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-darkbg-700/80 transition-colors text-left"
               >
-                {suggestions.map((brainrot) => (
-                  <button
-                    key={brainrot.id}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => { onSelect(brainrot); setSearch(''); setShowSuggestions(false) }}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-darkbg-700/80 transition-colors text-left"
-                  >
-                    {brainrot.localImage && (
-                      <Image src={brainrot.localImage} alt="" width={24} height={24} className="rounded" />
-                    )}
-                    <span className="text-sm text-white truncate">{brainrot.name}</span>
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>,
+                {brainrot.localImage && (
+                  <Image src={brainrot.localImage} alt="" width={24} height={24} className="rounded" />
+                )}
+                <span className="text-sm text-white truncate">{brainrot.name}</span>
+              </button>
+            ))}
+          </div>,
           document.body
         )}
       </div>

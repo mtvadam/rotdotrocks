@@ -86,11 +86,6 @@ export function MOTD() {
     localStorage.setItem(DISMISS_STORAGE_KEY, hashMessage(data.message))
   }
 
-  // Don't show if no data, not enabled, no message, or dismissed
-  if (!data || !data.enabled || !data.message || dismissed) {
-    return null
-  }
-
   const typeConfig = {
     info: {
       bg: 'bg-blue-500/10',
@@ -118,32 +113,37 @@ export function MOTD() {
     },
   }
 
-  const config = typeConfig[data.type]
+  const shouldShow = data && data.enabled && data.message && !dismissed
+  const config = data ? typeConfig[data.type] : typeConfig.info
   const Icon = config.icon
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        className={`sticky top-16 z-40 ${config.bg} border-b ${config.border}`}
-      >
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-center gap-3">
-            {data.showIcon && <Icon className={`w-4 h-4 ${config.text} flex-shrink-0`} />}
-            <p className={`text-sm ${config.text}`}>{linkify(data.message)}</p>
-            {data.dismissible && (
-              <button
-                onClick={handleDismiss}
-                className={`ml-2 p-1 rounded-lg hover:bg-white/10 transition-colors ${config.text}`}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+      {shouldShow && (
+        <motion.div
+          key="motd"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className={`sticky top-16 z-40 bg-darkbg-900/95 ${config.bg} backdrop-blur-lg border-b ${config.border} overflow-hidden`}
+        >
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-center gap-3">
+              {data!.showIcon && <Icon className={`w-4 h-4 ${config.text} flex-shrink-0`} />}
+              <p className={`text-sm ${config.text}`}>{linkify(data!.message)}</p>
+              {data!.dismissible && (
+                <button
+                  onClick={handleDismiss}
+                  className={`ml-2 p-1 rounded-lg hover:bg-white/10 transition-colors ${config.text}`}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
     </AnimatePresence>
   )
 }

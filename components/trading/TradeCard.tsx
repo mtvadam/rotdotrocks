@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { formatDistanceToNow } from 'date-fns'
@@ -10,7 +10,10 @@ import { BadgeCheck, MessageSquare, MoveRight, ArrowRightLeft } from 'lucide-rea
 import { RobloxAvatar } from '@/components/ui'
 import { easeOut } from '@/lib/animations'
 import { getMutationClass } from '@/lib/utils'
+import { calculateTraitValueMultiplier } from '@/lib/trait-value'
 import { DemandTrendBadge, type DemandLevel, type TrendDirection } from './DemandTrendBadge'
+import { TotalValueBreakdown } from './ValueBreakdown'
+import { CompactTradeVoting } from './TradeVoting'
 
 // Income formatting thresholds as constants to avoid recreation
 const TRILLION = 1_000_000_000_000
@@ -173,32 +176,25 @@ function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trai
         )}
       </div>
       {/* Tooltip rendered via portal */}
-      {typeof window !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {showTooltip && (
-            <motion.div
-              initial={{ opacity: 0, y: 4, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4, scale: 0.95 }}
-              style={{ top: tooltipPos.top, left: tooltipPos.left }}
-              className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px]"
-            >
-              {sortedTraits.map((t) => (
-                <div key={t.trait.id} className="flex items-center gap-2 py-1">
-                  <div className="w-5 h-5 rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0">
-                    {t.trait.localImage ? (
-                      <Image src={t.trait.localImage} alt={t.trait.name} width={20} height={20} className="object-cover" />
-                    ) : (
-                      <span className="w-full h-full flex items-center justify-center text-[8px] text-gray-400">{t.trait.name.charAt(0)}</span>
-                    )}
-                  </div>
-                  <span className="text-xs text-gray-300">{t.trait.name}</span>
-                  <span className="text-[10px] text-gray-500 ml-auto">{t.trait.multiplier}x</span>
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>,
+      {typeof window !== 'undefined' && showTooltip && createPortal(
+        <div
+          style={{ top: tooltipPos.top, left: tooltipPos.left }}
+          className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px]"
+        >
+          {sortedTraits.map((t) => (
+            <div key={t.trait.id} className="flex items-center gap-2 py-1">
+              <div className="w-5 h-5 rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0">
+                {t.trait.localImage ? (
+                  <Image src={t.trait.localImage} alt={t.trait.name} width={20} height={20} className="object-cover" />
+                ) : (
+                  <span className="w-full h-full flex items-center justify-center text-[8px] text-gray-400">{t.trait.name.charAt(0)}</span>
+                )}
+              </div>
+              <span className="text-xs text-gray-300">{t.trait.name}</span>
+              <span className="text-[10px] text-gray-500 ml-auto">{t.trait.multiplier}x</span>
+            </div>
+          ))}
+        </div>,
         document.body
       )}
     </div>
@@ -225,6 +221,11 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
 
   const formattedIncome = item.calculatedIncome
     ? formatCompactIncome(item.calculatedIncome) + '/s'
+    : null
+
+  // Calculate trait-adjusted robux value
+  const traitAdjustedValue = item.robuxValue != null
+    ? Math.round(item.robuxValue * calculateTraitValueMultiplier(traits.map(t => t.trait.name)))
     : null
 
   // Size classes based on size prop
@@ -273,45 +274,40 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
         ) : null}
       </div>
       {/* Brainrot tooltip */}
-      {typeof window !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {showTooltip && (
-            <motion.div
-              initial={{ opacity: 0, y: 4, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4, scale: 0.95 }}
-              style={{ top: tooltipPos.top, left: tooltipPos.left }}
-              className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px] -translate-x-1/2"
-            >
-              <p
-                className="text-xs font-semibold text-white text-center"
-                style={{ fontFamily: "'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', 'Comic Neue', cursive" }}
-              >
-                {item.brainrot.name}
-              </p>
-              {item.mutation && (
-                <p className={`text-[10px] font-medium text-center ${getMutationClass(item.mutation.name)}`}>
-                  {item.mutation.name}
-                </p>
-              )}
-              {/* Demand/Trend badge */}
-              {item.brainrot.demand && item.brainrot.trend && (
-                <div className="flex justify-center mt-0.5">
-                  <DemandTrendBadge
-                    demand={item.brainrot.demand}
-                    trend={item.brainrot.trend}
-                    size="xs"
-                    variant="icon-only"
-                    hideIfNormal
-                    showTooltip={false}
-                  />
-                </div>
-              )}
-              {/* Robux value */}
-              {item.robuxValue !== null && item.robuxValue !== undefined && (
-                <p className="text-[10px] text-amber-400 mt-0.5 text-center font-semibold" title={item.valueFallback && item.valueFallbackSource ? `Using ${item.valueFallbackSource} value` : undefined}>
-                  {formatRobuxValue(item.robuxValue, item.valueFallback)}
-                </p>
+      {typeof window !== 'undefined' && showTooltip && createPortal(
+        <div
+          style={{ top: tooltipPos.top, left: tooltipPos.left }}
+          className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px] -translate-x-1/2"
+        >
+          <p
+            className="text-xs font-semibold text-white text-center"
+            style={{ fontFamily: "'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', 'Comic Neue', cursive" }}
+          >
+            {item.brainrot.name}
+          </p>
+          {item.mutation && (
+            <p className={`text-[10px] font-medium text-center ${getMutationClass(item.mutation.name)}`}>
+              {item.mutation.name}
+            </p>
+          )}
+          {/* Demand/Trend badge */}
+          {item.brainrot.demand && item.brainrot.trend && (
+            <div className="flex justify-center mt-0.5">
+              <DemandTrendBadge
+                demand={item.brainrot.demand}
+                trend={item.brainrot.trend}
+                size="xs"
+                variant="icon-only"
+                hideIfNormal
+                showTooltip={false}
+              />
+            </div>
+          )}
+          {/* Robux value */}
+          {traitAdjustedValue !== null && (
+            <p className="text-[10px] text-amber-400 mt-0.5 text-center font-semibold" title={item.valueFallback && item.valueFallbackSource ? `Using ${item.valueFallbackSource} value` : undefined}>
+              {formatRobuxValue(traitAdjustedValue, item.valueFallback)}
+            </p>
               )}
               {formattedIncome && (
                 <p className="text-[10px] text-green-400 mt-0.5 text-center">{formattedIncome}</p>
@@ -335,9 +331,7 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
                   </div>
                 )
               })()}
-            </motion.div>
-          )}
-        </AnimatePresence>,
+        </div>,
         document.body
       )}
     </div>
@@ -352,6 +346,11 @@ function IPadEnhancedItem({ item, size = 'md' }: { item: TradeCardProps['trade']
 
   const formattedIncome = item.calculatedIncome
     ? formatCompactIncome(item.calculatedIncome) + '/s'
+    : null
+
+  // Calculate trait-adjusted robux value
+  const traitAdjustedValue = item.robuxValue != null
+    ? Math.round(item.robuxValue * calculateTraitValueMultiplier(traits.map(t => t.trait.name)))
     : null
 
   // Size-dependent values
@@ -408,9 +407,9 @@ function IPadEnhancedItem({ item, size = 'md' }: { item: TradeCardProps['trade']
       )}
 
       {/* Robux value */}
-      {item.robuxValue !== null && item.robuxValue !== undefined && (
+      {traitAdjustedValue !== null && (
         <span className={`${size === 'lg' ? 'text-[10px]' : 'text-[9px]'} font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full -mt-0.5`} title={item.valueFallback && item.valueFallbackSource ? `Using ${item.valueFallbackSource} value` : undefined}>
-          {formatRobuxValue(item.robuxValue, item.valueFallback)}
+          {formatRobuxValue(traitAdjustedValue, item.valueFallback)}
         </span>
       )}
 
@@ -498,22 +497,39 @@ function IPadItemGrid({ items }: { items: TradeCardProps['trade']['items'] }) {
 }
 
 // Income and Value display with tooltip
-function TotalsDisplay({ income, value, hasEstimated = false, fallbackDetails = [], align = 'left' }: { income?: string | null; value?: number | null; hasEstimated?: boolean; fallbackDetails?: Array<{ brainrotName: string; source: string }>; align?: 'left' | 'center' | 'right' }) {
-  const [showTooltip, setShowTooltip] = useState<'income' | 'value' | null>(null)
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
+function TotalsDisplay({
+  income,
+  value,
+  hasEstimated = false,
+  itemBreakdowns = [],
+  align = 'left'
+}: {
+  income?: string | null
+  value?: number | null
+  hasEstimated?: boolean
+  itemBreakdowns?: Array<{
+    brainrotName: string
+    mutationName: string
+    robuxValue: number
+    traitNames: string[]
+    valueFallback?: boolean
+    valueFallbackSource?: string | null
+  }>
+  align?: 'left' | 'center' | 'right'
+}) {
+  const [showIncomeTooltip, setShowIncomeTooltip] = useState(false)
+  const [incomeTooltipPos, setIncomeTooltipPos] = useState({ top: 0, left: 0 })
   const incomeRef = useRef<HTMLSpanElement>(null)
-  const valueRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
-    const ref = showTooltip === 'income' ? incomeRef.current : showTooltip === 'value' ? valueRef.current : null
-    if (showTooltip && ref) {
-      const rect = ref.getBoundingClientRect()
-      setTooltipPos({
+    if (showIncomeTooltip && incomeRef.current) {
+      const rect = incomeRef.current.getBoundingClientRect()
+      setIncomeTooltipPos({
         top: rect.bottom + 6,
         left: rect.left + rect.width / 2,
       })
     }
-  }, [showTooltip])
+  }, [showIncomeTooltip])
 
   const justifyClass = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'
 
@@ -523,51 +539,35 @@ function TotalsDisplay({ income, value, hasEstimated = false, fallbackDetails = 
   return (
     <div className={`mt-1.5 flex items-center gap-2 ${justifyClass}`}>
       {income && (
-        <span
-          ref={incomeRef}
-          onMouseEnter={() => setShowTooltip('income')}
-          onMouseLeave={() => setShowTooltip(null)}
-          className="text-xs text-green-400 font-semibold cursor-default"
-        >
-          <span className="text-white/70">Σ</span> {formatCompactIncome(income)}/s
-        </span>
-      )}
-      {value != null && (
-        <span
-          ref={valueRef}
-          onMouseEnter={() => setShowTooltip('value')}
-          onMouseLeave={() => setShowTooltip(null)}
-          className="text-xs text-amber-400 font-semibold cursor-default"
-        >
-          R${formatCompactValue(value)}{hasEstimated ? '+' : ''}
-        </span>
-      )}
-      {typeof window !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {showTooltip && (
-            <motion.div
-              initial={{ opacity: 0, y: 4, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4, scale: 0.95 }}
-              style={{ top: tooltipPos.top, left: tooltipPos.left }}
+        <>
+          <span
+            ref={incomeRef}
+            onMouseEnter={() => setShowIncomeTooltip(true)}
+            onMouseLeave={() => setShowIncomeTooltip(false)}
+            className="text-xs text-green-400 font-semibold cursor-default"
+          >
+            <span className="text-white/70">Σ</span> {formatCompactIncome(income)}/s
+          </span>
+          {typeof window !== 'undefined' && showIncomeTooltip && createPortal(
+            <div
+              style={{ top: incomeTooltipPos.top, left: incomeTooltipPos.left }}
               className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg px-2 py-1 shadow-lg shadow-black/20 -translate-x-1/2"
             >
               <p className="text-[10px] text-gray-300 whitespace-nowrap text-center">
-                {showTooltip === 'income' ? 'Total Income' : 'Total Value'}
+                Total Income
               </p>
-              {showTooltip === 'value' && hasEstimated && fallbackDetails.length > 0 && (
-                <div className="mt-1 pt-1 border-t border-darkbg-600">
-                  {fallbackDetails.map((detail, i) => (
-                    <p key={i} className="text-[9px] text-amber-400/80 whitespace-nowrap">
-                      {detail.brainrotName}: using {detail.source} value
-                    </p>
-                  ))}
-                </div>
-              )}
-            </motion.div>
+            </div>,
+            document.body
           )}
-        </AnimatePresence>,
-        document.body
+        </>
+      )}
+      {value != null && (
+        <TotalValueBreakdown
+          items={itemBreakdowns}
+          totalValue={value}
+          hasEstimated={hasEstimated}
+          compact
+        />
       )}
     </div>
   )
@@ -589,35 +589,66 @@ function calculateTotalIncome(items: TradeCardProps['trade']['items']): string |
 }
 
 // Calculate total Robux value from items (includes brainrot values + Robux addon amounts)
-// Returns { value, hasEstimated, fallbackDetails } for tracking inherited values
-function calculateTotalValue(items: TradeCardProps['trade']['items']): { value: number | null; hasEstimated: boolean; fallbackDetails: Array<{ brainrotName: string; source: string }> } {
+// Returns { value, hasEstimated, itemBreakdowns } for tracking inherited values and showing breakdowns
+function calculateTotalValue(items: TradeCardProps['trade']['items']): {
+  value: number | null
+  hasEstimated: boolean
+  itemBreakdowns: Array<{
+    brainrotName: string
+    mutationName: string
+    robuxValue: number
+    traitNames: string[]
+    valueFallback?: boolean
+    valueFallbackSource?: string | null
+  }>
+} {
   let total = 0
   let hasValue = false
   let hasEstimated = false
-  const fallbackDetails: Array<{ brainrotName: string; source: string }> = []
+  const itemBreakdowns: Array<{
+    brainrotName: string
+    mutationName: string
+    robuxValue: number
+    traitNames: string[]
+    valueFallback?: boolean
+    valueFallbackSource?: string | null
+  }> = []
 
   for (const item of items) {
-    // Add brainrot's robux value
+    // Add brainrot's robux value with trait multiplier applied
     if (item.robuxValue != null) {
       hasValue = true
-      total += item.robuxValue
+      // Apply trait value multiplier
+      const traitNames = item.traits?.map(t => t.trait.name) || []
+      const traitMult = calculateTraitValueMultiplier(traitNames)
+      total += Math.round(item.robuxValue * traitMult)
       // Check if this item has an estimated/inherited value
-      if (item.valueFallback && item.valueFallbackSource && item.brainrot) {
+      if (item.valueFallback) {
         hasEstimated = true
-        fallbackDetails.push({
-          brainrotName: item.brainrot.name,
-          source: item.valueFallbackSource
-        })
       }
+      itemBreakdowns.push({
+        brainrotName: item.brainrot.name,
+        mutationName: item.mutation?.name || 'Default',
+        robuxValue: item.robuxValue,
+        traitNames,
+        valueFallback: item.valueFallback,
+        valueFallbackSource: item.valueFallbackSource,
+      })
     }
     // Add Robux addon amount
     if (item.robuxAmount != null) {
       hasValue = true
       total += item.robuxAmount
+      itemBreakdowns.push({
+        brainrotName: 'Robux',
+        mutationName: '',
+        robuxValue: item.robuxAmount,
+        traitNames: [],
+      })
     }
   }
 
-  return { value: hasValue ? total : null, hasEstimated, fallbackDetails }
+  return { value: hasValue ? total : null, hasEstimated, itemBreakdowns }
 }
 
 // Format Robux value compactly (e.g., 1.5K, 2.3M)
@@ -763,8 +794,8 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
         <div className="md:hidden pb-2">
           {/* Labels row */}
           <div className="flex justify-between mb-1.5">
-            <p className="text-[10px] sm:text-xs font-semibold text-green-500 uppercase tracking-wide">Offering</p>
-            <p className="text-[10px] sm:text-xs font-semibold text-green-500 uppercase tracking-wide">Wants</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-green-500 uppercase tracking-wide">{trade.isVerified ? 'Gave' : 'Offering'}</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-green-500 uppercase tracking-wide">{trade.isVerified ? 'Received' : 'Wants'}</p>
           </div>
 
           {/* Items grid with arrow */}
@@ -778,7 +809,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
               <div className="hidden sm:block">
                 <ItemGrid items={offerItems} size="sm" compact={isBothSingleRow} />
               </div>
-              <TotalsDisplay income={offerIncome} value={offerValue.value} hasEstimated={offerValue.hasEstimated} fallbackDetails={offerValue.fallbackDetails} align="center" />
+              <TotalsDisplay income={offerIncome} value={offerValue.value} hasEstimated={offerValue.hasEstimated} itemBreakdowns={offerValue.itemBreakdowns} align="center" />
             </div>
 
             {/* Arrow - vertically centered */}
@@ -795,7 +826,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
               <div className="hidden sm:block">
                 <ItemGrid items={requestItems} size="sm" compact={isBothSingleRow} />
               </div>
-              <TotalsDisplay income={requestIncome} value={requestValue.value} hasEstimated={requestValue.hasEstimated} fallbackDetails={requestValue.fallbackDetails} align="center" />
+              <TotalsDisplay income={requestIncome} value={requestValue.value} hasEstimated={requestValue.hasEstimated} itemBreakdowns={requestValue.itemBreakdowns} align="center" />
             </div>
           </div>
         </div>
@@ -807,8 +838,8 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
         <div className="hidden lg:block pb-2">
           {/* Labels row */}
           <div className="flex justify-between mb-1.5">
-            <p className="text-xs font-semibold text-green-500 uppercase tracking-wide">Offering</p>
-            <p className="text-xs font-semibold text-green-500 uppercase tracking-wide">Wants</p>
+            <p className="text-xs font-semibold text-green-500 uppercase tracking-wide">{trade.isVerified ? 'Gave' : 'Offering'}</p>
+            <p className="text-xs font-semibold text-green-500 uppercase tracking-wide">{trade.isVerified ? 'Received' : 'Wants'}</p>
           </div>
 
           {/* Items grid with arrow */}
@@ -816,7 +847,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
             {/* Offer Side */}
             <div className="flex-1 min-w-0">
               <ItemGrid items={offerItems} size="sm" />
-              <TotalsDisplay income={offerIncome} value={offerValue.value} hasEstimated={offerValue.hasEstimated} fallbackDetails={offerValue.fallbackDetails} align="center" />
+              <TotalsDisplay income={offerIncome} value={offerValue.value} hasEstimated={offerValue.hasEstimated} itemBreakdowns={offerValue.itemBreakdowns} align="center" />
             </div>
 
             {/* Arrow - vertically centered */}
@@ -827,7 +858,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
             {/* Request Side */}
             <div className="flex-1 min-w-0">
               <ItemGrid items={requestItems} size="sm" />
-              <TotalsDisplay income={requestIncome} value={requestValue.value} hasEstimated={requestValue.hasEstimated} fallbackDetails={requestValue.fallbackDetails} align="center" />
+              <TotalsDisplay income={requestIncome} value={requestValue.value} hasEstimated={requestValue.hasEstimated} itemBreakdowns={requestValue.itemBreakdowns} align="center" />
             </div>
           </div>
         </div>
@@ -866,7 +897,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
             {/* Offer Side */}
             <div className="flex-1 bg-darkbg-800/50 rounded-xl p-3">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-bold text-green-400 uppercase tracking-wider">Offering</p>
+                <p className="text-xs font-bold text-green-400 uppercase tracking-wider">{trade.isVerified ? 'Gave' : 'Offering'}</p>
                 <div className="flex items-center gap-2">
                   {offerIncome && (
                     <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">
@@ -893,7 +924,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
             {/* Request Side */}
             <div className="flex-1 bg-darkbg-800/50 rounded-xl p-3">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-bold text-green-400 uppercase tracking-wider">Wants</p>
+                <p className="text-xs font-bold text-green-400 uppercase tracking-wider">{trade.isVerified ? 'Received' : 'Wants'}</p>
                 <div className="flex items-center gap-2">
                   {requestIncome && (
                     <span className="text-xs font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">
@@ -930,27 +961,33 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
               <BadgeCheck className="w-3 h-3 text-green-500 flex-shrink-0" />
             )}
           </div>
-          <div className="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] text-gray-500 flex-shrink-0">
-            {trade.status !== 'OPEN' && (
-              <span
-                className={`font-medium px-1 sm:px-1.5 py-0.5 rounded ${
-                  trade.status === 'COMPLETED'
-                    ? 'bg-green-500/10 text-green-500'
-                    : trade.status === 'PENDING'
-                    ? 'bg-amber-500/10 text-amber-500'
-                    : 'bg-red-500/10 text-red-500'
-                }`}
-              >
-                {trade.status}
-              </span>
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            {/* Voting for verified trades */}
+            {trade.isVerified && (
+              <CompactTradeVoting tradeId={trade.id} />
             )}
-            {trade._count && trade._count.counterOffers > 0 && (
-              <span className="flex items-center gap-0.5 text-green-500">
-                <MessageSquare className="w-3 h-3" />
-                {trade._count.counterOffers}
-              </span>
-            )}
-            <span>{formattedDate}</span>
+            <div className="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] text-gray-500">
+              {trade.status !== 'OPEN' && (
+                <span
+                  className={`font-medium px-1 sm:px-1.5 py-0.5 rounded ${
+                    trade.status === 'COMPLETED'
+                      ? 'bg-green-500/10 text-green-500'
+                      : trade.status === 'PENDING'
+                      ? 'bg-amber-500/10 text-amber-500'
+                      : 'bg-red-500/10 text-red-500'
+                  }`}
+                >
+                  {trade.status}
+                </span>
+              )}
+              {trade._count && trade._count.counterOffers > 0 && (
+                <span className="flex items-center gap-0.5 text-green-500">
+                  <MessageSquare className="w-3 h-3" />
+                  {trade._count.counterOffers}
+                </span>
+              )}
+              <span>{formattedDate}</span>
+            </div>
           </div>
         </div>
 
@@ -977,6 +1014,10 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
             </div>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
+            {/* Voting for verified trades */}
+            {trade.isVerified && (
+              <CompactTradeVoting tradeId={trade.id} />
+            )}
             {trade._count && trade._count.counterOffers > 0 && (
               <div className="flex items-center gap-1.5 bg-green-500/10 px-2.5 py-1.5 rounded-lg">
                 <MessageSquare className="w-4 h-4 text-green-400" />

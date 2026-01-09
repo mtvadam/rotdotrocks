@@ -34,10 +34,10 @@ export function CookieConsent() {
     <AnimatePresence>
       {show && (
         <motion.div
-          initial={{ opacity: 0, y: 100 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 100 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
           className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-md z-[200]"
         >
           <div className="bg-darkbg-900/95 backdrop-blur-xl border border-darkbg-700 rounded-2xl p-5 shadow-2xl shadow-black/50">
