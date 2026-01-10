@@ -5,6 +5,9 @@ import { getCurrentUser } from '@/lib/auth'
 // URL regex to detect links in messages
 const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/gi
 
+// Mention regex to find @username patterns
+const MENTION_REGEX = /@([a-zA-Z0-9_]+)/g
+
 // Check if a URL is from roblox.com (including subdomains)
 function isRobloxUrl(url: string): boolean {
   try {
@@ -29,6 +32,17 @@ function filterMessageContent(content: string): { filtered: string; blockedLinks
   })
 
   return { filtered, blockedLinks }
+}
+
+// Extract mentioned usernames from message content
+function extractMentions(content: string): string[] {
+  const mentions: string[] = []
+  let match: RegExpExecArray | null
+  const regex = new RegExp(MENTION_REGEX.source, 'g')
+  while ((match = regex.exec(content)) !== null) {
+    mentions.push(match[1]) // Group 1 is the username without @
+  }
+  return [...new Set(mentions)] // Remove duplicates
 }
 
 // Rate limit: max 1 message per 2 seconds per user per trade
@@ -167,6 +181,9 @@ export async function POST(
     // Filter message content (remove non-Roblox links)
     const { filtered, blockedLinks } = filterMessageContent(trimmedContent)
 
+    // Extract mentions from the filtered message
+    const mentionedUsernames = extractMentions(filtered)
+
     // Create message
     const message = await prisma.tradeMessage.create({
       data: {
@@ -185,6 +202,36 @@ export async function POST(
         },
       },
     })
+
+    // Create notifications for mentioned users
+    if (mentionedUsernames.length > 0) {
+      // Find users by their usernames (case-insensitive)
+      const mentionedUsers = await prisma.user.findMany({
+        where: {
+          robloxUsername: {
+            in: mentionedUsernames,
+            mode: 'insensitive',
+          },
+          isBanned: false,
+          // Don't notify yourself
+          NOT: { id: user.id },
+        },
+        select: { id: true, robloxUsername: true },
+      })
+
+      // Create notifications for each mentioned user
+      if (mentionedUsers.length > 0) {
+        await prisma.notification.createMany({
+          data: mentionedUsers.map((mentionedUser) => ({
+            userId: mentionedUser.id,
+            type: 'MENTION',
+            message: `${user.robloxUsername} mentioned you in a trade chat`,
+            tradeId,
+            fromUserId: user.id,
+          })),
+        })
+      }
+    }
 
     return NextResponse.json({
       message,

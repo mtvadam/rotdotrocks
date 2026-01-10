@@ -1,3 +1,6 @@
+-- Add MENTION to NotificationType enum
+ALTER TYPE "NotificationType" ADD VALUE 'MENTION';
+
 -- CreateTable
 CREATE TABLE "TradeMessage" (
     "id" TEXT NOT NULL,

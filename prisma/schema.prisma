@@ -115,6 +115,7 @@ enum NotificationType {
   REQUEST_ACCEPTED
   REQUEST_DECLINED
   COUNTER_ACCEPTED
+  MENTION
 }
 
 enum TradeVoteType {
