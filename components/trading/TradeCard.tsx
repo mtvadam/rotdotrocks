@@ -666,18 +666,18 @@ function formatCompactValue(value: number): string {
 function formatCompactIncome(income: string): string {
   const num = parseFloat(income)
   if (num >= TRILLION) {
-    return (Math.round(num / TRILLION * 10) / 10).toFixed(1) + 'T'
+    return (Math.floor(num / TRILLION * 10) / 10).toFixed(1) + 'T'
   }
   if (num >= BILLION) {
-    return (Math.round(num / BILLION * 10) / 10).toFixed(1) + 'B'
+    return (Math.floor(num / BILLION * 10) / 10).toFixed(1) + 'B'
   }
   if (num >= MILLION) {
-    return (Math.round(num / MILLION * 10) / 10).toFixed(1) + 'M'
+    return (Math.floor(num / MILLION * 10) / 10).toFixed(1) + 'M'
   }
   if (num >= THOUSAND) {
-    return (Math.round(num / THOUSAND * 10) / 10).toFixed(1) + 'K'
+    return (Math.floor(num / THOUSAND * 10) / 10).toFixed(1) + 'K'
   }
-  return Math.round(num).toString()
+  return Math.floor(num).toString()
 }
 
 // Grid display component - shows items in 3-per-row grid, max 2 rows
