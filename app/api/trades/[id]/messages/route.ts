@@ -48,11 +48,33 @@ function extractMentions(content: string): string[] {
 // Rate limit: max 1 message per 2 seconds per user per trade
 const rateLimitMap = new Map<string, number>()
 const RATE_LIMIT_MS = 2000
+const CLEANUP_THRESHOLD_MS = 60000 // Clean up entries older than 1 minute
+let lastCleanup = Date.now()
+
+// Clean up stale entries from the rate limit map
+function cleanupRateLimitMap() {
+  const now = Date.now()
+  const cutoff = now - CLEANUP_THRESHOLD_MS
+  
+  for (const [key, timestamp] of rateLimitMap.entries()) {
+    if (timestamp < cutoff) {
+      rateLimitMap.delete(key)
+    }
+  }
+  
+  lastCleanup = now
+}
 
 function checkRateLimit(userId: string, tradeId: string): boolean {
+  const now = Date.now()
+  
+  // Run cleanup every minute to prevent memory growth
+  if (now - lastCleanup > CLEANUP_THRESHOLD_MS) {
+    cleanupRateLimitMap()
+  }
+  
   const key = `${userId}:${tradeId}`
   const lastMessage = rateLimitMap.get(key)
-  const now = Date.now()
 
   if (lastMessage && now - lastMessage < RATE_LIMIT_MS) {
     return false

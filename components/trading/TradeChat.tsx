@@ -61,10 +61,15 @@ function renderMessageContent(content: string, currentUserId?: string) {
   elements.sort((a, b) => a.start - b.start)
 
   // Build result
-  const result: (string | JSX.Element)[] = []
+  const result: (string | React.JSX.Element)[] = []
   let lastIndex = 0
 
   elements.forEach((el, i) => {
+    // Skip overlapping elements (elements that start before the last processed position)
+    if (el.start < lastIndex) {
+      return
+    }
+
     // Add text before this element
     if (el.start > lastIndex) {
       result.push(content.slice(lastIndex, el.start))
@@ -265,7 +270,15 @@ export function TradeChat({ tradeId, tradeStatus, tradeOwnerId }: TradeChatProps
       const res = await fetch(`/api/trades/${tradeId}/messages`)
       if (!res.ok) throw new Error('Failed to fetch messages')
       const data = await res.json()
-      setMessages(data.messages || [])
+      
+      // Preserve optimistic messages (temp-* IDs) to avoid race condition
+      setMessages((prev) => {
+        const optimisticMessages = prev.filter((m) => m.id.startsWith('temp-'))
+        const fetchedMessages = data.messages || []
+        
+        // Merge: fetched messages + optimistic messages at the end
+        return [...fetchedMessages, ...optimisticMessages]
+      })
     } catch (err) {
       console.error('Failed to fetch messages:', err)
     } finally {
