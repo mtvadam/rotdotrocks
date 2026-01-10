@@ -242,12 +242,7 @@ export default function HomePage() {
             variants={scaleInVariants}
             className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-full text-green-400 text-sm font-medium mb-6"
           >
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-            >
-              <Users className="w-4 h-4" />
-            </motion.div>
+            <Users className="w-4 h-4" />
             community trading hub
           </motion.div>
 

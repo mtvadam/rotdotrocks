@@ -14,6 +14,49 @@ interface ValueBreakdownItem {
   valueFallbackSource?: string | null
 }
 
+// Smart tooltip positioning hook
+function useSmartPosition(show: boolean, triggerRef: React.RefObject<HTMLElement | null>, tooltipRef: React.RefObject<HTMLElement | null>, position: 'below' | 'above' = 'below') {
+  const [pos, setPos] = useState<{ top: number; left: number; ready: boolean }>({ top: 0, left: 0, ready: false })
+
+  useEffect(() => {
+    if (!show) {
+      setPos(p => ({ ...p, ready: false }))
+      return
+    }
+
+    if (show && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      const padding = 12
+
+      // Initial estimate
+      let top = position === 'below' ? rect.bottom + 8 : rect.top - 8
+      let left = rect.left
+
+      // Measure tooltip and adjust after it renders
+      const measureAndPosition = () => {
+        if (tooltipRef.current) {
+          const tooltipRect = tooltipRef.current.getBoundingClientRect()
+          const maxLeft = window.innerWidth - tooltipRect.width - padding
+          left = Math.max(padding, Math.min(rect.left, maxLeft))
+
+          if (position === 'above') {
+            top = rect.top - tooltipRect.height - 8
+          }
+
+          setPos({ top, left, ready: true })
+        } else {
+          // Tooltip not mounted yet, try again
+          requestAnimationFrame(measureAndPosition)
+        }
+      }
+
+      requestAnimationFrame(measureAndPosition)
+    }
+  }, [show, position, triggerRef, tooltipRef])
+
+  return pos
+}
+
 // Single item value breakdown tooltip (for individual items)
 export function ItemValueBreakdown({
   robuxValue,
@@ -29,21 +72,15 @@ export function ItemValueBreakdown({
   valueFallbackSource?: string | null
 }) {
   const [show, setShow] = useState(false)
-  const [pos, setPos] = useState({ top: 0, left: 0 })
   const ref = useRef<HTMLButtonElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
+  const pos = useSmartPosition(show, ref, tooltipRef, 'below')
 
   const traitMult = calculateTraitValueMultiplier(traitNames)
   const finalValue = Math.round(robuxValue * traitMult)
 
   // robuxValue is already the mutation-adjusted base value
   const mutationBaseValue = robuxValue
-
-  useEffect(() => {
-    if (show && ref.current) {
-      const rect = ref.current.getBoundingClientRect()
-      setPos({ top: rect.bottom + 8, left: rect.left })
-    }
-  }, [show])
 
   if (robuxValue === 0) return <span className="text-gray-500 text-xs">N/A</span>
 
@@ -63,8 +100,9 @@ export function ItemValueBreakdown({
       </button>
       {typeof window !== 'undefined' && show && createPortal(
         <div
-          style={{ top: pos.top, left: pos.left }}
-          className="fixed z-[100] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-3 shadow-xl shadow-black/30 min-w-[200px]"
+          ref={tooltipRef}
+          style={{ top: pos.top, left: pos.left, visibility: pos.ready ? 'visible' : 'hidden' }}
+          className="fixed z-[100] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-3 shadow-xl shadow-black/30 min-w-[200px] max-w-[calc(100vw-24px)]"
         >
           <p className="text-xs font-medium text-gray-300 mb-2">Value Breakdown</p>
           <div className="space-y-1 text-xs">
@@ -127,15 +165,9 @@ export function TotalValueBreakdown({
   compact?: boolean
 }) {
   const [show, setShow] = useState(false)
-  const [pos, setPos] = useState({ top: 0, left: 0 })
   const ref = useRef<HTMLSpanElement>(null)
-
-  useEffect(() => {
-    if (show && ref.current) {
-      const rect = ref.current.getBoundingClientRect()
-      setPos({ top: rect.top - 8, left: rect.left + rect.width / 2 })
-    }
-  }, [show])
+  const tooltipRef = useRef<HTMLDivElement>(null)
+  const pos = useSmartPosition(show, ref, tooltipRef, 'above')
 
   if (totalValue === 0) return null
 
@@ -163,10 +195,11 @@ export function TotalValueBreakdown({
       </span>
       {typeof window !== 'undefined' && show && createPortal(
         <div
-          style={{ top: pos.top, left: pos.left }}
-          className="fixed z-[9999] -translate-x-1/2 -translate-y-full pointer-events-none"
+          ref={tooltipRef}
+          style={{ top: pos.top, left: pos.left, visibility: pos.ready ? 'visible' : 'hidden' }}
+          className="fixed z-[9999] pointer-events-none"
         >
-          <div className="bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-3 shadow-xl shadow-black/30 min-w-[240px] max-w-[320px]">
+          <div className="bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-3 shadow-xl shadow-black/30 min-w-[240px] max-w-[calc(100vw-24px)]">
             <p className="text-xs font-medium text-gray-300 mb-2">Value Breakdown</p>
             <div className="space-y-3 max-h-[400px] overflow-y-auto">
               {itemBreakdowns.map((item, i) => (

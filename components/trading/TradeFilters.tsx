@@ -218,7 +218,7 @@ function FilterButton({
   const [isOpen, setIsOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
-  const [position, setPosition] = useState({ top: 0, left: 0 })
+  const [position, setPosition] = useState({ top: 0, left: 0, ready: false })
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -229,11 +229,16 @@ function FilterButton({
   }, [])
 
   useEffect(() => {
+    if (!isOpen) {
+      setPosition(p => ({ ...p, ready: false }))
+      return
+    }
     if (isOpen && buttonRef.current && !isMobile) {
       const rect = buttonRef.current.getBoundingClientRect()
       setPosition({
         top: rect.bottom + 8,
         left: Math.min(rect.left, window.innerWidth - 320),
+        ready: true,
       })
     }
   }, [isOpen, isMobile])
@@ -300,7 +305,7 @@ function FilterButton({
       {typeof window !== 'undefined' && !isMobile && isOpen && createPortal(
         <div
           ref={panelRef}
-          style={{ top: position.top, left: position.left }}
+          style={{ top: position.top, left: position.left, visibility: position.ready ? 'visible' : 'hidden' }}
           className="fixed w-[300px] bg-darkbg-900/95 backdrop-blur-xl border border-darkbg-700 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden z-50"
         >
           {children}
@@ -394,7 +399,7 @@ function BrainrotSearch({ label, placeholder, selected, onSelect, onRemove, brai
 }) {
   const [search, setSearch] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 })
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0, ready: false })
   const inputRef = useRef<HTMLInputElement>(null)
 
   const suggestions = useMemo(() => {
@@ -405,12 +410,17 @@ function BrainrotSearch({ label, placeholder, selected, onSelect, onRemove, brai
   }, [search, brainrots, selected])
 
   useEffect(() => {
+    if (!showSuggestions) {
+      setDropdownPos(p => ({ ...p, ready: false }))
+      return
+    }
     if (showSuggestions && inputRef.current) {
       const rect = inputRef.current.getBoundingClientRect()
       setDropdownPos({
         top: rect.bottom + 4,
         left: rect.left,
         width: rect.width,
+        ready: true,
       })
     }
   }, [showSuggestions, search])
@@ -433,7 +443,7 @@ function BrainrotSearch({ label, placeholder, selected, onSelect, onRemove, brai
         {/* Portal for suggestions dropdown */}
         {typeof window !== 'undefined' && showSuggestions && suggestions.length > 0 && createPortal(
           <div
-            style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+            style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, visibility: dropdownPos.ready ? 'visible' : 'hidden' }}
             className="fixed z-[100] max-h-40 overflow-y-auto bg-darkbg-900/90 backdrop-blur-xl border border-darkbg-600 rounded-xl shadow-2xl shadow-black/50"
           >
             {suggestions.map((brainrot) => (

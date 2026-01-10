@@ -79,8 +79,9 @@ function calculateTotals(items: TradeItem[]) {
 // Value breakdown tooltip
 function ValueBreakdown({ item }: { item: TradeItem }) {
   const [show, setShow] = useState(false)
-  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const [pos, setPos] = useState({ top: 0, left: 0, ready: false })
   const ref = useRef<HTMLButtonElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
 
   const traitNames = item.traits?.map(t => t.name) || []
   const traitMult = calculateTraitValueMultiplier(traitNames)
@@ -90,9 +91,24 @@ function ValueBreakdown({ item }: { item: TradeItem }) {
   const mutationBaseValue = traitMult !== 0 ? Math.round(finalValue / traitMult) : finalValue
 
   useEffect(() => {
+    if (!show) {
+      setPos(p => ({ ...p, ready: false }))
+      return
+    }
     if (show && ref.current) {
-      const rect = ref.current.getBoundingClientRect()
-      setPos({ top: rect.bottom + 8, left: rect.left })
+      const measureAndPosition = () => {
+        if (ref.current && tooltipRef.current) {
+          const rect = ref.current.getBoundingClientRect()
+          const tooltipRect = tooltipRef.current.getBoundingClientRect()
+          const padding = 12
+          const maxLeft = window.innerWidth - tooltipRect.width - padding
+          const left = Math.max(padding, Math.min(rect.left, maxLeft))
+          setPos({ top: rect.bottom + 8, left, ready: true })
+        } else {
+          requestAnimationFrame(measureAndPosition)
+        }
+      }
+      requestAnimationFrame(measureAndPosition)
     }
   }, [show])
 
@@ -110,12 +126,10 @@ function ValueBreakdown({ item }: { item: TradeItem }) {
         {(item.valueFallback || traitMult !== 1) && <Info className="w-3 h-3 opacity-60" />}
       </button>
       {typeof window !== 'undefined' && show && createPortal(
-        <motion.div
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          style={{ top: pos.top, left: pos.left }}
-          className="fixed z-[100] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-3 shadow-xl shadow-black/30 min-w-[200px]"
+        <div
+          ref={tooltipRef}
+          style={{ top: pos.top, left: pos.left, visibility: pos.ready ? 'visible' : 'hidden' }}
+          className="fixed z-[100] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-3 shadow-xl shadow-black/30 min-w-[200px] max-w-[calc(100vw-24px)]"
         >
           <p className="text-xs font-medium text-gray-300 mb-2">Value Breakdown</p>
           <div className="space-y-1 text-xs">
@@ -162,7 +176,7 @@ function ValueBreakdown({ item }: { item: TradeItem }) {
               Using {item.valueFallbackSource} value (estimated)
             </p>
           )}
-        </motion.div>,
+        </div>,
         document.body
       )}
     </>
@@ -172,8 +186,9 @@ function ValueBreakdown({ item }: { item: TradeItem }) {
 // Trait icons with hover tooltip (similar to TradeCard)
 function TraitIcons({ traits, maxShow = 4 }: { traits: Array<{ id: string; name: string; localImage: string | null; multiplier: number }>; maxShow?: number }) {
   const [showTooltip, setShowTooltip] = useState(false)
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0, ready: false })
   const iconsRef = useRef<HTMLDivElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
 
   // Sort by highest multiplier first
   const sortedTraits = [...traits].sort((a, b) => b.multiplier - a.multiplier)
@@ -184,9 +199,24 @@ function TraitIcons({ traits, maxShow = 4 }: { traits: Array<{ id: string; name:
   const overflow = sortedTraits.length - visibleCount
 
   useEffect(() => {
+    if (!showTooltip) {
+      setTooltipPos(p => ({ ...p, ready: false }))
+      return
+    }
     if (showTooltip && iconsRef.current) {
-      const rect = iconsRef.current.getBoundingClientRect()
-      setTooltipPos({ top: rect.bottom + 8, left: rect.left })
+      const measureAndPosition = () => {
+        if (iconsRef.current && tooltipRef.current) {
+          const rect = iconsRef.current.getBoundingClientRect()
+          const tooltipRect = tooltipRef.current.getBoundingClientRect()
+          const padding = 12
+          const maxLeft = window.innerWidth - tooltipRect.width - padding
+          const left = Math.max(padding, Math.min(rect.left, maxLeft))
+          setTooltipPos({ top: rect.bottom + 8, left, ready: true })
+        } else {
+          requestAnimationFrame(measureAndPosition)
+        }
+      }
+      requestAnimationFrame(measureAndPosition)
     }
   }, [showTooltip])
 
@@ -216,11 +246,10 @@ function TraitIcons({ traits, maxShow = 4 }: { traits: Array<{ id: string; name:
         )}
       </div>
       {typeof window !== 'undefined' && showTooltip && createPortal(
-        <motion.div
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{ top: tooltipPos.top, left: tooltipPos.left }}
-          className="fixed z-[100] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-xl shadow-black/30 min-w-[140px]"
+        <div
+          ref={tooltipRef}
+          style={{ top: tooltipPos.top, left: tooltipPos.left, visibility: tooltipPos.ready ? 'visible' : 'hidden' }}
+          className="fixed z-[100] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-xl shadow-black/30 min-w-[140px] max-w-[calc(100vw-24px)]"
         >
           {sortedTraits.map((t) => {
             const valueBonus = getTraitValueMultiplier(t.name) - 1
@@ -243,7 +272,7 @@ function TraitIcons({ traits, maxShow = 4 }: { traits: Array<{ id: string; name:
               </div>
             )
           })}
-        </motion.div>,
+        </div>,
         document.body
       )}
     </>
@@ -313,24 +342,24 @@ function CalculatorItem({
       </div>
 
       {/* Quantity */}
-      <div className="flex items-center gap-1 bg-darkbg-700 rounded-lg p-0.5">
-        <button
-          onClick={() => onQuantityChange(Math.max(1, item.quantity - 1))}
-          className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-        >
-          <Minus className="w-3 h-3" />
-        </button>
-        <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+      <div className="flex flex-col items-center bg-darkbg-700 rounded-lg p-0.5">
         <button
           onClick={() => onQuantityChange(item.quantity + 1)}
-          className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+          className="w-6 h-5 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
         >
           <Plus className="w-3 h-3" />
+        </button>
+        <span className="text-xs font-medium">{item.quantity}</span>
+        <button
+          onClick={() => onQuantityChange(Math.max(1, item.quantity - 1))}
+          className="w-6 h-5 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+        >
+          <Minus className="w-3 h-3" />
         </button>
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex flex-col sm:flex-row items-center gap-0.5">
         <button onClick={onEdit} className="p-1.5 text-gray-500 hover:text-green-400 transition-colors">
           <Pencil className="w-3.5 h-3.5" />
         </button>
