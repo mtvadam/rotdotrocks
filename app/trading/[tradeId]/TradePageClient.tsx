@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowRightLeft, BadgeCheck, MessageSquare, Clock, Send, Trash2, Check, X, ExternalLink, Loader2, CheckCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { TradeItemDisplay, TradeBuilderModal, TotalValueBreakdown, TradeVoting } from '@/components/trading'
+import { TradeItemDisplay, TradeBuilderModal, TotalValueBreakdown, TradeVoting, TradeChat } from '@/components/trading'
 import { useAuth } from '@/components/Providers'
 import { RobloxAvatar } from '@/components/ui'
 import { formatIncome } from '@/lib/utils'
@@ -566,6 +566,15 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
               </>
             )}
           </div>
+        </div>
+
+        {/* Trade Chat */}
+        <div className="mb-6">
+          <TradeChat
+            tradeId={trade.id}
+            tradeStatus={trade.status}
+            tradeOwnerId={trade.user.id}
+          />
         </div>
 
         {/* Counter Offers */}

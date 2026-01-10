@@ -6,6 +6,7 @@ export { TradeFilters, defaultFilters } from './TradeFilters'
 export type { TradeFiltersState } from './TradeFilters'
 export { ItemValueBreakdown, TotalValueBreakdown, formatValue } from './ValueBreakdown'
 export { TradeVoting, CompactTradeVoting } from './TradeVoting'
+export { TradeChat } from './TradeChat'
 export {
   DemandTrendBadge,
   DemandDot,
