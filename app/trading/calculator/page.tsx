@@ -612,7 +612,7 @@ export default function CalculatorPage() {
           <div className="flex items-center gap-3">
             <div className="w-1 h-10 bg-green-500 rounded-full" />
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">Trade Calculator</h1>
+              <h1 className="text-xl font-bold text-white tracking-tight">Trade Calculator (Steal a Brainrot)</h1>
               <p className="text-sm text-gray-500">Compare values before you trade</p>
             </div>
           </div>
