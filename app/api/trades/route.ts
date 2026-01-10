@@ -48,9 +48,13 @@ export async function GET(request: NextRequest) {
     const offerBrainrots = searchParams.get('offerBrainrots')?.split(',').filter(Boolean) || []
     const offerIncomeMin = parseIncomeValue(searchParams.get('offerIncomeMin') || '')
     const offerIncomeMax = parseIncomeValue(searchParams.get('offerIncomeMax') || '')
+    const offerValueMin = parseIncomeValue(searchParams.get('offerValueMin') || '')
+    const offerValueMax = parseIncomeValue(searchParams.get('offerValueMax') || '')
     const requestBrainrots = searchParams.get('requestBrainrots')?.split(',').filter(Boolean) || []
     const requestIncomeMin = parseIncomeValue(searchParams.get('requestIncomeMin') || '')
     const requestIncomeMax = parseIncomeValue(searchParams.get('requestIncomeMax') || '')
+    const requestValueMin = parseIncomeValue(searchParams.get('requestValueMin') || '')
+    const requestValueMax = parseIncomeValue(searchParams.get('requestValueMax') || '')
     const offerTradeTypes = searchParams.get('offerTradeTypes')?.split(',').filter(Boolean) || []
     const requestTradeTypes = searchParams.get('requestTradeTypes')?.split(',').filter(Boolean) || []
     const offerBadges = searchParams.get('offerBadges')?.split(',').filter(Boolean) || []
@@ -171,6 +175,8 @@ export async function GET(request: NextRequest) {
     const hasPostFetchFilters =
       offerIncomeMin !== null || offerIncomeMax !== null ||
       requestIncomeMin !== null || requestIncomeMax !== null ||
+      offerValueMin !== null || offerValueMax !== null ||
+      requestValueMin !== null || requestValueMax !== null ||
       hasTraitStackedFilter ||
       searchTerm // Search relevance sorting also requires all trades
 
@@ -390,6 +396,31 @@ export async function GET(request: NextRequest) {
 
         if (requestIncomeMin !== null && requestTotal < requestIncomeMin) return false
         if (requestIncomeMax !== null && requestTotal > requestIncomeMax) return false
+        return true
+      })
+    }
+
+    // Apply value (Robux) filters
+    if (offerValueMin !== null || offerValueMax !== null) {
+      serializedTrades = serializedTrades.filter((trade) => {
+        const offerTotal = trade.items
+          .filter((i) => i.side === 'OFFER' && i.robuxValue !== null)
+          .reduce((sum, i) => sum + (i.robuxValue || 0), 0)
+
+        if (offerValueMin !== null && offerTotal < offerValueMin) return false
+        if (offerValueMax !== null && offerTotal > offerValueMax) return false
+        return true
+      })
+    }
+
+    if (requestValueMin !== null || requestValueMax !== null) {
+      serializedTrades = serializedTrades.filter((trade) => {
+        const requestTotal = trade.items
+          .filter((i) => i.side === 'REQUEST' && i.robuxValue !== null)
+          .reduce((sum, i) => sum + (i.robuxValue || 0), 0)
+
+        if (requestValueMin !== null && requestTotal < requestValueMin) return false
+        if (requestValueMax !== null && requestTotal > requestValueMax) return false
         return true
       })
     }
