@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, MessageCircle, AlertCircle, ExternalLink, Loader2, ChevronDown } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
@@ -117,14 +118,17 @@ function MentionAutocomplete({
   onSelect,
   onClose,
   selectedIndex,
+  inputRef,
 }: {
   query: string
   onSelect: (user: MentionUser) => void
   onClose: () => void
   selectedIndex: number
+  inputRef: React.RefObject<HTMLInputElement | null>
 }) {
   const [users, setUsers] = useState<MentionUser[]>([])
   const [loading, setLoading] = useState(false)
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0, ready: false })
 
   useEffect(() => {
     if (!query) {
@@ -151,14 +155,52 @@ function MentionAutocomplete({
     return () => controller.abort()
   }, [query])
 
-  if (!query) return null
+  // Update position when query changes or on mount
+  useEffect(() => {
+    if (!query || !inputRef.current) {
+      setPosition(p => ({ ...p, ready: false }))
+      return
+    }
 
-  return (
+    const updatePosition = () => {
+      if (inputRef.current) {
+        const rect = inputRef.current.getBoundingClientRect()
+        setPosition({
+          top: rect.top - 8, // Position above input with 8px gap
+          left: rect.left,
+          width: rect.width,
+          ready: true,
+        })
+      }
+    }
+
+    updatePosition()
+    
+    // Update on scroll/resize
+    window.addEventListener('scroll', updatePosition, true)
+    window.addEventListener('resize', updatePosition)
+    
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true)
+      window.removeEventListener('resize', updatePosition)
+    }
+  }, [query, inputRef])
+
+  if (!query || typeof window === 'undefined') return null
+
+  return createPortal(
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 8 }}
-      className="absolute bottom-full left-0 right-0 mb-2 bg-darkbg-800 border border-darkbg-600 rounded-lg shadow-xl overflow-hidden z-50"
+      style={{
+        top: position.top,
+        left: position.left,
+        width: position.width,
+        visibility: position.ready ? 'visible' : 'hidden',
+        transform: 'translateY(-100%)', // Move above the input
+      }}
+      className="fixed bg-darkbg-900/95 backdrop-blur-xl border border-darkbg-600 rounded-lg shadow-2xl shadow-black/50 overflow-hidden z-[100]"
     >
       {loading ? (
         <div className="px-3 py-2 flex items-center gap-2 text-gray-400 text-sm">
@@ -168,7 +210,7 @@ function MentionAutocomplete({
       ) : users.length === 0 ? (
         <div className="px-3 py-2 text-gray-500 text-sm">No users found</div>
       ) : (
-        <div className="max-h-48 overflow-y-auto">
+        <div className="max-h-48 overflow-y-auto scrollbar-green">
           {users.map((user, index) => (
             <button
               key={user.id}
@@ -187,7 +229,8 @@ function MentionAutocomplete({
           ))}
         </div>
       )}
-    </motion.div>
+    </motion.div>,
+    document.body
   )
 }
 
@@ -197,38 +240,69 @@ const ChatMessage = memo(function ChatMessage({
   isOwn,
   isTradeOwner,
   currentUserId,
+  showHeader,
+  isGrouped,
+  groupPosition,
 }: {
   message: Message
   isOwn: boolean
   isTradeOwner: boolean
   currentUserId?: string
+  showHeader: boolean
+  isGrouped: boolean
+  groupPosition: 'single' | 'first' | 'middle' | 'last'
 }) {
+  // Determine border radius based on group position
+  const getBubbleRounding = () => {
+    if (groupPosition === 'single') {
+      // Standalone message - tail on appropriate corner
+      return isOwn ? 'rounded-xl rounded-tr-sm' : 'rounded-xl rounded-tl-sm'
+    } else if (groupPosition === 'first') {
+      // First in group - tail at top, round bottom
+      return isOwn ? 'rounded-xl rounded-tr-sm' : 'rounded-xl rounded-tl-sm'
+    } else if (groupPosition === 'middle') {
+      // Middle of group - fully rounded
+      return 'rounded-xl'
+    } else {
+      // Last in group - round top, tail at bottom
+      return isOwn ? 'rounded-xl rounded-br-sm' : 'rounded-xl rounded-bl-sm'
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
+      className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'} ${isGrouped ? 'mt-0.5' : 'mt-3 first:mt-0'}`}
     >
-      <RobloxAvatar
-        avatarUrl={message.user.robloxAvatarUrl}
-        username={message.user.robloxUsername}
-        size="sm"
-      />
-      <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[75%]`}>
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <span className={`text-xs font-medium ${isTradeOwner ? 'text-green-400' : 'text-gray-400'}`}>
-            {message.user.robloxUsername}
-            {isTradeOwner && <span className="text-[10px] text-green-500/70 ml-1">(OP)</span>}
-          </span>
-          <span className="text-[10px] text-gray-600">
-            {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
-          </span>
+      {showHeader ? (
+        <div className="w-8 h-8 flex-shrink-0">
+          <RobloxAvatar
+            avatarUrl={message.user.robloxAvatarUrl}
+            username={message.user.robloxUsername}
+            size="sm"
+          />
         </div>
+      ) : (
+        <div className="w-8 h-8 flex-shrink-0" />
+      )}
+      <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[75%]`}>
+        {showHeader && (
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <span className={`text-xs font-medium ${isTradeOwner ? 'text-green-400' : 'text-gray-400'}`}>
+              {message.user.robloxUsername}
+              {isTradeOwner && <span className="text-[10px] text-green-500/70 ml-1">(OP)</span>}
+            </span>
+            <span className="text-[10px] text-gray-600">
+              {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
+            </span>
+          </div>
+        )}
         <div
-          className={`px-3 py-2 rounded-xl text-sm break-words ${
+          className={`px-3 py-2 text-sm break-words ${getBubbleRounding()} ${
             isOwn
-              ? 'bg-green-600 text-white rounded-tr-sm'
-              : 'bg-darkbg-700 text-gray-200 rounded-tl-sm'
+              ? 'bg-green-600 text-white'
+              : 'bg-darkbg-700 text-gray-200'
           }`}
         >
           {message.isSystem ? (
@@ -466,7 +540,7 @@ export function TradeChat({ tradeId, tradeStatus, tradeOwnerId }: TradeChatProps
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
-        className="h-64 overflow-y-auto p-4 space-y-3 scrollbar-green relative"
+        className="h-64 overflow-y-auto p-4 scrollbar-green relative"
       >
         {loading ? (
           <div className="flex items-center justify-center h-full">
@@ -481,15 +555,49 @@ export function TradeChat({ tradeId, tradeStatus, tradeOwnerId }: TradeChatProps
           </div>
         ) : (
           <>
-            {messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                isOwn={message.user.id === user.id}
-                isTradeOwner={message.user.id === tradeOwnerId}
-                currentUserId={user.id}
-              />
-            ))}
+            {messages.map((message, index) => {
+              const prevMessage = index > 0 ? messages[index - 1] : null
+              const nextMessage = index < messages.length - 1 ? messages[index + 1] : null
+              
+              // Check if current message groups with previous
+              const isSameUserAsPrev = prevMessage?.user.id === message.user.id
+              const timeDiffPrev = prevMessage 
+                ? new Date(message.createdAt).getTime() - new Date(prevMessage.createdAt).getTime()
+                : Infinity
+              const isGroupedWithPrev = isSameUserAsPrev && timeDiffPrev < 5 * 60 * 1000
+              
+              // Check if current message groups with next
+              const isSameUserAsNext = nextMessage?.user.id === message.user.id
+              const timeDiffNext = nextMessage 
+                ? new Date(nextMessage.createdAt).getTime() - new Date(message.createdAt).getTime()
+                : Infinity
+              const isGroupedWithNext = isSameUserAsNext && timeDiffNext < 5 * 60 * 1000
+              
+              // Determine group position
+              let groupPosition: 'single' | 'first' | 'middle' | 'last'
+              if (!isGroupedWithPrev && !isGroupedWithNext) {
+                groupPosition = 'single'
+              } else if (!isGroupedWithPrev && isGroupedWithNext) {
+                groupPosition = 'first'
+              } else if (isGroupedWithPrev && isGroupedWithNext) {
+                groupPosition = 'middle'
+              } else {
+                groupPosition = 'last'
+              }
+              
+              return (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  isOwn={message.user.id === user.id}
+                  isTradeOwner={message.user.id === tradeOwnerId}
+                  currentUserId={user.id}
+                  showHeader={!isGroupedWithPrev}
+                  isGrouped={isGroupedWithPrev}
+                  groupPosition={groupPosition}
+                />
+              )
+            })}
             <div ref={messagesEndRef} />
           </>
         )}
@@ -557,6 +665,7 @@ export function TradeChat({ tradeId, tradeStatus, tradeOwnerId }: TradeChatProps
               onSelect={handleSelectMention}
               onClose={() => setShowMentions(false)}
               selectedIndex={mentionIndex}
+              inputRef={inputRef}
             />
           )}
         </AnimatePresence>
