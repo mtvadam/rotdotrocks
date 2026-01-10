@@ -181,6 +181,7 @@ model User {
   resolvedReports     Report[]          @relation("ResolvedReports")
   notifications       Notification[]    @relation("UserNotifications")
   triggeredNotifications Notification[] @relation("TriggeredNotifications")
+  tradeMessages       TradeMessage[]
 
   @@index([robloxUsername])
   @@index([shopName])
@@ -608,6 +609,7 @@ model Trade {
   items           TradeItem[]
   requests        TradeRequest[]
   votes           TradeVote[]
+  messages        TradeMessage[]
 
   @@index([userId])
   @@index([status])
@@ -749,5 +751,21 @@ model TradeVote {
   @@unique([tradeId, sessionId]) // One vote per session per trade
   @@index([tradeId])
   @@index([sessionId])
+}
+
+// Trade chat messages for negotiation
+model TradeMessage {
+  id          String   @id @default(cuid())
+  tradeId     String
+  userId      String
+  content     String   @db.Text  // Message content (links filtered to only allow roblox.com)
+  isSystem    Boolean  @default(false)  // System messages (e.g., "User joined the chat")
+  createdAt   DateTime @default(now())
+
+  trade       Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tradeId, createdAt])
+  @@index([userId])
 }
 
