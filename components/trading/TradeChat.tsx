@@ -166,7 +166,7 @@ function MentionAutocomplete({
       if (inputRef.current) {
         const rect = inputRef.current.getBoundingClientRect()
         setPosition({
-          top: rect.top - 8, // Position above input with 8px gap
+          top: rect.bottom + 8, // Position below input with 8px gap
           left: rect.left,
           width: rect.width,
           ready: true,
@@ -190,15 +190,14 @@ function MentionAutocomplete({
 
   return createPortal(
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 8 }}
+      exit={{ opacity: 0, y: -8 }}
       style={{
         top: position.top,
         left: position.left,
         width: position.width,
         visibility: position.ready ? 'visible' : 'hidden',
-        transform: 'translateY(-100%)', // Move above the input
       }}
       className="fixed bg-darkbg-900/95 backdrop-blur-xl border border-darkbg-600 rounded-lg shadow-2xl shadow-black/50 overflow-hidden z-[100]"
     >
@@ -335,6 +334,7 @@ export function TradeChat({ tradeId, tradeStatus, tradeOwnerId }: TradeChatProps
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
 
   const isChatEnabled = ['OPEN', 'PENDING'].includes(tradeStatus)
 
@@ -394,6 +394,26 @@ export function TradeChat({ tradeId, tradeStatus, tradeOwnerId }: TradeChatProps
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  // Handle focus on input - scroll chat into view properly (not to page bottom)
+  const handleInputFocus = () => {
+    if (chatContainerRef.current) {
+      // Get the chat container's position
+      const rect = chatContainerRef.current.getBoundingClientRect()
+      const viewportHeight = window.innerHeight
+
+      // If the chat is below the viewport or partially cut off at the bottom,
+      // scroll it into view with some padding from the bottom
+      if (rect.bottom > viewportHeight - 20 || rect.top < 80) {
+        // Scroll so the chat is visible with padding at the bottom
+        const targetScrollY = window.scrollY + rect.top - 100 // 100px from top of viewport
+        window.scrollTo({
+          top: Math.max(0, targetScrollY),
+          behavior: 'smooth'
+        })
+      }
+    }
   }
 
   // Handle input change with mention detection
@@ -521,7 +541,7 @@ export function TradeChat({ tradeId, tradeStatus, tradeOwnerId }: TradeChatProps
   }
 
   return (
-    <div className="bg-darkbg-900/90 backdrop-blur-sm rounded-xl border border-darkbg-700 overflow-hidden">
+    <div ref={chatContainerRef} className="bg-darkbg-900/90 backdrop-blur-sm rounded-xl border border-darkbg-700 overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-darkbg-700 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -677,6 +697,7 @@ export function TradeChat({ tradeId, tradeStatus, tradeOwnerId }: TradeChatProps
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
+            onFocus={handleInputFocus}
             placeholder={isChatEnabled ? "Type a message... Use @ to mention" : "Chat disabled"}
             disabled={!isChatEnabled || sending}
             maxLength={1000}
