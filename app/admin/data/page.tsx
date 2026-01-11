@@ -115,6 +115,8 @@ export default function DataManagementPage() {
   const [editableBrainrots, setEditableBrainrots] = useState<EditableBrainrot[]>([])
   const [importing, setImporting] = useState(false)
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
 
   // Add new item modal
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -354,6 +356,21 @@ export default function DataManagementPage() {
     const brainrot = editableBrainrots[index]
     if (!brainrot) return
 
+    // Validate file type
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError(`Invalid file type. Only PNG, JPEG, WebP, and GIF are allowed.`)
+      setTimeout(() => setUploadError(null), 5000)
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError(`File too large. Maximum size is 5MB.`)
+      setTimeout(() => setUploadError(null), 5000)
+      return
+    }
+
     // Create slug from name
     const slug = brainrot.name
       .toLowerCase()
@@ -361,6 +378,8 @@ export default function DataManagementPage() {
       .replace(/^-|-$/g, '')
 
     setUploadingIndex(index)
+    setUploadError(null)
+    setUploadSuccess(null)
 
     try {
       const formData = new FormData()
@@ -380,9 +399,16 @@ export default function DataManagementPage() {
           next[index] = { ...next[index], imageUrl: data.localImage }
           return next
         })
+        setUploadSuccess(`Image uploaded successfully: ${data.filename || file.name}`)
+        setTimeout(() => setUploadSuccess(null), 3000)
+      } else {
+        setUploadError(data.error || 'Upload failed. Please try again.')
+        setTimeout(() => setUploadError(null), 5000)
       }
     } catch (err) {
       console.error('Upload failed:', err)
+      setUploadError('Upload failed. Please check your connection and try again.')
+      setTimeout(() => setUploadError(null), 5000)
     }
     setUploadingIndex(null)
   }
@@ -986,6 +1012,22 @@ export default function DataManagementPage() {
                           </div>
                         </div>
 
+                        {/* Upload Error Alert */}
+                        {uploadError && (
+                          <div className="mb-4 p-3 bg-red-900/30 border border-red-800 rounded-lg flex items-center gap-2">
+                            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                            <span className="text-red-300 text-sm">{uploadError}</span>
+                          </div>
+                        )}
+                        
+                        {/* Upload Success Alert */}
+                        {uploadSuccess && (
+                          <div className="mb-4 p-3 bg-green-900/30 border border-green-800 rounded-lg flex items-center gap-2">
+                            <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
+                            <span className="text-green-300 text-sm">{uploadSuccess}</span>
+                          </div>
+                        )}
+
                         <div className="space-y-3 mb-4">
                           {editableBrainrots.map((brainrot, index) => (
                             <div
@@ -1018,7 +1060,10 @@ export default function DataManagementPage() {
                                       <Upload className="w-6 h-6 text-gray-500" />
                                     </div>
                                   )}
-                                  <label className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded">
+                                  <label 
+                                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded"
+                                    title="Upload PNG, JPEG, WebP, or GIF (max 5MB)"
+                                  >
                                     {uploadingIndex === index ? (
                                       <Loader2 className="w-5 h-5 text-white animate-spin" />
                                     ) : (
@@ -1026,11 +1071,15 @@ export default function DataManagementPage() {
                                     )}
                                     <input
                                       type="file"
-                                      accept="image/png,image/jpeg,image/webp,image/gif"
+                                      accept=".png,.jpg,.jpeg,.webp,.gif,image/png,image/jpeg,image/webp,image/gif"
                                       className="hidden"
                                       onChange={(e) => {
                                         const file = e.target.files?.[0]
-                                        if (file) handleImageUpload(index, file)
+                                        if (file) {
+                                          handleImageUpload(index, file)
+                                          // Reset input so same file can be selected again if needed
+                                          e.target.value = ''
+                                        }
                                       }}
                                       disabled={uploadingIndex !== null}
                                     />
