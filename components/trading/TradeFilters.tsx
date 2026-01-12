@@ -557,6 +557,7 @@ function TradeTypeSelect({ label, selected, onToggle }: {
           return (
             <button
               key={option.value}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={() => onToggle(option.value)}
               className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg border transition-all ${
                 isSelected
@@ -571,6 +572,28 @@ function TradeTypeSelect({ label, selected, onToggle }: {
           )
         })}
       </div>
+      {/* Selected chips with X button for easy removal */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selected.map((type) => {
+            const option = tradeTypeOptions.find(o => o.value === type)
+            if (!option) return null
+            return (
+              <div key={type} className="flex items-center gap-1.5 pl-2 pr-1.5 py-1.5 bg-green-900/30 border border-green-500/50 rounded-lg">
+                {option.icon}
+                <span className="text-xs text-white">{option.label}</span>
+                <button
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => onToggle(type)}
+                  className="w-7 h-7 flex items-center justify-center bg-red-500/80 active:bg-red-600 rounded-md"
+                >
+                  <X className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

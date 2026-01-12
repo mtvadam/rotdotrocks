@@ -501,7 +501,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md"
+      className="fixed inset-x-0 top-16 bottom-0 z-50 flex items-start md:items-center justify-center pt-4 md:pt-0 bg-black/40 backdrop-blur-md overflow-y-auto"
     >
       <motion.div
         initial={{ scale: 0.95, y: 10 }}
@@ -509,7 +509,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
         exit={{ scale: 0.95, y: 10 }}
         transition={{ duration: 0.2 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-darkbg-900/90 backdrop-blur-xl rounded-2xl w-full max-w-2xl h-[80vh] mx-4 overflow-hidden flex flex-col shadow-2xl border border-darkbg-700"
+        className="bg-darkbg-900/90 backdrop-blur-xl rounded-2xl w-full max-w-2xl h-[80vh] max-h-[calc(100dvh-5rem)] md:max-h-[calc(100vh-6rem)] mx-4 mb-4 md:mb-0 overflow-hidden flex flex-col shadow-2xl border border-darkbg-700"
       >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-darkbg-700">

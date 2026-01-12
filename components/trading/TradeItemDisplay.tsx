@@ -251,29 +251,27 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
         transition={{ duration: 0.2, delay: index * 0.03, ease: easeOut }}
         className="relative group bg-darkbg-800 rounded-xl p-2 border border-transparent hover:border-green-500/30 transition-colors"
       >
-        {/* Action buttons - top right */}
+        {/* Action buttons - top right, always visible on mobile */}
         {interactive && (onEdit || onRemove) && (
-          <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity z-10">
+          <div className="absolute top-1 right-1 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity z-10">
             {onEdit && (
               <motion.button
-                whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={(e) => { e.stopPropagation(); onEdit() }}
                 aria-label="Edit item"
-                className="p-1 bg-darkbg-600 hover:bg-darkbg-500 text-gray-300 rounded-md shadow-lg transition-colors"
+                className="p-1.5 bg-darkbg-600 active:bg-darkbg-500 md:hover:bg-darkbg-500 text-gray-300 rounded-md shadow-lg transition-colors"
               >
-                <Pencil className="w-3 h-3" />
+                <Pencil className="w-3.5 h-3.5" />
               </motion.button>
             )}
             {onRemove && (
               <motion.button
-                whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={(e) => { e.stopPropagation(); onRemove() }}
                 aria-label="Remove item"
-                className="p-1 bg-red-500 hover:bg-red-600 text-white rounded-md shadow-lg transition-colors"
+                className="p-1.5 bg-red-500 active:bg-red-600 md:hover:bg-red-600 text-white rounded-md shadow-lg transition-colors"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3.5 h-3.5" />
               </motion.button>
             )}
           </div>

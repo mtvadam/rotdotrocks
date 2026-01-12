@@ -155,9 +155,25 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
       return
     }
 
+    // Prevent Upgrade/Downgrade on offer side
+    if (side === 'OFFER' && (addon.id === 'addon-upgrade' || addon.id === 'addon-downgrade')) {
+      setError('Upgrade/Downgrade can only be used on the request side')
+      return
+    }
+
     // Prevent duplicate addons
     if (items.some((item) => item.brainrotId === addon.id)) {
       setError('This addon is already added')
+      return
+    }
+
+    // Prevent selecting both Upgrade and Downgrade at the same time
+    if (addon.id === 'addon-upgrade' && items.some((item) => item.brainrotId === 'addon-downgrade')) {
+      setError('Cannot select both Upgrade and Downgrade')
+      return
+    }
+    if (addon.id === 'addon-downgrade' && items.some((item) => item.brainrotId === 'addon-upgrade')) {
+      setError('Cannot select both Upgrade and Downgrade')
       return
     }
 
@@ -258,9 +274,16 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
     }
 
     // Ensure at least one real brainrot (not addon) on offering side
-    const hasRealBrainrot = offerItems.some(item => !item.brainrotId.startsWith('addon-'))
-    if (!hasRealBrainrot) {
+    const hasRealOfferBrainrot = offerItems.some(item => !item.brainrotId.startsWith('addon-'))
+    if (!hasRealOfferBrainrot) {
       setError('Must offer at least one brainrot (not just add-ons)')
+      return
+    }
+
+    // Ensure at least one real brainrot (not addon) on request side
+    const hasRealRequestBrainrot = requestItems.some(item => !item.brainrotId.startsWith('addon-'))
+    if (!hasRealRequestBrainrot) {
+      setError('Must request at least one brainrot (not just add-ons)')
       return
     }
 
@@ -337,31 +360,31 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
           onClick={(e) => e.stopPropagation()}
           className="bg-darkbg-900/95 backdrop-blur-xl rounded-2xl w-[calc(100%-1.5rem)] max-w-3xl md:max-w-[54rem] max-h-[calc(100dvh-5rem)] md:max-h-[calc(100vh-6rem)] mx-auto mb-4 md:mb-0 overflow-hidden flex flex-col shadow-2xl border border-darkbg-700 flex-shrink-0"
         >
-            {/* Scrollable container with sticky header inside */}
-            <div className="flex-1 overflow-y-auto">
-              {/* Header - sticky to ensure close button is always accessible when scrolling */}
-              <div className="sticky top-0 z-10 flex items-center justify-between p-3 md:p-4 border-b border-darkbg-700 bg-darkbg-900/95 backdrop-blur-xl">
-                <div className="flex items-center gap-2 md:block">
-                  <h2 className="text-base md:text-lg font-bold text-white">
-                    {isCounterOffer ? 'Counter Offer' : 'Create Trade'}
-                  </h2>
-                  {!isCounterOffer && (
-                    <span className="text-xs md:text-sm text-gray-500 flex items-center gap-1">
-                      <Gem className="w-3 h-3 md:w-4 md:h-4 text-amber-500" />
-                      <span className="hidden md:inline">Costs</span> 5 gems
-                    </span>
-                  )}
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.1, rotate: 90 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={onClose}
-                  className="p-2 rounded-xl bg-darkbg-800 hover:bg-darkbg-700 transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-400" />
-                </motion.button>
+            {/* Header - outside scroll container */}
+            <div className="flex items-center justify-between p-3 md:p-4 border-b border-darkbg-700">
+              <div className="flex items-center gap-2 md:block">
+                <h2 className="text-base md:text-lg font-bold text-white">
+                  {isCounterOffer ? 'Counter Offer' : 'Create Trade'}
+                </h2>
+                {!isCounterOffer && (
+                  <span className="text-xs md:text-sm text-gray-500 flex items-center gap-1">
+                    <Gem className="w-3 h-3 md:w-4 md:h-4 text-amber-500" />
+                    <span className="hidden md:inline">Costs</span> 5 gems
+                  </span>
+                )}
               </div>
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onClose}
+                className="p-2 rounded-xl bg-darkbg-800 hover:bg-darkbg-700 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </motion.button>
+            </div>
 
+            {/* Scrollable content container */}
+            <div className="flex-1 overflow-y-auto">
               {/* Content */}
               <div className="p-3 md:p-4">
               <div className="flex flex-col md:grid md:grid-cols-[1fr_auto_1fr] gap-2 md:gap-4">
@@ -429,7 +452,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                         {offerItems.length > 0 ? 'Add Another' : 'Add Item'}
                       </motion.button>
                     )}
-                    {/* Quick Add-ons */}
+                    {/* Quick Add-ons - filter out Upgrade/Downgrade for offer side */}
                     {offerItems.length < 6 && (
                       <motion.div
                         initial={{ opacity: 0 }}
@@ -439,7 +462,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                       >
                         <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Quick add</p>
                         <div className="flex flex-wrap gap-1.5">
-                          {TRADE_ADDONS.map((addon) => {
+                          {TRADE_ADDONS.filter(addon => addon.id !== 'addon-upgrade' && addon.id !== 'addon-downgrade').map((addon) => {
                             const added = isAddonAdded('OFFER', addon.id)
                             return (
                               <motion.button
@@ -552,15 +575,20 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
                         <div className="flex flex-wrap gap-1.5">
                           {TRADE_ADDONS.map((addon) => {
                             const added = isAddonAdded('REQUEST', addon.id)
+                            // Disable Upgrade if Downgrade is selected (and vice versa)
+                            const hasUpgrade = isAddonAdded('REQUEST', 'addon-upgrade')
+                            const hasDowngrade = isAddonAdded('REQUEST', 'addon-downgrade')
+                            const isBlocked = (addon.id === 'addon-upgrade' && hasDowngrade) || (addon.id === 'addon-downgrade' && hasUpgrade)
+                            const isDisabled = added || isBlocked
                             return (
                               <motion.button
                                 key={addon.id}
-                                whileHover={{ scale: added ? 1 : 1.05 }}
-                                whileTap={{ scale: added ? 1 : 0.95 }}
-                                onClick={() => !added && handleAddAddon('REQUEST', addon)}
-                                disabled={added}
+                                whileHover={{ scale: isDisabled ? 1 : 1.05 }}
+                                whileTap={{ scale: isDisabled ? 1 : 0.95 }}
+                                onClick={() => !isDisabled && handleAddAddon('REQUEST', addon)}
+                                disabled={isDisabled}
                                 className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                                  added
+                                  isDisabled
                                     ? 'bg-darkbg-700 text-gray-500 cursor-not-allowed opacity-50'
                                     : 'bg-darkbg-700 hover:bg-darkbg-600 text-gray-300'
                                 }`}
