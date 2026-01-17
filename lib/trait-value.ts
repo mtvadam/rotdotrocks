@@ -46,8 +46,8 @@ const TRAIT_VALUE_MULTIPLIERS: Record<string, number> = {
   'nyan': 1.1,
   'explosive': 1.1,
 
-  // +0.2% value
-  'bubblegum': 1.002,
+  // +20% value
+  'bubblegum': 1.2,
 
   // No value change
   'crab claw': 1.0,
