@@ -424,12 +424,8 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
     if (!selectedBrainrot) return
     const resolved = getResolvedRobuxValue(selectedBrainrot, selectedMutation)
 
-    // Apply trait value multiplier to the base robux value
-    const traitValueMult = calculateTraitValueMultiplier(selectedTraits.map(t => t.name))
-    const adjustedValue = resolved.value !== null
-      ? Math.round(resolved.value * traitValueMult)
-      : null
-
+    // Store base robuxValue WITHOUT trait multiplier applied
+    // TradeItemDisplay will apply trait multiplier at display time (consistent with API data)
     onSelect({
       brainrotId: selectedBrainrot.id,
       brainrot: selectedBrainrot,
@@ -438,7 +434,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
       traitIds: selectedTraits.map((t) => t.id),
       traits: selectedTraits,
       calculatedIncome: calculatedIncome || undefined,
-      robuxValue: adjustedValue,
+      robuxValue: resolved.value,
       valueFallback: resolved.isFallback,
       valueFallbackSource: resolved.fallbackSource,
     })
