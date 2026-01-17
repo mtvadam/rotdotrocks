@@ -386,19 +386,13 @@ function HowItWorks() {
       bonus: '+20%',
       badgeColor: 'bg-gradient-to-r from-emerald-500/15 to-teal-500/15 text-emerald-400 border-emerald-500/25',
       dotColor: 'bg-emerald-400',
-      traits: ['UFO', 'Brazil', 'Indonesian', '26', 'Glitched', 'Zombie', 'Extinct', 'Jack O\'Lantern', 'Fireworks', 'Santa Hat', 'Reindeer Pet', 'Sleepy', 'Snowy', 'Wet', 'Tie', 'Witching Hour']
+      traits: ['UFO', 'Brazil', 'Indonesian', '26', 'Glitched', 'Zombie', 'Extinct', 'Jack O\'Lantern', 'Fireworks', 'Santa Hat', 'Reindeer Pet', 'Sleepy', 'Snowy', 'Wet', 'Tie', 'Witching Hour', 'Bubblegum']
     },
     {
       bonus: '+10%',
       badgeColor: 'bg-gradient-to-r from-cyan-500/15 to-blue-500/15 text-cyan-400 border-cyan-500/25',
       dotColor: 'bg-cyan-400',
       traits: ['Shark Fin', 'Spider', 'Paint', 'Fire', 'Galactic', 'Comet-struck', 'Disco', 'Matteo Hat', 'RIP Tombstone', 'Nyan', 'Explosive']
-    },
-    {
-      bonus: '+0.2%',
-      badgeColor: 'bg-darkbg-700/50 text-gray-400 border-darkbg-600',
-      dotColor: 'bg-gray-500',
-      traits: ['Bubblegum']
     },
     {
       bonus: '0%',
