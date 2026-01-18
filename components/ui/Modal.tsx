@@ -1,25 +1,31 @@
 'use client'
 
+import { useEffect, useRef, type ReactNode, type HTMLAttributes } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ReactNode, useEffect } from 'react'
 import { X } from 'lucide-react'
-import { modalVariants } from '@/lib/animations'
+import { cn } from '@/lib/utils'
+import { Button } from './Button'
 
-interface ModalProps {
+export interface ModalProps {
   isOpen: boolean
   onClose: () => void
   children: ReactNode
   title?: string
+  description?: string
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
   showCloseButton?: boolean
+  closeOnOverlayClick?: boolean
+  closeOnEscape?: boolean
+  footer?: ReactNode
+  className?: string
 }
 
 const sizes = {
   sm: 'max-w-sm',
   md: 'max-w-md',
-  lg: 'max-w-2xl',
-  xl: 'max-w-4xl',
-  full: 'max-w-[95vw]',
+  lg: 'max-w-lg',
+  xl: 'max-w-2xl',
+  full: 'max-w-[95vw] max-h-[95vh]',
 }
 
 export function Modal({
@@ -27,82 +33,212 @@ export function Modal({
   onClose,
   children,
   title,
-  size = 'lg',
+  description,
+  size = 'md',
   showCloseButton = true,
+  closeOnOverlayClick = true,
+  closeOnEscape = true,
+  footer,
+  className,
 }: ModalProps) {
-  // Lock body scroll when modal is open
+  const previousActiveElement = useRef<HTMLElement | null>(null)
+
+  // Lock body scroll and manage focus
   useEffect(() => {
     if (isOpen) {
+      previousActiveElement.current = document.activeElement as HTMLElement
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
+      previousActiveElement.current?.focus()
     }
+
     return () => {
       document.body.style.overflow = ''
     }
   }, [isOpen])
 
-  // Close on escape key
+  // Close on escape
   useEffect(() => {
+    if (!closeOnEscape) return
+
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
+
     if (isOpen) {
       window.addEventListener('keydown', handleEscape)
     }
+
     return () => window.removeEventListener('keydown', handleEscape)
-  }, [isOpen, onClose])
+  }, [isOpen, onClose, closeOnEscape])
+
+  const handleOverlayClick = () => {
+    if (closeOnOverlayClick) onClose()
+  }
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop - no opacity animation to prevent blur delay */}
-          <div
-            onClick={onClose}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={handleOverlayClick}
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
           />
 
           {/* Modal */}
           <motion.div
-            variants={modalVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            className={`
-              relative w-full ${sizes[size]} max-h-[90vh]
-              bg-darkbg-900
-              rounded-2xl border border-darkbg-700
-              shadow-2xl shadow-black/20
-              overflow-hidden flex flex-col
-            `}
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className={cn(
+              'relative w-full',
+              sizes[size],
+              'bg-bg-secondary border border-border-default rounded-lg',
+              'shadow-2xl overflow-hidden',
+              className
+            )}
           >
             {/* Header */}
             {(title || showCloseButton) && (
-              <div className="flex items-center justify-between p-4 border-b border-darkbg-700">
-                {title && (
-                  <h2 className="text-lg font-bold text-white">
-                    {title}
-                  </h2>
-                )}
+              <div className="flex items-start justify-between p-4 border-b border-border-default">
+                <div className="flex-1 min-w-0 pr-4">
+                  {title && (
+                    <h2 className="font-heading text-lg font-semibold text-text-primary">
+                      {title}
+                    </h2>
+                  )}
+                  {description && (
+                    <p className="mt-1 text-sm text-text-secondary">
+                      {description}
+                    </p>
+                  )}
+                </div>
                 {showCloseButton && (
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
+                  <button
                     onClick={onClose}
-                    className="p-2 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-darkbg-800 transition-colors"
+                    className={cn(
+                      'flex-shrink-0 p-1.5 rounded-md',
+                      'text-text-tertiary hover:text-text-primary',
+                      'hover:bg-bg-tertiary transition-colors'
+                    )}
                   >
                     <X className="w-5 h-5" />
-                  </motion.button>
+                  </button>
                 )}
               </div>
             )}
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto">{children}</div>
+            <div className="p-4 max-h-[60vh] overflow-y-auto">
+              {children}
+            </div>
+
+            {/* Footer */}
+            {footer && (
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-border-default">
+                {footer}
+              </div>
+            )}
           </motion.div>
         </div>
       )}
     </AnimatePresence>
+  )
+}
+
+// Confirm Modal Helper
+export interface ConfirmModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onConfirm: () => void
+  title: string
+  description?: string
+  confirmText?: string
+  cancelText?: string
+  variant?: 'default' | 'danger'
+  isLoading?: boolean
+}
+
+export function ConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  confirmText = 'Confirm',
+  cancelText = 'Cancel',
+  variant = 'default',
+  isLoading = false,
+}: ConfirmModalProps) {
+  const handleConfirm = () => {
+    onConfirm()
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={title}
+      description={description}
+      size="sm"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={isLoading}>
+            {cancelText}
+          </Button>
+          <Button
+            variant={variant === 'danger' ? 'danger' : 'primary'}
+            onClick={handleConfirm}
+            isLoading={isLoading}
+          >
+            {confirmText}
+          </Button>
+        </>
+      }
+    />
+  )
+}
+
+// Alert Modal (single button)
+export interface AlertModalProps {
+  isOpen: boolean
+  onClose: () => void
+  title: string
+  description?: string
+  buttonText?: string
+  variant?: 'default' | 'success' | 'error'
+}
+
+export function AlertModal({
+  isOpen,
+  onClose,
+  title,
+  description,
+  buttonText = 'OK',
+  variant = 'default',
+}: AlertModalProps) {
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={title}
+      description={description}
+      size="sm"
+      footer={
+        <Button
+          variant={variant === 'error' ? 'danger' : variant === 'success' ? 'success' : 'primary'}
+          onClick={onClose}
+        >
+          {buttonText}
+        </Button>
+      }
+    />
   )
 }
