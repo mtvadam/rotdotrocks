@@ -17,6 +17,7 @@ interface ApprovedBrainrot {
   baseCost: string
   baseIncome: string
   imageUrl: string
+  originalImageUrl?: string  // Original scraped URL, preserved when custom image uploaded
 }
 
 // Levenshtein distance for fuzzy matching
@@ -244,17 +245,21 @@ export async function POST(request: Request) {
       const baseIncome = BigInt(item.baseIncome || '0')
 
       try {
-        // If imageUrl is a full URL (Blob storage), use it for localImage
-        // Otherwise, fall back to the default relative path
-        const localImage = item.imageUrl && item.imageUrl.startsWith('https://')
-          ? item.imageUrl
-          : `/brainrot-images/brainrots/${slug}.png`
+        // Check if a custom image was uploaded to Vercel Blob
+        const isUploadedImage = item.imageUrl && item.imageUrl.includes('blob.vercel-storage.com')
+
+        // localImage: use uploaded blob URL if available, otherwise null
+        const localImage = isUploadedImage ? item.imageUrl : null
+
+        // imageUrl: use the original scraped URL (preserved in originalImageUrl),
+        // or the current imageUrl if no custom upload was done
+        const storedImageUrl = item.originalImageUrl || (isUploadedImage ? '' : item.imageUrl) || ''
 
         await prisma.brainrot.create({
           data: {
             name: item.name,
             slug,
-            imageUrl: item.imageUrl || '',
+            imageUrl: storedImageUrl,
             localImage,
             baseCost,
             baseIncome,

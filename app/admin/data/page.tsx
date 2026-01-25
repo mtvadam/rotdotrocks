@@ -54,6 +54,7 @@ interface EditableBrainrot {
   baseCost: string
   baseIncome: string
   imageUrl: string
+  originalImageUrl: string  // Preserve original scraped URL when custom image is uploaded
   approved: boolean
   similarTo?: string
   similarityScore?: number
@@ -115,6 +116,7 @@ export default function DataManagementPage() {
   const [editableBrainrots, setEditableBrainrots] = useState<EditableBrainrot[]>([])
   const [importing, setImporting] = useState(false)
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
+  const [uploadingBrainrotId, setUploadingBrainrotId] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
 
@@ -285,6 +287,7 @@ export default function DataManagementPage() {
             baseCost,
             baseIncome,
             imageUrl: b.imageUrl,
+            originalImageUrl: b.imageUrl,  // Preserve original for database
             approved: false,
             similarTo: b.similarTo,
             similarityScore: b.similarityScore,
@@ -317,6 +320,7 @@ export default function DataManagementPage() {
             baseCost: b.baseCost,
             baseIncome: b.baseIncome,
             imageUrl: b.imageUrl,
+            originalImageUrl: b.originalImageUrl,  // Send original URL for database storage
           })),
         }),
       })
@@ -413,6 +417,70 @@ export default function DataManagementPage() {
     setUploadingIndex(null)
   }
 
+  // Handle image upload for existing brainrots in the data table
+  const handleExistingBrainrotImageUpload = async (brainrotId: string, slug: string, file: File) => {
+    // Validate file type
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError(`Invalid file type. Only PNG, JPEG, WebP, and GIF are allowed.`)
+      setTimeout(() => setUploadError(null), 5000)
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError(`File too large. Maximum size is 5MB.`)
+      setTimeout(() => setUploadError(null), 5000)
+      return
+    }
+
+    setUploadingBrainrotId(brainrotId)
+    setUploadError(null)
+    setUploadSuccess(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('slug', slug)
+
+      const res = await fetch('/api/admin/upload-image', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+      if (res.ok && data.localImage) {
+        // Update the brainrot in state with the new local image
+        setBrainrots(prev => prev.map(b =>
+          b.id === brainrotId ? { ...b, localImage: data.localImage } : b
+        ))
+
+        // Also save to database immediately
+        const saveRes = await fetch(`/api/admin/data/brainrots/${brainrotId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ localImage: data.localImage }),
+        })
+
+        if (saveRes.ok) {
+          setUploadSuccess(`Image uploaded and saved!`)
+          setTimeout(() => setUploadSuccess(null), 3000)
+        } else {
+          setUploadError('Image uploaded but failed to save to database.')
+          setTimeout(() => setUploadError(null), 5000)
+        }
+      } else {
+        setUploadError(data.error || 'Upload failed. Please try again.')
+        setTimeout(() => setUploadError(null), 5000)
+      }
+    } catch (err) {
+      console.error('Upload failed:', err)
+      setUploadError('Upload failed. Please check your connection and try again.')
+      setTimeout(() => setUploadError(null), 5000)
+    }
+    setUploadingBrainrotId(null)
+  }
+
   const filteredBrainrots = useMemo(() =>
     brainrots.filter(b => b.name.toLowerCase().includes(search.toLowerCase())),
     [brainrots, search]
@@ -468,6 +536,20 @@ export default function DataManagementPage() {
           </button>
         </div>
       </div>
+
+      {/* Upload Status Alerts */}
+      {uploadError && !scrapeModalOpen && (
+        <div className="mb-4 p-3 bg-red-900/30 border border-red-800 rounded-lg flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+          <span className="text-red-300 text-sm">{uploadError}</span>
+        </div>
+      )}
+      {uploadSuccess && !scrapeModalOpen && (
+        <div className="mb-4 p-3 bg-green-900/30 border border-green-800 rounded-lg flex items-center gap-2">
+          <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
+          <span className="text-green-300 text-sm">{uploadSuccess}</span>
+        </div>
+      )}
 
       {/* Tabs & Search */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -549,9 +631,40 @@ export default function DataManagementPage() {
                       <tr key={brainrot.id} className="hover:bg-darkbg-800/50">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            {brainrot.localImage && (
-                              <Image src={brainrot.localImage} alt={brainrot.name} width={32} height={32} className="rounded" />
-                            )}
+                            <label className="relative flex-shrink-0 group cursor-pointer" title="Click to change image">
+                              {brainrot.localImage ? (
+                                <Image src={brainrot.localImage} alt={brainrot.name} width={48} height={48} className="rounded-lg object-cover w-12 h-12" />
+                              ) : (
+                                <div className="w-12 h-12 rounded-lg bg-darkbg-700 flex items-center justify-center border-2 border-dashed border-darkbg-600">
+                                  <Upload className="w-5 h-5 text-gray-500" />
+                                </div>
+                              )}
+                              {/* Always visible edit indicator */}
+                              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-600 rounded-full flex items-center justify-center border-2 border-darkbg-900 group-hover:bg-green-500 transition-colors">
+                                {uploadingBrainrotId === brainrot.id ? (
+                                  <Loader2 className="w-3 h-3 text-white animate-spin" />
+                                ) : (
+                                  <Edit2 className="w-3 h-3 text-white" />
+                                )}
+                              </div>
+                              {/* Hover overlay */}
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                                <Upload className="w-5 h-5 text-white" />
+                              </div>
+                              <input
+                                type="file"
+                                accept=".png,.jpg,.jpeg,.webp,.gif,image/png,image/jpeg,image/webp,image/gif"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  if (file) {
+                                    handleExistingBrainrotImageUpload(brainrot.id, brainrot.slug, file)
+                                    e.target.value = ''
+                                  }
+                                }}
+                                disabled={uploadingBrainrotId !== null}
+                              />
+                            </label>
                             <span className="text-white font-medium">{brainrot.name}</span>
                           </div>
                         </td>

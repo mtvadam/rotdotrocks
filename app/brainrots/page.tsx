@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Search, TrendingUp, DollarSign, Sparkles } from 'lucide-react'
 import { Select } from '@/components/ui'
-import { brainrotCache as cache } from '@/lib/prefetch'
+import { brainrotCache as cache, refreshBrainrotCache } from '@/lib/prefetch'
 
 interface Brainrot {
   id: string
@@ -64,6 +64,17 @@ function getRarityBorder(rarity: string | null): { border: string; animated?: st
   return { border: 'border-darkbg-700 hover:border-darkbg-600' }
 }
 
+// Add cache busting query param to prevent stale images
+function getImageUrl(url: string | null, cacheBuster: number): string {
+  if (!url) return ''
+  // Only add cache buster to Vercel Blob URLs to force refresh after uploads
+  if (url.includes('blob.vercel-storage.com')) {
+    const separator = url.includes('?') ? '&' : '?'
+    return `${url}${separator}v=${cacheBuster}`
+  }
+  return url
+}
+
 export default function BrainrotsPage() {
   const [brainrots, setBrainrots] = useState<Brainrot[]>(cache.brainrots)
   const [loading, setLoading] = useState(!cache.loaded)
@@ -71,6 +82,8 @@ export default function BrainrotsPage() {
   const [rarityFilter, setRarityFilter] = useState<string>('all')
   const [scrolled, setScrolled] = useState(false)
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
+  // Cache buster timestamp - updated when data is fetched to force image refresh
+  const [imageCacheBuster, setImageCacheBuster] = useState(cache.lastFetched || Date.now())
 
   // Toggle card on tap (for mobile)
   const handleCardTap = useCallback((id: string) => {
@@ -86,20 +99,38 @@ export default function BrainrotsPage() {
   }, [])
 
   useEffect(() => {
-    if (cache.loaded) {
+    // Check if cache is stale (older than 5 minutes)
+    const CACHE_DURATION = 5 * 60 * 1000
+    const isStale = cache.loaded && (Date.now() - cache.lastFetched > CACHE_DURATION)
+
+    if (cache.loaded && !isStale) {
       setBrainrots(cache.brainrots)
+      setImageCacheBuster(cache.lastFetched)
       setLoading(false)
       return
     }
-    fetch('/api/brainrots/all')
-      .then(res => res.json())
-      .then(data => {
-        cache.brainrots = data.brainrots || []
-        cache.loaded = true
-        setBrainrots(cache.brainrots)
+
+    // If stale or not loaded, fetch fresh data
+    if (isStale) {
+      refreshBrainrotCache().then((freshBrainrots) => {
+        setBrainrots(freshBrainrots)
+        setImageCacheBuster(Date.now())
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+    } else {
+      fetch('/api/brainrots/all')
+        .then(res => res.json())
+        .then(data => {
+          const now = Date.now()
+          cache.brainrots = data.brainrots || []
+          cache.loaded = true
+          cache.lastFetched = now
+          setBrainrots(cache.brainrots)
+          setImageCacheBuster(now)
+          setLoading(false)
+        })
+        .catch(() => setLoading(false))
+    }
   }, [])
 
   const rarities = ['all', ...new Set(brainrots.map(b => b.rarity).filter(Boolean))] as string[]
@@ -189,7 +220,7 @@ export default function BrainrotsPage() {
                   {/* Image container */}
                   <div className="aspect-square p-3 sm:p-4 relative">
                     <Image
-                      src={brainrot.localImage || brainrot.imageUrl}
+                      src={getImageUrl(brainrot.localImage, imageCacheBuster) || brainrot.imageUrl}
                       alt={brainrot.name}
                       fill
                       className="object-contain p-2 group-hover:scale-110 transition-transform duration-300"
@@ -207,7 +238,7 @@ export default function BrainrotsPage() {
                   {/* Stats overlay - hover on desktop, tap on mobile */}
                   <div className={`absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-200 flex flex-col items-center justify-center p-2 sm:p-3 overflow-hidden ${isActive ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}>
                     <Image
-                      src={brainrot.localImage || brainrot.imageUrl}
+                      src={getImageUrl(brainrot.localImage, imageCacheBuster) || brainrot.imageUrl}
                       alt={brainrot.name}
                       width={40}
                       height={40}
