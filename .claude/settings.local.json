@@ -33,7 +33,9 @@
       "WebFetch(domain:www.eldorado.gg)",
       "WebSearch",
       "Bash(python3:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "WebFetch(domain:stealabrainrot.fandom.com)",
+      "Bash(node:*)"
     ]
   }
 }

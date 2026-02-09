@@ -24,7 +24,10 @@ interface UserInfo {
 
 // GET /api/auth/roblox/callback - Handle OAuth callback
 export async function GET(request: NextRequest) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3333'
+  // Use request host to support localhost - must match the redirect_uri used in the initial auth request
+  const host = request.headers.get('host') || 'localhost:3333'
+  const protocol = host.startsWith('localhost') ? 'http' : 'https'
+  const baseUrl = `${protocol}://${host}`
 
   try {
     const { searchParams } = new URL(request.url)

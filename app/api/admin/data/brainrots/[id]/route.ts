@@ -16,7 +16,7 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
-    const { baseCost, baseIncome, rarity, isActive, isNew, newDisplayOrder, demand, trend, localImage } = body
+    const { name, baseCost, baseIncome, rarity, isActive, isNew, newDisplayOrder, demand, trend, localImage } = body
 
     // Validate the brainrot exists
     const existing = await prisma.brainrot.findUnique({ where: { id } })
@@ -26,6 +26,10 @@ export async function PATCH(
 
     // Build update data
     const updateData: Record<string, unknown> = {}
+    if (name !== undefined && name !== existing.name) {
+      updateData.name = name
+      updateData.slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    }
     if (baseCost !== undefined) {
       updateData.baseCost = BigInt(baseCost)
     }

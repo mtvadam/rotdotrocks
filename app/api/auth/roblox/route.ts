@@ -44,8 +44,10 @@ export async function GET(request: NextRequest) {
     path: '/',
   })
 
-  // Build redirect URL
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3333'
+  // Build redirect URL - use request host to support localhost
+  const host = request.headers.get('host') || 'localhost:3333'
+  const protocol = host.startsWith('localhost') ? 'http' : 'https'
+  const baseUrl = `${protocol}://${host}`
   const redirectUri = `${baseUrl}/api/auth/roblox/callback`
 
   const params = new URLSearchParams({
