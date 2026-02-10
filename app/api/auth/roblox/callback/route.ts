@@ -121,13 +121,19 @@ export async function GET(request: NextRequest) {
                request.headers.get('x-real-ip') ||
                'unknown'
 
-    // Check if user should be admin
-    const adminUsernames = (process.env.ADMINS || '')
+    // Check if user should be admin.
+    // We match against the numeric Roblox user ID (the `sub` field from the
+    // OAuth userinfo endpoint) rather than the username. Usernames can be
+    // changed or temporarily reassigned on Roblox, so username-based checks
+    // are fragile and can be bypassed. User IDs are permanent and unique.
+    // Set the ADMIN_IDS environment variable to a comma-separated list of
+    // numeric Roblox user IDs (e.g. ADMIN_IDS=1234567,7654321).
+    const adminIds = (process.env.ADMIN_IDS || '')
       .split(',')
-      .map(u => u.trim().toLowerCase())
-      .filter(u => u.length > 0)
+      .map(id => id.trim())
+      .filter(id => id.length > 0)
 
-    const isAdmin = adminUsernames.includes(robloxUsername.toLowerCase())
+    const isAdmin = adminIds.includes(robloxUserId)
 
     // Determine role for new users
     const determineRole = () => {

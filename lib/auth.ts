@@ -34,6 +34,10 @@ export async function requireAuth(): Promise<User> {
   return user
 }
 
+// SELLER is a valid UserRole in the Prisma schema (USER | SELLER | MOD | ADMIN).
+// It is assigned when a seller application is approved. ADMIN is also allowed
+// here so that admins can access seller-only routes without needing a separate
+// seller account.
 export async function requireSeller(): Promise<User> {
   const user = await requireAuth()
   if (user.role !== 'SELLER' && user.role !== 'ADMIN') {

@@ -372,13 +372,14 @@ export function TradeChat({ tradeId, tradeStatus, tradeOwnerId }: TradeChatProps
     return () => clearInterval(interval)
   }, [fetchMessages, isChatEnabled])
 
-  // Scroll to bottom when new messages arrive
+  // Scroll to bottom when new messages arrive — scroll within the container only,
+  // never the page, so content below the chat (counter offers, footer) stays put
   useEffect(() => {
-    if (messagesEndRef.current && messagesContainerRef.current) {
+    if (messagesContainerRef.current) {
       const container = messagesContainerRef.current
       const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100
       if (isNearBottom) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
       }
     }
   }, [messages])
@@ -393,7 +394,7 @@ export function TradeChat({ tradeId, tradeStatus, tradeOwnerId }: TradeChatProps
   }, [messages.length])
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    messagesContainerRef.current?.scrollTo({ top: messagesContainerRef.current.scrollHeight, behavior: 'smooth' })
   }
 
   // Handle focus on input - scroll chat into view properly (not to page bottom)

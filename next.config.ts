@@ -28,9 +28,21 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
+      // Vercel Blob storage — used for brainrot images and OG images
       {
         protocol: 'https',
-        hostname: '**',
+        hostname: '*.public.blob.vercel-storage.com',
+      },
+      // Roblox avatar CDN — returned by the thumbnails.roblox.com API
+      // and the Roblox OAuth userinfo picture field
+      {
+        protocol: 'https',
+        hostname: 'tr.rbxcdn.com',
+      },
+      // Roblox thumbnails API (used as a fallback picture source)
+      {
+        protocol: 'https',
+        hostname: 'thumbnails.roblox.com',
       },
     ],
   },

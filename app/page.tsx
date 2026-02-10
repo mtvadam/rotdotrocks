@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowRightLeft, Calculator, Gem, Zap, Users, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react'
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { ArrowRightLeft, Calculator, Gem, Zap, Users, Sparkles, ChevronLeft, ChevronRight, X, DollarSign, TrendingUp } from 'lucide-react'
+import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { useRef, useEffect, useState, useMemo, useCallback, memo } from 'react'
 
 interface NewBrainrot {
@@ -12,6 +12,18 @@ interface NewBrainrot {
   slug: string
   localImage: string | null
   rarity: string | null
+  baseIncome: string | null
+  baseCost: string | null
+  robuxValue: number | null
+}
+
+function formatNumber(numStr: string): string {
+  const num = BigInt(numStr)
+  if (num >= BigInt(1_000_000_000_000)) return (Number(num) / 1_000_000_000_000).toFixed(1) + 'T'
+  if (num >= BigInt(1_000_000_000)) return (Number(num) / 1_000_000_000).toFixed(1) + 'B'
+  if (num >= BigInt(1_000_000)) return (Number(num) / 1_000_000).toFixed(1) + 'M'
+  if (num >= BigInt(1_000)) return (Number(num) / 1_000).toFixed(1) + 'K'
+  return numStr
 }
 
 // Memoized rarity lookup maps for O(1) access instead of repeated string comparisons
@@ -133,6 +145,7 @@ export default function HomePage() {
   const [brainrotsLoading, setBrainrotsLoading] = useState(true)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
+  const [selectedBrainrot, setSelectedBrainrot] = useState<NewBrainrot | null>(null)
 
   // Memoized scroll check to prevent unnecessary recreations
   const checkCarouselScroll = useCallback(() => {
@@ -505,6 +518,7 @@ export default function HomePage() {
                       transition={{ delay: index * 0.05, duration: 0.3 }}
                       whileHover={{ y: -8, scale: 1.03 }}
                       whileTap={{ scale: 0.98 }}
+                      onClick={() => setSelectedBrainrot(brainrot)}
                       className={`
                         group relative flex-shrink-0 w-[160px] sm:w-[180px] md:w-[200px]
                         bg-gradient-to-b from-darkbg-800 to-darkbg-850 rounded-2xl
@@ -715,6 +729,166 @@ export default function HomePage() {
           </div>
         </motion.div>
       </div>
+
+      {/* Brainrot detail modal */}
+      <AnimatePresence>
+        {selectedBrainrot && (() => {
+          const tier = getRarityTier(selectedBrainrot.rarity)
+          const border = getRarityBorder(selectedBrainrot.rarity)
+
+          // Rarity-keyed glow colors (used for backdrop + box-shadow + drop-shadow)
+          const glowRgb =
+            tier >= 7 ? '255,0,128' :
+            tier === 6 ? '251,191,36' :
+            tier === 5 ? '239,68,68' :
+            tier === 4 ? '234,179,8' :
+            tier === 3 ? '168,85,247' :
+            tier === 2 ? '6,182,212' :
+            '255,255,255'
+
+          const auraClass =
+            tier >= 7 ? 'bg-gradient-to-br from-pink-500 via-purple-500 to-cyan-500' :
+            tier === 6 ? 'bg-gradient-to-br from-yellow-400 to-amber-500' :
+            tier === 5 ? 'bg-red-500' :
+            tier === 4 ? 'bg-yellow-500' :
+            tier === 3 ? 'bg-purple-600' :
+            tier === 2 ? 'bg-cyan-400' :
+            'bg-white'
+
+          const stats = [
+            selectedBrainrot.baseCost   ? { icon: <DollarSign className="w-3.5 h-3.5" />, label: 'cost',   value: `$${formatNumber(selectedBrainrot.baseCost)}`,                       color: 'text-white' }        : null,
+            selectedBrainrot.baseIncome ? { icon: <TrendingUp className="w-3.5 h-3.5" />, label: 'income', value: `$${formatNumber(selectedBrainrot.baseIncome)}/s`,                  color: 'text-green-400' }    : null,
+            selectedBrainrot.robuxValue != null ? { icon: <Gem className="w-3.5 h-3.5" />, label: 'value', value: `R$${selectedBrainrot.robuxValue.toLocaleString()}`, color: 'text-yellow-400' } : null,
+          ].filter(Boolean) as { icon: React.ReactNode; label: string; value: string; color: string }[]
+
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setSelectedBrainrot(null)}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md"
+              style={{ background: `radial-gradient(ellipse at 50% 40%, rgba(${glowRgb},0.15) 0%, rgba(0,0,0,0.88) 65%)` }}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.78, y: 32 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.78, y: 32 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+                onClick={(e) => e.stopPropagation()}
+                className={`relative w-full max-w-sm bg-gradient-to-b from-darkbg-800 to-darkbg-900 rounded-3xl border-2 ${border.border} ${border.animated || ''} overflow-hidden`}
+                style={{ boxShadow: `0 0 80px rgba(${glowRgb},0.25), 0 0 30px rgba(${glowRgb},0.1), 0 30px 60px rgba(0,0,0,0.6)` }}
+              >
+                {/* Close */}
+                <motion.button
+                  whileHover={{ scale: 1.15, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setSelectedBrainrot(null)}
+                  className="absolute top-3 right-3 z-30 w-8 h-8 rounded-full bg-darkbg-700/80 hover:bg-darkbg-600 border border-white/10 flex items-center justify-center"
+                >
+                  <X className="w-4 h-4 text-gray-400" />
+                </motion.button>
+
+                {/* Top light streak */}
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+
+                {/* Image section */}
+                <div className="relative aspect-square">
+                  {/* Pulsing rarity aura */}
+                  {tier >= 2 && (
+                    <motion.div
+                      animate={{ opacity: [0.12, 0.28, 0.12], scale: [0.9, 1.02, 0.9] }}
+                      transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+                      className={`absolute inset-6 rounded-full blur-3xl ${auraClass}`}
+                    />
+                  )}
+
+                  {/* Image springs in slightly after card */}
+                  {selectedBrainrot.localImage && (
+                    <motion.div
+                      initial={{ scale: 0.6, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: 'spring', stiffness: 420, damping: 22, delay: 0.07 }}
+                      className="absolute inset-0"
+                    >
+                      <Image
+                        src={selectedBrainrot.localImage}
+                        alt={selectedBrainrot.name}
+                        fill
+                        className="object-contain p-8 relative z-10"
+                        sizes="(max-width: 640px) 160px, (max-width: 768px) 180px, 200px"
+                        style={{ filter: tier >= 3 ? `drop-shadow(0 0 18px rgba(${glowRgb},0.75))` : 'drop-shadow(0 6px 14px rgba(0,0,0,0.6))' }}
+                      />
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* Glowing divider */}
+                <div className="mx-0 h-px" style={{ background: `linear-gradient(to right, transparent, rgba(${glowRgb},0.5), transparent)` }} />
+
+                {/* Info */}
+                <div className="px-6 pt-5 pb-6">
+                  {/* Name */}
+                  <motion.h2
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="font-black text-2xl text-center leading-tight mb-2 text-white"
+                  >
+                    {selectedBrainrot.name}
+                  </motion.h2>
+
+                  {/* Rarity badge */}
+                  {selectedBrainrot.rarity && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.75 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.15, type: 'spring', stiffness: 400 }}
+                      className="flex justify-center mb-5"
+                    >
+                      <span
+                        className="text-[11px] font-bold tracking-widest uppercase px-3 py-1 rounded-full border"
+                        style={{ background: `rgba(${glowRgb},0.08)`, borderColor: `rgba(${glowRgb},0.25)` }}
+                      >
+                        <span className={getRarityColor(selectedBrainrot.rarity)}>
+                          {selectedBrainrot.rarity}
+                        </span>
+                      </span>
+                    </motion.div>
+                  )}
+
+                  {/* Stats — stagger in */}
+                  <div className="space-y-2">
+                    {stats.map((stat, i) => (
+                      <motion.div
+                        key={stat.label}
+                        initial={{ opacity: 0, x: -14 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.2 + i * 0.07 }}
+                        className="flex items-center justify-between rounded-xl px-4 py-3 border border-white/5"
+                        style={{ background: `rgba(${glowRgb},0.05)` }}
+                      >
+                        <span className="text-gray-500 text-sm flex items-center gap-1.5">
+                          {stat.icon} {stat.label}
+                        </span>
+                        <span className={`font-mono text-sm font-bold ${stat.color}`}>
+                          {stat.value}
+                        </span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bottom gradient fade */}
+                <div className="absolute inset-x-0 bottom-0 h-16 pointer-events-none rounded-b-3xl"
+                  style={{ background: `linear-gradient(to top, rgba(${glowRgb},0.06), transparent)` }}
+                />
+              </motion.div>
+            </motion.div>
+          )
+        })()}
+      </AnimatePresence>
     </div>
   )
 }

@@ -143,7 +143,8 @@ export default function BrainrotsPage() {
 
   // Sort by base income descending
   const sorted = [...filtered].sort((a, b) => {
-    return Number(BigInt(b.baseIncome) - BigInt(a.baseIncome))
+    const diff = BigInt(b.baseIncome) - BigInt(a.baseIncome)
+    return diff > 0n ? 1 : diff < 0n ? -1 : 0
   })
 
   return (

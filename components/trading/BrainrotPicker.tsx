@@ -87,6 +87,9 @@ function preloadImages(brainrots: Brainrot[]) {
   // Preload images in batches to avoid overwhelming the browser
   const batchSize = 20
   let index = 0
+  // Keep a strong reference to all Image objects so the GC cannot reclaim
+  // them before their loads complete (fixes PERF-01).
+  const imageRefs: HTMLImageElement[] = []
 
   const loadBatch = () => {
     const batch = brainrots.slice(index, index + batchSize)
@@ -94,6 +97,7 @@ function preloadImages(brainrots: Brainrot[]) {
       if (brainrot.localImage) {
         const img = new window.Image()
         img.src = brainrot.localImage
+        imageRefs.push(img)
       }
     })
     index += batchSize
@@ -224,6 +228,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
   const [mutations, setMutations] = useState<Mutation[]>(dataCache.mutations)
   const [traits, setTraits] = useState<Trait[]>(dataCache.traits)
   const [loading, setLoading] = useState(!dataCache.loaded)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   // Initialize from initialItem if editing - will be enriched with full data once cache loads
   const [selectedBrainrot, setSelectedBrainrot] = useState<Brainrot | null>(() => {
@@ -401,6 +406,19 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
       setMutations(mutationsData)
       setTraits(traitsData)
       setLoading(false)
+    }).catch((err) => {
+      // Clear any partial data that may have been written to the cache
+      dataCache.brainrots = []
+      dataCache.mutations = []
+      dataCache.traits = []
+      dataCache.loaded = false
+      dataCache.loading = false
+
+      setBrainrots([])
+      setMutations([])
+      setTraits([])
+      setFetchError(err instanceof Error ? err.message : 'Failed to load data')
+      setLoading(false)
     })
   }, [])
 
@@ -547,6 +565,12 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                   <BrainrotTileSkeleton key={i} />
                 ))}
               </div>
+            </div>
+          ) : view === 'picker' && fetchError ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 gap-3">
+              <AlertCircle className="w-10 h-10 text-red-400" />
+              <p className="text-red-400 font-medium text-center">Failed to load brainrots</p>
+              <p className="text-gray-500 text-sm text-center">{fetchError}</p>
             </div>
           ) : view === 'picker' && !selectedBrainrot ? (
             <div className="flex-1 overflow-hidden flex flex-col">

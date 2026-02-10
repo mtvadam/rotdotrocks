@@ -288,7 +288,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
     }
 
     if (!isCounterOffer && (!user || user.gems < 5)) {
-      setError('Not enough gems (need 5)')
+      setError('Not enough gems — you get +5 gems every 24 hours. Check your gem timer in the navbar.')
       return
     }
 

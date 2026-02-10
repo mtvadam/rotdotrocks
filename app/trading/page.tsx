@@ -175,7 +175,14 @@ export default function TradingPage() {
       setTrades(data.trades || [])
       setTotalPages(data.totalPages || 1)
 
-      // Cache the result
+      // Cache the result — evict oldest entry if at capacity
+      const cacheKeys = Object.keys(tradesCache)
+      if (cacheKeys.length >= 20) {
+        const oldest = cacheKeys.reduce((a, b) =>
+          tradesCache[a].timestamp < tradesCache[b].timestamp ? a : b
+        )
+        delete tradesCache[oldest]
+      }
       tradesCache[cacheKey] = {
         trades: data.trades || [],
         totalPages: data.totalPages || 1,

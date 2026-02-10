@@ -135,9 +135,7 @@ export function NavBar() {
                 />
                 <div className="hidden sm:flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-300">
-                    {user.robloxUsername.length > 15
-                      ? user.robloxUsername.slice(0, 12) + '...'
-                      : user.robloxUsername}
+                    {user.robloxUsername}
                   </span>
                   {(user.role === 'ADMIN' || user.role === 'MOD') && (
                     <Link

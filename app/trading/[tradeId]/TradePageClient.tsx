@@ -313,7 +313,7 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
 
     for (const item of items) {
       if (item.calculatedIncome) {
-        totalIncome += BigInt(item.calculatedIncome)
+        totalIncome += BigInt(Math.round(parseFloat(String(item.calculatedIncome))))
       }
       if (item.robuxValue) {
         // Apply trait value multiplier
