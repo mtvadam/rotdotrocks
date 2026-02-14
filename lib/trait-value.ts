@@ -17,6 +17,7 @@ const TRAIT_VALUE_MULTIPLIERS: Record<string, number> = {
 
   // +20% value
   'ufo': 1.2,
+  'rose': 1.2,
   'brazil': 1.2,
   'indonesian': 1.2,
   '26': 1.2,
