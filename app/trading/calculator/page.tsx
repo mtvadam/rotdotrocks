@@ -386,7 +386,7 @@ function HowItWorks() {
       bonus: '+20%',
       badgeColor: 'bg-gradient-to-r from-emerald-500/15 to-teal-500/15 text-emerald-400 border-emerald-500/25',
       dotColor: 'bg-emerald-400',
-      traits: ['UFO', 'Brazil', 'Indonesian', '26', 'Glitched', 'Zombie', 'Extinct', 'Jack O\'Lantern', 'Fireworks', 'Santa Hat', 'Reindeer Pet', 'Sleepy', 'Snowy', 'Wet', 'Tie', 'Witching Hour', 'Bubblegum']
+      traits: ['UFO', 'Rose', 'Brazil', 'Indonesian', '26', 'Glitched', 'Zombie', 'Extinct', 'Jack O\'Lantern', 'Fireworks', 'Santa Hat', 'Reindeer Pet', 'Sleepy', 'Snowy', 'Wet', 'Tie', 'Witching Hour', 'Bubblegum']
     },
     {
       bonus: '+10%',
