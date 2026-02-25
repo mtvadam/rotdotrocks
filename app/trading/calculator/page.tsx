@@ -392,10 +392,10 @@ function HowItWorks() {
     if (traitTiers.length > 0) return
     fetch('/api/traits')
       .then(r => r.json())
-      .then((data: Array<{ name: string; valueMultiplier?: number }>) => {
+      .then((res: { traits: Array<{ name: string; valueMultiplier?: number }> }) => {
         // Group traits by their bonus percentage
         const groups = new Map<number, string[]>()
-        for (const t of data) {
+        for (const t of res.traits) {
           const bonus = Math.round(((t.valueMultiplier ?? 1) - 1) * 100)
           if (!groups.has(bonus)) groups.set(bonus, [])
           groups.get(bonus)!.push(t.name)
@@ -404,7 +404,6 @@ function HowItWorks() {
         // Sort tiers from highest bonus to lowest
         const sorted = [...groups.entries()].sort((a, b) => b[0] - a[0])
 
-        const tierStyles: Record<string, { badgeColor: string; dotColor: string }> = {}
         // Assign colors based on bonus range
         const getStyle = (bonus: number) => {
           if (bonus >= 50) return { badgeColor: 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-green-500/30', dotColor: 'bg-green-400' }
