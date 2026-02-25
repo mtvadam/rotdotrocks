@@ -8,19 +8,9 @@ const NAME_MAPPINGS: Record<string, string> = {
   'Chimnino': 'Chimino',
 }
 
-// Map DB mutation name (lowercase) -> Eldorado mutation ID
-const MUTATION_IDS: Record<string, number> = {
-  'default': 0,
-  'gold': 1,
-  'diamond': 2,
-  'bloodrot': 3,
-  'candy': 4,
-  'lava': 5,
-  'galaxy': 6,
-  'yin yang': 7,
-  'radioactive': 8,
-  'rainbow': 9,
-  'cursed': 10,
+// Convert mutation name to Eldorado URL slug (e.g. "Yin Yang" -> "yin-yang")
+function mutationToSlug(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, '-')
 }
 
 interface EldoradoOffer {
@@ -49,10 +39,7 @@ async function fetchBrainrotPrice(
   rarity: string,
   mutation: string = 'default'
 ): Promise<{ price: number | null; count: number; error?: string }> {
-  const mutationId = MUTATION_IDS[mutation.toLowerCase()]
-  if (mutationId === undefined) {
-    return { price: null, count: 0, error: `Unknown mutation: ${mutation}` }
-  }
+  const isDefault = mutation.toLowerCase() === 'default'
 
   const params = new URLSearchParams({
     gameId: '259',
@@ -63,10 +50,17 @@ async function fetchBrainrotPrice(
     tradeEnvironmentValue2: brainrotName,
     pageIndex: '1',
     pageSize: '24',
-    offerAttributeIdsCsv: `1-${mutationId}`,
     offerSortingCriterion: 'Price',
     isAscending: 'true',
   })
+
+  if (isDefault) {
+    // Default uses the old attribute filter (only way to filter to default-only)
+    params.set('offerAttributeIdsCsv', '1-0')
+  } else {
+    // All other mutations use the slug-based filter (fully dynamic)
+    params.set('steal-a-brainrot-mutations', mutationToSlug(mutation))
+  }
 
   if (rarity === 'OG') {
     params.set('lowestPrice', '300')

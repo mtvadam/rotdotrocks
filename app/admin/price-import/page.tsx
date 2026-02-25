@@ -38,8 +38,6 @@ interface EditedValue {
   robuxValue: number
 }
 
-const MUTATION_ORDER = ['Default', 'Gold', 'Diamond', 'Bloodrot', 'Candy', 'Lava', 'Galaxy', 'Yin Yang', 'Radioactive', 'Cursed', 'Rainbow']
-
 export default function PriceImportPage() {
   const [brainrots, setBrainrots] = useState<Brainrot[]>([])
   const [mutations, setMutations] = useState<Mutation[]>([])
@@ -140,12 +138,16 @@ export default function PriceImportPage() {
 
     setTotalToFetch(combinations.length)
 
-    // Fetch sequentially with delay
-    for (let i = 0; i < combinations.length; i++) {
-      const { brainrot, mutation } = combinations[i]
-      setCurrentIndex(i + 1)
-      await fetchPrice(brainrot, mutation)
-      await new Promise(r => setTimeout(r, 500)) // Rate limiting
+    // Fetch in parallel batches of 3 with 300ms between batches
+    const BATCH_SIZE = 3
+    const BATCH_DELAY = 300
+    for (let i = 0; i < combinations.length; i += BATCH_SIZE) {
+      const batch = combinations.slice(i, i + BATCH_SIZE)
+      await Promise.all(batch.map(({ brainrot, mutation }) => fetchPrice(brainrot, mutation)))
+      setCurrentIndex(Math.min(i + BATCH_SIZE, combinations.length))
+      if (i + BATCH_SIZE < combinations.length) {
+        await new Promise(r => setTimeout(r, BATCH_DELAY))
+      }
     }
 
     setIsFetching(false)
@@ -317,8 +319,8 @@ export default function PriceImportPage() {
             <tr>
               <th className="text-left p-3 min-w-[200px]">Brainrot</th>
               <th className="text-left p-3 w-20">Rarity</th>
-              {MUTATION_ORDER.map(m => (
-                <th key={m} className="text-center p-3 min-w-[100px]">{m}</th>
+              {mutations.map(m => (
+                <th key={m.id} className="text-center p-3 min-w-[100px]">{m.name}</th>
               ))}
             </tr>
           </thead>
@@ -328,17 +330,14 @@ export default function PriceImportPage() {
                 <tr key={brainrot.id} className="border-b border-gray-700 hover:bg-gray-800/50">
                   <td className="p-3 font-medium">{brainrot.name}</td>
                   <td className="p-3 text-gray-400">{brainrot.rarity}</td>
-                  {MUTATION_ORDER.map(mutName => {
-                    const mutation = mutations.find(m => m.name.toLowerCase() === mutName.toLowerCase())
-                    if (!mutation) return <td key={mutName} className="p-2">-</td>
-
+                  {mutations.map(mutation => {
                     const key = `${brainrot.id}-${mutation.id}`
                     const result = results.get(key)
                     const editedValue = editedValues.get(key)
                     const existingValue = brainrot.mutationValues.find(mv => mv.mutationId === mutation.id)?.robuxValue
 
                     return (
-                      <td key={mutName} className="p-2">
+                      <td key={mutation.id} className="p-2">
                         <div className="flex flex-col gap-1">
                           {/* Fetched price */}
                           {result && (
