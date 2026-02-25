@@ -333,9 +333,11 @@ function similarity(a: string, b: string): number {
   const levenshteinScore = 1 - levenshtein(normA, normB) / maxLen
 
   // Boost score if one string fully contains the other (e.g. "2026" contains "26")
+  // Only apply when there's a significant length difference (short prefix/suffix additions)
+  // to avoid false matches like "La Taco Combinasion" ↔ "La Food Combinasion"
   const shorter = normA.length <= normB.length ? normA : normB
   const longer = normA.length > normB.length ? normA : normB
-  if (shorter.length >= 2 && longer.includes(shorter)) {
+  if (shorter.length >= 2 && shorter.length / longer.length < 0.7 && longer.includes(shorter)) {
     const containmentScore = shorter.length / longer.length
     return Math.max(levenshteinScore, 0.5 + containmentScore * 0.5)
   }
@@ -566,7 +568,7 @@ export async function GET() {
 
       if (!existing) {
         // Check for similar names (potential rename / spelling discrepancy)
-        const similar = findSimilar(wiki.name, existingNamesList, 0.75)
+        const similar = findSimilar(wiki.name, existingNamesList, 0.85)
 
         if (similar) {
           // High-confidence match: treat as an update to the existing entry
