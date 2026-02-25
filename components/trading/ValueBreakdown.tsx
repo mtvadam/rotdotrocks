@@ -5,13 +5,19 @@ import { createPortal } from 'react-dom'
 import { Info } from 'lucide-react'
 import { calculateTraitValueMultiplier, getTraitValueMultiplier } from '@/lib/trait-value'
 
+type TraitInput = string | { name: string; valueMultiplier?: number }
+
 interface ValueBreakdownItem {
   brainrotName: string
   mutationName: string
   robuxValue: number
-  traitNames: string[]
+  traitNames: TraitInput[]
   valueFallback?: boolean
   valueFallbackSource?: string | null
+}
+
+function traitName(t: TraitInput): string {
+  return typeof t === 'string' ? t : t.name
 }
 
 // Smart tooltip positioning hook
@@ -67,7 +73,7 @@ export function ItemValueBreakdown({
 }: {
   robuxValue: number
   mutationName: string
-  traitNames: string[]
+  traitNames: TraitInput[]
   valueFallback?: boolean
   valueFallbackSource?: string | null
 }) {
@@ -112,13 +118,13 @@ export function ItemValueBreakdown({
             </div>
             {traitNames.length > 0 && (
               <>
-                {traitNames.map((name, i) => {
-                  const mult = getTraitValueMultiplier(name)
+                {traitNames.map((t, i) => {
+                  const mult = getTraitValueMultiplier(t)
                   const bonus = mult - 1
                   if (bonus === 0) return null
                   return (
                     <div key={i} className="flex justify-between text-gray-400">
-                      <span className="truncate mr-2">{name}</span>
+                      <span className="truncate mr-2">{traitName(t)}</span>
                       <span className={bonus > 0 ? 'text-green-400' : 'text-red-400'}>
                         {bonus > 0 ? '+' : ''}{(bonus * 100).toFixed(0)}%
                       </span>
@@ -223,13 +229,13 @@ export function TotalValueBreakdown({
                         <span>Base value</span>
                         <span>R${item.robuxValue.toLocaleString()}</span>
                       </div>
-                      {item.traitNames.map((traitName, j) => {
-                        const mult = getTraitValueMultiplier(traitName)
+                      {item.traitNames.map((t, j) => {
+                        const mult = getTraitValueMultiplier(t)
                         const bonus = mult - 1
                         if (bonus === 0) return null
                         return (
                           <div key={j} className="flex justify-between text-[10px]">
-                            <span className="text-gray-400 truncate mr-2">{traitName}</span>
+                            <span className="text-gray-400 truncate mr-2">{traitName(t)}</span>
                             <span className={bonus > 0 ? 'text-green-400' : 'text-red-400'}>
                               {bonus > 0 ? '+' : ''}{(bonus * 100).toFixed(0)}%
                             </span>

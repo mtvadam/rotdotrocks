@@ -34,6 +34,7 @@ interface TradeItem {
     name: string
     localImage: string | null
     multiplier: number
+    valueMultiplier?: number
   }>
   calculatedIncome?: string
   robuxValue?: number | null
@@ -48,7 +49,7 @@ function formatValue(value: number): string {
   return value.toLocaleString()
 }
 
-// Calculate with quantity support
+// Calculate with quantity support (applies trait value multiplier)
 function calculateTotals(items: TradeItem[]) {
   let totalIncome = BigInt(0)
   let totalValue = 0
@@ -57,7 +58,10 @@ function calculateTotals(items: TradeItem[]) {
 
   for (const item of items) {
     const income = BigInt(item.calculatedIncome || item.brainrot.baseIncome) * BigInt(item.quantity)
-    const value = (item.robuxValue ?? item.brainrot.robuxValue ?? 0) * item.quantity
+    const baseValue = item.robuxValue ?? item.brainrot.robuxValue ?? 0
+    const traitObjects = item.traits || []
+    const traitMult = calculateTraitValueMultiplier(traitObjects)
+    const value = Math.round(baseValue * traitMult) * item.quantity
 
     totalIncome += income
     totalValue += value
@@ -83,8 +87,8 @@ function ValueBreakdown({ item }: { item: TradeItem }) {
   const ref = useRef<HTMLButtonElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
 
-  const traitNames = item.traits?.map(t => t.name) || []
-  const traitMult = calculateTraitValueMultiplier(traitNames)
+  const traitObjects = item.traits || []
+  const traitMult = calculateTraitValueMultiplier(traitObjects)
   const finalValue = item.robuxValue ?? 0
 
   // Back-calculate the mutation base value (finalValue = mutationBase * traitMult)
@@ -137,15 +141,15 @@ function ValueBreakdown({ item }: { item: TradeItem }) {
               <span>Base ({item.mutation?.name || 'Default'})</span>
               <span>R${mutationBaseValue.toLocaleString()}</span>
             </div>
-            {traitNames.length > 0 && (
+            {traitObjects.length > 0 && (
               <>
-                {traitNames.map((name, i) => {
-                  const mult = getTraitValueMultiplier(name)
+                {traitObjects.map((t, i) => {
+                  const mult = getTraitValueMultiplier(t)
                   const bonus = mult - 1
                   if (bonus === 0) return null
                   return (
                     <div key={i} className="flex justify-between text-gray-400">
-                      <span className="truncate mr-2">{name}</span>
+                      <span className="truncate mr-2">{t.name}</span>
                       <span className={bonus > 0 ? 'text-green-400' : 'text-red-400'}>
                         {bonus > 0 ? '+' : ''}{(bonus * 100).toFixed(0)}%
                       </span>
@@ -184,7 +188,7 @@ function ValueBreakdown({ item }: { item: TradeItem }) {
 }
 
 // Trait icons with hover tooltip (similar to TradeCard)
-function TraitIcons({ traits, maxShow = 4 }: { traits: Array<{ id: string; name: string; localImage: string | null; multiplier: number }>; maxShow?: number }) {
+function TraitIcons({ traits, maxShow = 4 }: { traits: Array<{ id: string; name: string; localImage: string | null; multiplier: number; valueMultiplier?: number }>; maxShow?: number }) {
   const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0, ready: false })
   const iconsRef = useRef<HTMLDivElement>(null)
@@ -252,7 +256,7 @@ function TraitIcons({ traits, maxShow = 4 }: { traits: Array<{ id: string; name:
           className="fixed z-[100] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-xl shadow-black/30 min-w-[140px] max-w-[calc(100vw-24px)]"
         >
           {sortedTraits.map((t) => {
-            const valueBonus = getTraitValueMultiplier(t.name) - 1
+            const valueBonus = getTraitValueMultiplier(t) - 1
             return (
               <div key={t.id} className="flex items-center gap-2 py-0.5">
                 <div className="w-5 h-5 rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0">
@@ -372,42 +376,57 @@ function CalculatorItem({
   )
 }
 
-// How it works section
+// How it works section - fetches trait tiers dynamically from DB
 function HowItWorks() {
   const [open, setOpen] = useState(false)
+  const [traitTiers, setTraitTiers] = useState<Array<{
+    bonus: string
+    badgeColor: string
+    dotColor: string
+    traits: string[]
+  }>>([])
 
-  const traitTiers = [
-    {
-      bonus: '+50%',
-      badgeColor: 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-green-500/30',
-      dotColor: 'bg-green-400',
-      traits: ['Strawberry', 'Meowl', '10B', 'Skibidi', 'Lightning']
-    },
-    {
-      bonus: '+20%',
-      badgeColor: 'bg-gradient-to-r from-emerald-500/15 to-teal-500/15 text-emerald-400 border-emerald-500/25',
-      dotColor: 'bg-emerald-400',
-      traits: ['UFO', 'Rose', 'Brazil', 'Indonesian', '26', 'Glitched', 'Zombie', 'Extinct', 'Jack O\'Lantern', 'Fireworks', 'Santa Hat', 'Reindeer Pet', 'Sleepy', 'Snowy', 'Wet', 'Tie', 'Witching Hour', 'Bubblegum']
-    },
-    {
-      bonus: '+10%',
-      badgeColor: 'bg-gradient-to-r from-cyan-500/15 to-blue-500/15 text-cyan-400 border-cyan-500/25',
-      dotColor: 'bg-cyan-400',
-      traits: ['Shark Fin', 'Spider', 'Paint', 'Fire', 'Galactic', 'Comet-struck', 'Disco', 'Matteo Hat', 'RIP Tombstone', 'Nyan', 'Explosive']
-    },
-    {
-      bonus: '0%',
-      badgeColor: 'bg-darkbg-800/50 text-gray-500 border-darkbg-700',
-      dotColor: 'bg-gray-600',
-      traits: ['Crab Claw']
-    },
-    {
-      bonus: '-10%',
-      badgeColor: 'bg-gradient-to-r from-red-500/15 to-rose-500/15 text-red-400 border-red-500/25',
-      dotColor: 'bg-red-400',
-      traits: ['Sombrero', 'Taco']
-    },
-  ]
+  useEffect(() => {
+    if (!open) return
+    // Fetch on first open
+    if (traitTiers.length > 0) return
+    fetch('/api/traits')
+      .then(r => r.json())
+      .then((data: Array<{ name: string; valueMultiplier?: number }>) => {
+        // Group traits by their bonus percentage
+        const groups = new Map<number, string[]>()
+        for (const t of data) {
+          const bonus = Math.round(((t.valueMultiplier ?? 1) - 1) * 100)
+          if (!groups.has(bonus)) groups.set(bonus, [])
+          groups.get(bonus)!.push(t.name)
+        }
+
+        // Sort tiers from highest bonus to lowest
+        const sorted = [...groups.entries()].sort((a, b) => b[0] - a[0])
+
+        const tierStyles: Record<string, { badgeColor: string; dotColor: string }> = {}
+        // Assign colors based on bonus range
+        const getStyle = (bonus: number) => {
+          if (bonus >= 50) return { badgeColor: 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-green-500/30', dotColor: 'bg-green-400' }
+          if (bonus >= 20) return { badgeColor: 'bg-gradient-to-r from-emerald-500/15 to-teal-500/15 text-emerald-400 border-emerald-500/25', dotColor: 'bg-emerald-400' }
+          if (bonus > 0) return { badgeColor: 'bg-gradient-to-r from-cyan-500/15 to-blue-500/15 text-cyan-400 border-cyan-500/25', dotColor: 'bg-cyan-400' }
+          if (bonus === 0) return { badgeColor: 'bg-darkbg-800/50 text-gray-500 border-darkbg-700', dotColor: 'bg-gray-600' }
+          return { badgeColor: 'bg-gradient-to-r from-red-500/15 to-rose-500/15 text-red-400 border-red-500/25', dotColor: 'bg-red-400' }
+        }
+
+        // Filter out 0% tier if it has too many traits (uninteresting)
+        const tiers = sorted
+          .filter(([bonus, traits]) => bonus !== 0 || traits.length <= 5)
+          .map(([bonus, traits]) => ({
+            bonus: bonus > 0 ? `+${bonus}%` : `${bonus}%`,
+            ...getStyle(bonus),
+            traits: traits.sort(),
+          }))
+
+        setTraitTiers(tiers)
+      })
+      .catch(() => {})
+  }, [open, traitTiers.length])
 
   return (
     <div className="bg-darkbg-900/60 backdrop-blur-sm rounded-2xl border border-darkbg-700/80 overflow-hidden shadow-lg shadow-black/10">

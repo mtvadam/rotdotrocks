@@ -38,6 +38,7 @@ interface TradeItem {
       name: string
       localImage: string | null
       multiplier: number
+      valueMultiplier?: number
     }
   }>
   calculatedIncome?: string | null
@@ -306,7 +307,7 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
       brainrotName: string
       mutationName: string
       robuxValue: number
-      traitNames: string[]
+      traitNames: Array<string | { name: string; valueMultiplier?: number }>
       valueFallback?: boolean
       valueFallbackSource?: string | null
     }> = []
@@ -317,8 +318,8 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
       }
       if (item.robuxValue) {
         // Apply trait value multiplier
-        const traitNames = item.traits?.map(t => t.trait.name) || []
-        const traitMult = calculateTraitValueMultiplier(traitNames)
+        const traitObjects = item.traits?.map(t => t.trait) || []
+        const traitMult = calculateTraitValueMultiplier(traitObjects)
         totalValue += Math.round(item.robuxValue * traitMult)
         // Track for breakdown
         if (item.valueFallback) {
@@ -328,7 +329,7 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
           brainrotName: item.brainrot.name,
           mutationName: item.mutation?.name || 'Default',
           robuxValue: item.robuxValue,
-          traitNames,
+          traitNames: traitObjects,
           valueFallback: item.valueFallback,
           valueFallbackSource: item.valueFallbackSource,
         })

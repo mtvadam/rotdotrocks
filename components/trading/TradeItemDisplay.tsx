@@ -73,6 +73,7 @@ interface TradeItemDisplayProps {
         name: string
         localImage: string | null
         multiplier: number
+        valueMultiplier?: number
       }
     }>
     calculatedIncome?: string | null
@@ -229,8 +230,8 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
   // Memoize formatted robux value with + for fallback (applying trait value multiplier)
   const formattedRobuxValue = useMemo(() => {
     if (!item.robuxValue) return 'N/A'
-    const traitNames = item.traits?.map(t => t.trait.name) || []
-    const traitMult = calculateTraitValueMultiplier(traitNames)
+    const traitObjects = item.traits?.map(t => t.trait) || []
+    const traitMult = calculateTraitValueMultiplier(traitObjects)
     const adjustedValue = Math.round(item.robuxValue * traitMult)
     return `R$${adjustedValue.toLocaleString()}${item.valueFallback ? '+' : ''}`
   }, [item.robuxValue, item.valueFallback, item.traits])

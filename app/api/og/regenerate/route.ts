@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
             },
             traits: {
               include: {
-                trait: { select: { multiplier: true } },
+                trait: { select: { multiplier: true, valueMultiplier: true } },
               },
             },
           },

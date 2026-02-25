@@ -2,12 +2,13 @@
  * Trait Value Multipliers for pricing
  * These are SEPARATE from the trait.multiplier field (which is for income calculation)
  *
- * Value multipliers affect the USD/Robux value of a brainrot based on its traits
- * Uses DB valueMultiplier field, with hardcoded fallbacks for legacy data
+ * Value multipliers affect the USD/Robux value of a brainrot based on its traits.
+ * Primary source: DB `valueMultiplier` field (editable in admin panel).
+ * Fallback: hardcoded map below (for traits without DB values).
  */
 
-// Hardcoded fallback for traits not yet in DB
-const TRAIT_VALUE_MULTIPLIERS: Record<string, number> = {
+// Fallback map for traits that haven't been migrated to DB yet
+const TRAIT_VALUE_FALLBACK: Record<string, number> = {
   'strawberry': 1.5,
   'meowl': 1.5,
   '10b': 1.5,
@@ -21,7 +22,7 @@ const TRAIT_VALUE_MULTIPLIERS: Record<string, number> = {
   'glitched': 1.2,
   'zombie': 1.2,
   'extinct': 1.2,
-  'jack o\'lantern': 1.2,
+  "jack o'lantern": 1.2,
   'fireworks': 1.2,
   'santa hat': 1.2,
   'reindeer pet': 1.2,
@@ -48,44 +49,32 @@ const TRAIT_VALUE_MULTIPLIERS: Record<string, number> = {
 }
 
 /**
- * Get the value multiplier for a single trait
- * Uses provided DB value if available, falls back to hardcoded map
+ * Get the value multiplier for a single trait.
+ * Accepts either a name string or an object with { name, valueMultiplier }.
+ * DB valueMultiplier takes priority over the hardcoded fallback.
  */
-export function getTraitValueMultiplier(traitName: string, dbValueMultiplier?: number): number {
-  if (dbValueMultiplier !== undefined && dbValueMultiplier !== 1.0) {
-    return dbValueMultiplier
+export function getTraitValueMultiplier(trait: string | { name: string; valueMultiplier?: number }): number {
+  if (typeof trait === 'string') {
+    return TRAIT_VALUE_FALLBACK[trait.toLowerCase()] ?? 1.0
   }
-  return TRAIT_VALUE_MULTIPLIERS[traitName.toLowerCase()] ?? 1.0
+  // Use DB value if set (not default 1.0 or if it IS 1.0 and trait is in fallback as 1.0)
+  if (trait.valueMultiplier !== undefined && trait.valueMultiplier !== null) {
+    return trait.valueMultiplier
+  }
+  return TRAIT_VALUE_FALLBACK[trait.name.toLowerCase()] ?? 1.0
 }
 
 /**
- * Calculate the combined value multiplier for multiple traits
+ * Calculate the combined value multiplier for multiple traits.
+ * Accepts an array of trait name strings OR trait objects with valueMultiplier.
  * Uses additive stacking: (1 + sum of bonuses)
- * e.g., two +50% traits = 1 + 0.5 + 0.5 = 2.0x (not 1.5 * 1.5 = 2.25x)
  */
-export function calculateTraitValueMultiplier(traitNames: string[]): number {
-  if (traitNames.length === 0) return 1.0
-
-  // Sum up all the bonuses (multiplier - 1)
-  let totalBonus = 0
-  for (const name of traitNames) {
-    const mult = getTraitValueMultiplier(name)
-    totalBonus += mult - 1
-  }
-
-  // Return 1 + total bonus, minimum 0.1 to prevent negative/zero values
-  return Math.max(0.1, 1 + totalBonus)
-}
-
-/**
- * Calculate the combined value multiplier using trait objects with DB valueMultiplier
- */
-export function calculateTraitValueMultiplierFromDb(traits: { name: string; valueMultiplier?: number }[]): number {
+export function calculateTraitValueMultiplier(traits: Array<string | { name: string; valueMultiplier?: number }>): number {
   if (traits.length === 0) return 1.0
 
   let totalBonus = 0
   for (const trait of traits) {
-    const mult = getTraitValueMultiplier(trait.name, trait.valueMultiplier)
+    const mult = getTraitValueMultiplier(trait)
     totalBonus += mult - 1
   }
 
@@ -94,11 +83,8 @@ export function calculateTraitValueMultiplierFromDb(traits: { name: string; valu
 
 /**
  * Calculate the final value of a brainrot with traits
- * @param baseValue - The base Robux value of the brainrot (with mutation already applied)
- * @param traitNames - Array of trait names on the brainrot
- * @returns The adjusted value
  */
-export function calculateValueWithTraits(baseValue: number, traitNames: string[]): number {
-  const traitMultiplier = calculateTraitValueMultiplier(traitNames)
+export function calculateValueWithTraits(baseValue: number, traits: Array<string | { name: string; valueMultiplier?: number }>): number {
+  const traitMultiplier = calculateTraitValueMultiplier(traits)
   return Math.round(baseValue * traitMultiplier)
 }

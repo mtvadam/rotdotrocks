@@ -40,6 +40,7 @@ interface Trait {
   name: string
   localImage: string | null
   multiplier: number
+  valueMultiplier?: number
 }
 
 
@@ -679,7 +680,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                     {(() => {
                       const resolved = getResolvedRobuxValue(selectedBrainrot, selectedMutation)
                       if (resolved.value) {
-                        const traitMult = calculateTraitValueMultiplier(selectedTraits.map(t => t.name))
+                        const traitMult = calculateTraitValueMultiplier(selectedTraits)
                         const adjustedValue = Math.round(resolved.value * traitMult)
                         const hasTraitBonus = traitMult !== 1
                         return (

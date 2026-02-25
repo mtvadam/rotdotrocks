@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
         name: true,
         localImage: true,
         multiplier: true,
+        valueMultiplier: true,
       },
       orderBy: { name: 'asc' },
       take: 100,

@@ -64,6 +64,7 @@ interface TradeCardProps {
           name: string
           localImage: string | null
           multiplier: number
+          valueMultiplier?: number
         }
       }>
       calculatedIncome?: string | null
@@ -105,7 +106,7 @@ function hasTraitStackedBadge(traitCount: number = 0): boolean {
 // Trait icons with hover tooltip - same style as TradeItemDisplay
 // size: 'sm' for mobile/desktop compact, 'md' for iPad enhanced view
 // maxShow is the TOTAL slots including the "+X" indicator
-function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trait: { id: string; name: string; localImage: string | null; multiplier: number } }>; maxShow?: number; size?: 'sm' | 'md' }) {
+function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trait: { id: string; name: string; localImage: string | null; multiplier: number; valueMultiplier?: number } }>; maxShow?: number; size?: 'sm' | 'md' }) {
   const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
   const iconsRef = useRef<HTMLDivElement>(null)
@@ -225,7 +226,7 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
 
   // Calculate trait-adjusted robux value
   const traitAdjustedValue = item.robuxValue != null
-    ? Math.round(item.robuxValue * calculateTraitValueMultiplier(traits.map(t => t.trait.name)))
+    ? Math.round(item.robuxValue * calculateTraitValueMultiplier(traits.map(t => t.trait)))
     : null
 
   // Size classes based on size prop
@@ -351,7 +352,7 @@ function IPadEnhancedItem({ item, size = 'md' }: { item: TradeCardProps['trade']
 
   // Calculate trait-adjusted robux value
   const traitAdjustedValue = item.robuxValue != null
-    ? Math.round(item.robuxValue * calculateTraitValueMultiplier(traits.map(t => t.trait.name)))
+    ? Math.round(item.robuxValue * calculateTraitValueMultiplier(traits.map(t => t.trait)))
     : null
 
   // Size-dependent values
@@ -513,7 +514,7 @@ function TotalsDisplay({
     brainrotName: string
     mutationName: string
     robuxValue: number
-    traitNames: string[]
+    traitNames: Array<string | { name: string; valueMultiplier?: number }>
     valueFallback?: boolean
     valueFallbackSource?: string | null
   }>
@@ -599,7 +600,7 @@ function calculateTotalValue(items: TradeCardProps['trade']['items']): {
     brainrotName: string
     mutationName: string
     robuxValue: number
-    traitNames: string[]
+    traitNames: Array<string | { name: string; valueMultiplier?: number }>
     valueFallback?: boolean
     valueFallbackSource?: string | null
   }>
@@ -611,7 +612,7 @@ function calculateTotalValue(items: TradeCardProps['trade']['items']): {
     brainrotName: string
     mutationName: string
     robuxValue: number
-    traitNames: string[]
+    traitNames: Array<string | { name: string; valueMultiplier?: number }>
     valueFallback?: boolean
     valueFallbackSource?: string | null
   }> = []
@@ -621,8 +622,8 @@ function calculateTotalValue(items: TradeCardProps['trade']['items']): {
     if (item.robuxValue != null) {
       hasValue = true
       // Apply trait value multiplier
-      const traitNames = item.traits?.map(t => t.trait.name) || []
-      const traitMult = calculateTraitValueMultiplier(traitNames)
+      const traitObjects = item.traits?.map(t => t.trait) || []
+      const traitMult = calculateTraitValueMultiplier(traitObjects)
       total += Math.round(item.robuxValue * traitMult)
       // Check if this item has an estimated/inherited value
       if (item.valueFallback) {
@@ -632,7 +633,7 @@ function calculateTotalValue(items: TradeCardProps['trade']['items']): {
         brainrotName: item.brainrot.name,
         mutationName: item.mutation?.name || 'Default',
         robuxValue: item.robuxValue,
-        traitNames,
+        traitNames: traitObjects,
         valueFallback: item.valueFallback,
         valueFallbackSource: item.valueFallbackSource,
       })

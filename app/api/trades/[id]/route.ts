@@ -58,7 +58,7 @@ export async function GET(
             traits: {
               include: {
                 trait: {
-                  select: { id: true, name: true, localImage: true, multiplier: true },
+                  select: { id: true, name: true, localImage: true, multiplier: true, valueMultiplier: true },
                 },
               },
             },
@@ -110,7 +110,7 @@ export async function GET(
                 traits: {
                   include: {
                     trait: {
-                      select: { id: true, name: true, localImage: true, multiplier: true },
+                      select: { id: true, name: true, localImage: true, multiplier: true, valueMultiplier: true },
                     },
                   },
                 },

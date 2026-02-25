@@ -232,7 +232,7 @@ export async function GET(request: NextRequest) {
             traits: {
               include: {
                 trait: {
-                  select: { id: true, name: true, localImage: true, multiplier: true },
+                  select: { id: true, name: true, localImage: true, multiplier: true, valueMultiplier: true },
                 },
               },
             },
@@ -666,7 +666,7 @@ export async function POST(request: NextRequest) {
             },
             traits: {
               include: {
-                trait: { select: { multiplier: true } },
+                trait: { select: { multiplier: true, valueMultiplier: true } },
               },
             },
           },
