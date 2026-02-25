@@ -48,7 +48,9 @@ export function prefetchBrainrots() {
       brainrotCache.loading = false
       brainrotCache.lastFetched = Date.now()
     })
-    .catch(() => { brainrotCache.loading = false })
+    .catch(() => {
+      brainrotCache.loading = false
+    })
 }
 
 // Force refresh the cache

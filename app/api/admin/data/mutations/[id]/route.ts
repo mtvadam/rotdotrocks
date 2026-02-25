@@ -15,7 +15,7 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
-    const { multiplier, isActive } = body
+    const { multiplier, isActive, gradientColors, gradientDirection, isAnimated } = body
 
     // Validate the mutation exists
     const existing = await prisma.mutation.findUnique({ where: { id } })
@@ -30,6 +30,15 @@ export async function PATCH(
     }
     if (isActive !== undefined) {
       updateData.isActive = isActive
+    }
+    if (gradientColors !== undefined) {
+      updateData.gradientColors = gradientColors || null
+    }
+    if (gradientDirection !== undefined) {
+      updateData.gradientDirection = gradientDirection || null
+    }
+    if (isAnimated !== undefined) {
+      updateData.isAnimated = isAnimated
     }
 
     const updated = await prisma.mutation.update({

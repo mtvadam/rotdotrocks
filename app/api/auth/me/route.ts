@@ -18,6 +18,10 @@ export async function GET() {
         role: user.role,
         gems: user.gems,
       },
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=30',
+      },
     })
   } catch (error) {
     // Log without exposing details

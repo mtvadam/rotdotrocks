@@ -59,6 +59,10 @@ export async function GET(request: NextRequest) {
       nextRefreshAt: nextRefreshAt.toISOString(),
       dailyAmount: DAILY_GEMS,
       refreshed: updated.count > 0,
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=30',
+      },
     })
   } catch (error) {
     console.error('Get gems error:', error)

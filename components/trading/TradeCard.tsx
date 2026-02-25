@@ -163,7 +163,7 @@ function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trai
             className={`${iconSize} rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0`}
           >
             {t.trait.localImage ? (
-              <Image src={t.trait.localImage} alt={t.trait.name} width={iconPx} height={iconPx} className="object-cover" />
+              <Image src={t.trait.localImage} alt={t.trait.name} width={iconPx} height={iconPx} unoptimized className="object-cover" />
             ) : (
               <span className={`w-full h-full flex items-center justify-center ${fontSize} text-gray-400`}>{t.trait.name.charAt(0)}</span>
             )}
@@ -185,7 +185,7 @@ function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trai
             <div key={t.trait.id} className="flex items-center gap-2 py-1">
               <div className="w-5 h-5 rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0">
                 {t.trait.localImage ? (
-                  <Image src={t.trait.localImage} alt={t.trait.name} width={20} height={20} className="object-cover" />
+                  <Image src={t.trait.localImage} alt={t.trait.name} width={20} height={20} unoptimized className="object-cover" />
                 ) : (
                   <span className="w-full h-full flex items-center justify-center text-[8px] text-gray-400">{t.trait.name.charAt(0)}</span>
                 )}
@@ -254,6 +254,7 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
               alt={item.brainrot.name}
               width={imageSize}
               height={imageSize}
+              unoptimized
               className="object-contain w-full h-full"
             />
           ) : (
@@ -376,6 +377,7 @@ function IPadEnhancedItem({ item, size = 'md' }: { item: TradeCardProps['trade']
               alt={item.brainrot.name}
               width={imgSize}
               height={imgSize}
+              unoptimized
               className="object-contain w-full h-full"
             />
           ) : (

@@ -34,6 +34,7 @@ export async function GET() {
           id: true,
           name: true,
           multiplier: true,
+          valueMultiplier: true,
           isActive: true,
           localImage: true,
         },
@@ -45,6 +46,9 @@ export async function GET() {
           name: true,
           multiplier: true,
           isActive: true,
+          gradientColors: true,
+          gradientDirection: true,
+          isAnimated: true,
         },
       }),
       prisma.event.findMany({

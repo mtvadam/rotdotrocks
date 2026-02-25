@@ -98,13 +98,21 @@ export async function GET(request: Request) {
         const fetchedAt = parsed.fetchedAt ? new Date(parsed.fetchedAt) : null
         const isRecent = fetchedAt && (Date.now() - fetchedAt.getTime()) < 2 * 60 * 60 * 1000
         if (isRecent && (parsed.live || parsed.upcoming)) {
-          return NextResponse.json({ live: parsed.live, upcoming: parsed.upcoming })
+          return NextResponse.json({ live: parsed.live, upcoming: parsed.upcoming }, {
+            headers: {
+              'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300',
+            },
+          })
         }
       }
     }
 
     const data = await fetchAndCache()
-    return NextResponse.json(data)
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300',
+      },
+    })
   } catch {
     return NextResponse.json({ live: null, upcoming: null })
   }

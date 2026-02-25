@@ -454,7 +454,7 @@ function BrainrotSearch({ label, placeholder, selected, onSelect, onRemove, brai
                 className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-darkbg-700/80 transition-colors text-left"
               >
                 {brainrot.localImage && (
-                  <Image src={brainrot.localImage} alt="" width={24} height={24} className="rounded" />
+                  <Image src={brainrot.localImage} alt="" width={24} height={24} unoptimized className="rounded" />
                 )}
                 <span className="text-sm text-white truncate">{brainrot.name}</span>
               </button>
@@ -468,7 +468,7 @@ function BrainrotSearch({ label, placeholder, selected, onSelect, onRemove, brai
           {selected.map((brainrot) => (
             <div key={brainrot.id} className="flex items-center gap-1 pl-1 pr-2 py-0.5 bg-darkbg-700 rounded-lg">
               {brainrot.localImage && (
-                <Image src={brainrot.localImage} alt="" width={18} height={18} className="rounded" />
+                <Image src={brainrot.localImage} alt="" width={18} height={18} unoptimized className="rounded" />
               )}
               <span className="text-xs text-white">{brainrot.name}</span>
               <button onClick={() => onRemove(brainrot.id)} className="p-0.5 hover:bg-darkbg-600 rounded">

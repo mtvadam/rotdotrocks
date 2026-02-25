@@ -149,7 +149,7 @@ const TraitIcons = memo(function TraitIcons({ traits, maxShow = 3 }: { traits: A
             className="w-5 h-5 rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0"
           >
             {t.trait.localImage ? (
-              <Image src={t.trait.localImage} alt={t.trait.name} width={20} height={20} className="object-cover" sizes="20px" />
+              <Image src={t.trait.localImage} alt={t.trait.name} width={20} height={20} unoptimized className="object-cover" />
             ) : (
               <span className="w-full h-full flex items-center justify-center text-[8px] text-gray-400">{t.trait.name.charAt(0)}</span>
             )}
@@ -174,7 +174,7 @@ const TraitIcons = memo(function TraitIcons({ traits, maxShow = 3 }: { traits: A
                 <div key={t.trait.id} className="flex items-center gap-2 py-1">
                   <div className="w-5 h-5 rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0">
                     {t.trait.localImage ? (
-                      <Image src={t.trait.localImage} alt={t.trait.name} width={20} height={20} className="object-cover" sizes="20px" />
+                      <Image src={t.trait.localImage} alt={t.trait.name} width={20} height={20} unoptimized className="object-cover" />
                     ) : (
                       <span className="w-full h-full flex items-center justify-center text-[8px] text-gray-400">{t.trait.name.charAt(0)}</span>
                     )}
@@ -286,8 +286,8 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
                 alt={item.brainrot.name}
                 width={imageSize}
                 height={imageSize}
+                unoptimized
                 className="object-contain w-full h-full"
-                sizes="56px"
               />
             ) : (
               <span className="text-xs text-gray-400">?</span>
@@ -356,8 +356,8 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
             alt={item.brainrot.name}
             width={imageSize}
             height={imageSize}
+            unoptimized
             className="rounded-lg object-contain max-w-full max-h-full"
-            sizes="(max-width: 640px) 48px, 64px"
           />
         ) : (
           <div

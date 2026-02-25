@@ -67,7 +67,44 @@ export function getMutationClass(name: string): string {
     case 'yinyang': return 'mutation-yinyang'
     case 'radioactive': return 'mutation-radioactive'
     case 'cursed': return 'mutation-cursed'
+    case 'divine': return 'mutation-divine'
     default: return 'text-gray-400'
+  }
+}
+
+export interface MutationGradientData {
+  gradientColors?: string | null
+  gradientDirection?: string | null
+  isAnimated?: boolean
+}
+
+export function getMutationInlineStyle(data: MutationGradientData): React.CSSProperties | undefined {
+  if (!data.gradientColors) return undefined
+
+  let colors: string[]
+  try {
+    colors = JSON.parse(data.gradientColors)
+  } catch {
+    return undefined
+  }
+
+  if (!colors || colors.length === 0) return undefined
+
+  if (colors.length === 1) {
+    return {
+      color: colors[0],
+      textShadow: `0 0 10px ${colors[0]}40`,
+    }
+  }
+
+  const direction = data.gradientDirection || '90deg'
+  return {
+    background: `linear-gradient(${direction}, ${colors.join(', ')})`,
+    backgroundClip: 'text',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundSize: data.isAnimated ? '200% 200%' : undefined,
+    animation: data.isAnimated ? 'mutation-gradient 3s linear infinite' : undefined,
   }
 }
 

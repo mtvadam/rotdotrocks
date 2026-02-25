@@ -3,19 +3,16 @@
  * These are SEPARATE from the trait.multiplier field (which is for income calculation)
  *
  * Value multipliers affect the USD/Robux value of a brainrot based on its traits
+ * Uses DB valueMultiplier field, with hardcoded fallbacks for legacy data
  */
 
-// Trait name (case-insensitive) -> value multiplier
-// 1.5 = +50%, 1.2 = +20%, 1.1 = +10%, 1.0 = no change, 0.9 = -10%
+// Hardcoded fallback for traits not yet in DB
 const TRAIT_VALUE_MULTIPLIERS: Record<string, number> = {
-  // +50% value
   'strawberry': 1.5,
   'meowl': 1.5,
   '10b': 1.5,
   'skibidi': 1.5,
   'lightning': 1.5,
-
-  // +20% value
   'ufo': 1.2,
   'rose': 1.2,
   'brazil': 1.2,
@@ -33,8 +30,6 @@ const TRAIT_VALUE_MULTIPLIERS: Record<string, number> = {
   'wet': 1.2,
   'tie': 1.2,
   'witching hour': 1.2,
-
-  // +10% value
   'shark fin': 1.1,
   'spider': 1.1,
   'paint': 1.1,
@@ -46,22 +41,20 @@ const TRAIT_VALUE_MULTIPLIERS: Record<string, number> = {
   'rip tombstone': 1.1,
   'nyan': 1.1,
   'explosive': 1.1,
-
-  // +20% value
   'bubblegum': 1.2,
-
-  // No value change
   'crab claw': 1.0,
-
-  // -10% value (ruins)
   'sombrero': 0.9,
   'taco': 0.9,
 }
 
 /**
  * Get the value multiplier for a single trait
+ * Uses provided DB value if available, falls back to hardcoded map
  */
-export function getTraitValueMultiplier(traitName: string): number {
+export function getTraitValueMultiplier(traitName: string, dbValueMultiplier?: number): number {
+  if (dbValueMultiplier !== undefined && dbValueMultiplier !== 1.0) {
+    return dbValueMultiplier
+  }
   return TRAIT_VALUE_MULTIPLIERS[traitName.toLowerCase()] ?? 1.0
 }
 
@@ -81,6 +74,21 @@ export function calculateTraitValueMultiplier(traitNames: string[]): number {
   }
 
   // Return 1 + total bonus, minimum 0.1 to prevent negative/zero values
+  return Math.max(0.1, 1 + totalBonus)
+}
+
+/**
+ * Calculate the combined value multiplier using trait objects with DB valueMultiplier
+ */
+export function calculateTraitValueMultiplierFromDb(traits: { name: string; valueMultiplier?: number }[]): number {
+  if (traits.length === 0) return 1.0
+
+  let totalBonus = 0
+  for (const trait of traits) {
+    const mult = getTraitValueMultiplier(trait.name, trait.valueMultiplier)
+    totalBonus += mult - 1
+  }
+
   return Math.max(0.1, 1 + totalBonus)
 }
 

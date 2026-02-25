@@ -73,6 +73,9 @@ export default function RootLayout({
           <CookieConsent />
         </Providers>
         <Analytics />
+        <Script id="sw-register" strategy="afterInteractive">
+          {`if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}`}
+        </Script>
       </body>
     </html>
   )

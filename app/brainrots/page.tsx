@@ -64,14 +64,8 @@ function getRarityBorder(rarity: string | null): { border: string; animated?: st
   return { border: 'border-darkbg-700 hover:border-darkbg-600' }
 }
 
-// Add cache busting query param to prevent stale images
-function getImageUrl(url: string | null, cacheBuster: number): string {
+function getImageUrl(url: string | null): string {
   if (!url) return ''
-  // Only add cache buster to Vercel Blob URLs to force refresh after uploads
-  if (url.includes('blob.vercel-storage.com')) {
-    const separator = url.includes('?') ? '&' : '?'
-    return `${url}${separator}v=${cacheBuster}`
-  }
   return url
 }
 
@@ -82,8 +76,6 @@ export default function BrainrotsPage() {
   const [rarityFilter, setRarityFilter] = useState<string>('all')
   const [scrolled, setScrolled] = useState(false)
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
-  // Cache buster timestamp - updated when data is fetched to force image refresh
-  const [imageCacheBuster, setImageCacheBuster] = useState(cache.lastFetched || Date.now())
 
   // Toggle card on tap (for mobile)
   const handleCardTap = useCallback((id: string) => {
@@ -105,7 +97,6 @@ export default function BrainrotsPage() {
 
     if (cache.loaded && !isStale) {
       setBrainrots(cache.brainrots)
-      setImageCacheBuster(cache.lastFetched)
       setLoading(false)
       return
     }
@@ -114,19 +105,16 @@ export default function BrainrotsPage() {
     if (isStale) {
       refreshBrainrotCache().then((freshBrainrots) => {
         setBrainrots(freshBrainrots)
-        setImageCacheBuster(Date.now())
         setLoading(false)
       })
     } else {
       fetch('/api/brainrots/all')
         .then(res => res.json())
         .then(data => {
-          const now = Date.now()
           cache.brainrots = data.brainrots || []
           cache.loaded = true
-          cache.lastFetched = now
+          cache.lastFetched = Date.now()
           setBrainrots(cache.brainrots)
-          setImageCacheBuster(now)
           setLoading(false)
         })
         .catch(() => setLoading(false))
@@ -221,9 +209,11 @@ export default function BrainrotsPage() {
                   {/* Image container */}
                   <div className="aspect-square p-3 sm:p-4 relative">
                     <Image
-                      src={getImageUrl(brainrot.localImage, imageCacheBuster) || brainrot.imageUrl}
+                      src={getImageUrl(brainrot.localImage) || brainrot.imageUrl}
                       alt={brainrot.name}
                       fill
+                      unoptimized
+                      loading="lazy"
                       className="object-contain p-2 group-hover:scale-110 transition-transform duration-300"
                     />
                   </div>
@@ -239,10 +229,12 @@ export default function BrainrotsPage() {
                   {/* Stats overlay - hover on desktop, tap on mobile */}
                   <div className={`absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-200 flex flex-col items-center justify-center p-2 sm:p-3 overflow-hidden ${isActive ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}>
                     <Image
-                      src={getImageUrl(brainrot.localImage, imageCacheBuster) || brainrot.imageUrl}
+                      src={getImageUrl(brainrot.localImage) || brainrot.imageUrl}
                       alt={brainrot.name}
                       width={40}
                       height={40}
+                      unoptimized
+                      loading="lazy"
                       className="object-contain mb-1 sm:mb-2 flex-shrink-0"
                     />
                     <p className="text-white font-bold text-center text-[10px] sm:text-xs mb-1 sm:mb-2 truncate w-full px-1">{brainrot.name}</p>

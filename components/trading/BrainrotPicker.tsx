@@ -49,14 +49,12 @@ const dataCache: {
   mutations: Mutation[]
   traits: Trait[]
   loaded: boolean
-  imagesPreloaded: boolean
   loading: boolean
 } = {
   brainrots: [],
   mutations: [],
   traits: [],
   loaded: false,
-  imagesPreloaded: false,
   loading: false,
 }
 
@@ -75,39 +73,7 @@ export function prefetchPickerData() {
     dataCache.traits = t.traits || []
     dataCache.loaded = true
     dataCache.loading = false
-    preloadImages(dataCache.brainrots)
   })
-}
-
-// Preload all brainrot images for instant display
-function preloadImages(brainrots: Brainrot[]) {
-  if (dataCache.imagesPreloaded) return
-  dataCache.imagesPreloaded = true
-
-  // Preload images in batches to avoid overwhelming the browser
-  const batchSize = 20
-  let index = 0
-  // Keep a strong reference to all Image objects so the GC cannot reclaim
-  // them before their loads complete (fixes PERF-01).
-  const imageRefs: HTMLImageElement[] = []
-
-  const loadBatch = () => {
-    const batch = brainrots.slice(index, index + batchSize)
-    batch.forEach((brainrot) => {
-      if (brainrot.localImage) {
-        const img = new window.Image()
-        img.src = brainrot.localImage
-        imageRefs.push(img)
-      }
-    })
-    index += batchSize
-    if (index < brainrots.length) {
-      // Load next batch after a short delay
-      setTimeout(loadBatch, 50)
-    }
-  }
-
-  loadBatch()
 }
 
 interface SelectedItem {
@@ -378,8 +344,6 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
       setMutations(dataCache.mutations)
       setTraits(dataCache.traits)
       setLoading(false)
-      // Preload images (no-op if already done)
-      preloadImages(dataCache.brainrots)
       return
     }
 
@@ -398,9 +362,6 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
       dataCache.mutations = mutationsData
       dataCache.traits = traitsData
       dataCache.loaded = true
-
-      // Preload all images in background
-      preloadImages(brainrotsData)
 
       setBrainrots(brainrotsData)
       setMutations(mutationsData)
@@ -637,14 +598,15 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                       aspect-square flex flex-col items-center justify-center
                     "
                   >
-                    <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center">
+                    <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-lg bg-darkbg-700">
                       {brainrot.localImage ? (
                         <Image
                           src={brainrot.localImage}
                           alt={brainrot.name}
                           width={48}
                           height={48}
-                          priority={index < 16}
+                          unoptimized
+                          loading="lazy"
                           className="rounded-lg object-contain max-w-full max-h-full transition-transform duration-200 group-hover:scale-110"
                         />
                       ) : (
@@ -696,6 +658,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                       alt={selectedBrainrot.name}
                       width={56}
                       height={56}
+                      unoptimized
                       className="rounded-lg"
                     />
                   </motion.div>
@@ -867,7 +830,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                           `}
                         >
                           {trait.localImage ? (
-                            <Image src={trait.localImage} alt={trait.name} width={24} height={24} className="rounded" />
+                            <Image src={trait.localImage} alt={trait.name} width={24} height={24} unoptimized className="rounded" />
                           ) : (
                             <div className="w-6 h-6 rounded bg-darkbg-700" />
                           )}
@@ -1084,7 +1047,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
                   {selectedBrainrot && (
                     <div className="flex items-center gap-3 p-3 bg-darkbg-800 rounded-lg">
                       {selectedBrainrot.localImage && (
-                        <Image src={selectedBrainrot.localImage} alt={selectedBrainrot.name} width={40} height={40} className="rounded" />
+                        <Image src={selectedBrainrot.localImage} alt={selectedBrainrot.name} width={40} height={40} unoptimized className="rounded" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-white text-sm truncate">{selectedBrainrot.name}</p>

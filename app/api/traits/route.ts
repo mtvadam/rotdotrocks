@@ -31,7 +31,11 @@ export async function GET(request: NextRequest) {
       take: 100,
     })
 
-    return NextResponse.json({ traits })
+    return NextResponse.json({ traits }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
+    })
   } catch (error) {
     console.error('Get traits error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

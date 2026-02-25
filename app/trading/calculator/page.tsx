@@ -233,7 +233,7 @@ function TraitIcons({ traits, maxShow = 4 }: { traits: Array<{ id: string; name:
         {visible.map((t) => (
           <div key={t.id} className="w-4 h-4 rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0">
             {t.localImage ? (
-              <Image src={t.localImage} alt={t.name} width={16} height={16} className="object-cover" />
+              <Image src={t.localImage} alt={t.name} width={16} height={16} unoptimized className="object-cover" />
             ) : (
               <span className="w-full h-full flex items-center justify-center text-[7px] text-gray-400">{t.name.charAt(0)}</span>
             )}
@@ -257,7 +257,7 @@ function TraitIcons({ traits, maxShow = 4 }: { traits: Array<{ id: string; name:
               <div key={t.id} className="flex items-center gap-2 py-0.5">
                 <div className="w-5 h-5 rounded-full bg-darkbg-700 overflow-hidden flex-shrink-0">
                   {t.localImage ? (
-                    <Image src={t.localImage} alt={t.name} width={20} height={20} className="object-cover" />
+                    <Image src={t.localImage} alt={t.name} width={20} height={20} unoptimized className="object-cover" />
                   ) : (
                     <span className="w-full h-full flex items-center justify-center text-[8px] text-gray-400">{t.name.charAt(0)}</span>
                   )}
@@ -308,6 +308,7 @@ function CalculatorItem({
             alt={item.brainrot.name}
             width={44}
             height={44}
+            unoptimized
             className="rounded-lg"
           />
         ) : (

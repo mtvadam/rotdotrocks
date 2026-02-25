@@ -20,7 +20,11 @@ export async function GET() {
       orderBy: { name: 'asc' },
     })
 
-    return NextResponse.json({ mutations })
+    return NextResponse.json({ mutations }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
+    })
   } catch (error) {
     console.error('Get mutations error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

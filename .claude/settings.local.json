@@ -35,7 +35,11 @@
       "Bash(python3:*)",
       "Bash(node -e:*)",
       "WebFetch(domain:stealabrainrot.fandom.com)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(wc:*)",
+      "Bash(npx next build:*)",
+      "Bash(lsof:*)",
+      "Bash(psql \"postgresql://postgres.jjymclcmgkcqcaubcnxo:Boudjemaa08@aws-0-us-west-2.pooler.supabase.com:6543/postgres\" -c 'ALTER TABLE \"\"Mutation\"\" ADD COLUMN IF NOT EXISTS \"\"gradientColors\"\" TEXT; ALTER TABLE \"\"Mutation\"\" ADD COLUMN IF NOT EXISTS \"\"gradientDirection\"\" TEXT; ALTER TABLE \"\"Mutation\"\" ADD COLUMN IF NOT EXISTS \"\"isAnimated\"\" BOOLEAN NOT NULL DEFAULT false; ALTER TABLE \"\"Trait\"\" ADD COLUMN IF NOT EXISTS \"\"valueMultiplier\"\" DOUBLE PRECISION NOT NULL DEFAULT 1.0;')"
     ]
   }
 }

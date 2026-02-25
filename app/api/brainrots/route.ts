@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         localImage: true,
+        imageUrl: true,
         baseIncome: true,
         rarity: true,
         demand: true,
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
     const serialized = brainrots.map((b) => ({
       id: b.id,
       name: b.name,
-      localImage: b.localImage,
+      localImage: b.localImage || b.imageUrl,
       baseIncome: b.baseIncome.toString(),
       rarity: b.rarity,
       demand: b.demand,
@@ -63,7 +64,11 @@ export async function GET(request: NextRequest) {
       })),
     }))
 
-    return NextResponse.json({ brainrots: serialized })
+    return NextResponse.json({ brainrots: serialized }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+      },
+    })
   } catch (error) {
     console.error('Get brainrots error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

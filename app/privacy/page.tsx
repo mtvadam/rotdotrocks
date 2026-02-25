@@ -1,5 +1,7 @@
 import { Metadata } from 'next'
 
+export const dynamic = 'force-static'
+
 export const metadata: Metadata = {
   title: 'Privacy Policy | rot.rocks',
   description: 'Privacy Policy for rot.rocks',

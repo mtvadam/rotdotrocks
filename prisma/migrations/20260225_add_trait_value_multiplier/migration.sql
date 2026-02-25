@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Trait" ADD COLUMN "valueMultiplier" DOUBLE PRECISION NOT NULL DEFAULT 1.0;

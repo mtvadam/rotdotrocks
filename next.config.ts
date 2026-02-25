@@ -27,6 +27,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   images: {
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 604800,
     remotePatterns: [
       // Vercel Blob storage — used for brainrot images and OG images
       {
@@ -51,6 +53,24 @@ const nextConfig: NextConfig = {
       {
         source: '/:path*',
         headers: securityHeaders,
+      },
+      {
+        source: '/brainrot-images/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/trade-only/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
       },
     ]
   },

@@ -44,7 +44,11 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({ notifications, unreadCount })
+    return NextResponse.json({ notifications, unreadCount }, {
+      headers: {
+        'Cache-Control': 'private, max-age=10',
+      },
+    })
   } catch (error) {
     console.error('Get notifications error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

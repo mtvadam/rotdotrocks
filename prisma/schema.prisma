@@ -244,14 +244,15 @@ model Brainrot {
 }
 
 model Trait {
-  id         String   @id @default(cuid())
-  name       String   @unique
-  imageUrl   String
-  localImage String?  // Local path to downloaded image
-  multiplier Float    // Multipliers ADD together, not multiply
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String   @unique
+  imageUrl        String
+  localImage      String?  // Local path to downloaded image
+  multiplier      Float    // Multipliers ADD together, not multiply
+  valueMultiplier Float    @default(1.0) // Value amplifier: 1.5 = +50%, 0.9 = -10%
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   inventoryItemTraits InventoryItemTrait[]
   tradeItemTraits     TradeItemTrait[]
@@ -276,12 +277,15 @@ model Event {
 }
 
 model Mutation {
-  id         String   @id @default(cuid())
-  name       String   @unique
-  multiplier Float
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                String   @id @default(cuid())
+  name              String   @unique
+  multiplier        Float
+  isActive          Boolean  @default(true)
+  gradientColors    String?  // JSON array of hex colors, e.g. '["#ffd700"]' or '["#ff0000","#00ff00"]'
+  gradientDirection String?  // CSS gradient direction, e.g. "90deg", "180deg"
+  isAnimated        Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   inventoryItems InventoryItem[]
   tradeItems     TradeItem[]

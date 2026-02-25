@@ -170,6 +170,7 @@ export function ReportModal({
                         alt={brainrot.name}
                         width={40}
                         height={40}
+                        unoptimized
                         className="rounded"
                       />
                     )}
@@ -196,6 +197,7 @@ export function ReportModal({
                             alt={trait.name}
                             width={20}
                             height={20}
+                            unoptimized
                             className="rounded"
                           />
                         )}

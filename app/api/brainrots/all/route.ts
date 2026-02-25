@@ -41,14 +41,18 @@ export async function GET() {
       id: b.id,
       name: b.name,
       imageUrl: b.imageUrl,
-      localImage: b.localImage,
+      localImage: b.localImage || b.imageUrl,
       baseCost: b.baseCost.toString(),
       baseIncome: b.baseIncome.toString(),
       rarity: b.rarity,
       robuxValue: b.mutationValues[0]?.robuxValue || null,
     }))
 
-    return NextResponse.json({ brainrots: serialized })
+    return NextResponse.json({ brainrots: serialized }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300',
+      },
+    })
   } catch (error) {
     console.error('Get all brainrots error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

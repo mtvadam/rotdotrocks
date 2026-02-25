@@ -79,11 +79,34 @@ export function NotificationBell() {
     }
   }
 
-  // Initial fetch and polling
+  // Initial fetch and polling (pause when tab is hidden to save edge requests)
   useEffect(() => {
     fetchNotifications()
-    const interval = setInterval(fetchNotifications, 30000)
-    return () => clearInterval(interval)
+    let interval: ReturnType<typeof setInterval>
+
+    const startPolling = () => {
+      interval = setInterval(fetchNotifications, 60000)
+    }
+    const stopPolling = () => {
+      clearInterval(interval)
+    }
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        stopPolling()
+      } else {
+        fetchNotifications()
+        startPolling()
+      }
+    }
+
+    startPolling()
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      stopPolling()
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [])
 
   // Mark single notification as read

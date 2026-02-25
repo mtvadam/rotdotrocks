@@ -29,11 +29,15 @@ interface Brainrot extends DataItem {
 
 interface Trait extends DataItem {
   multiplier: number
+  valueMultiplier: number
   localImage: string | null
 }
 
 interface Mutation extends DataItem {
   multiplier: number
+  gradientColors: string | null
+  gradientDirection: string | null
+  isAnimated: boolean
 }
 
 // --- Scrape response types ---
@@ -157,14 +161,18 @@ export default function DataManagementPage() {
   const [importing, setImporting] = useState(false)
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
   const [uploadingBrainrotId, setUploadingBrainrotId] = useState<string | null>(null)
+  const [uploadingTraitId, setUploadingTraitId] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
   // Collapsible sections in scrape modal
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
 
-  // Add new item modal
-  const [addModalOpen, setAddModalOpen] = useState(false)
-  const [newItemData, setNewItemData] = useState<Record<string, string>>({})
+  // Create new item state
+  const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [newMutation, setNewMutation] = useState({ name: '', multiplier: '1.5', gradientColors: ['#ffd700'], gradientDirection: '90deg', isAnimated: false })
+  const [newTrait, setNewTrait] = useState({ name: '', multiplier: '1.2', valueMultiplier: '1.0' })
+  const [newBrainrot, setNewBrainrot] = useState({ name: '', rarity: '', baseCost: '0', baseIncome: '0' })
 
   // Delete confirmation
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null; name: string }>({
@@ -310,6 +318,88 @@ export default function DataManagementPage() {
       console.error('Failed to delete')
     }
     setDeleting(false)
+  }
+
+  const handleCreate = async () => {
+    setCreating(true)
+    try {
+      if (tab === 'mutations') {
+        const res = await fetch('/api/admin/data/mutations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: newMutation.name,
+            multiplier: newMutation.multiplier,
+            gradientColors: newMutation.gradientColors.length > 0 ? JSON.stringify(newMutation.gradientColors) : null,
+            gradientDirection: newMutation.gradientDirection,
+            isAnimated: newMutation.isAnimated,
+          }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setMutations(prev => [...prev, data.mutation])
+          setCreateModalOpen(false)
+          setNewMutation({ name: '', multiplier: '1.5', gradientColors: ['#ffd700'], gradientDirection: '90deg', isAnimated: false })
+        }
+      } else if (tab === 'traits') {
+        const res = await fetch('/api/admin/data/traits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: newTrait.name,
+            multiplier: newTrait.multiplier,
+            valueMultiplier: newTrait.valueMultiplier,
+          }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setTraits(prev => [...prev, data.trait])
+          setCreateModalOpen(false)
+          setNewTrait({ name: '', multiplier: '1.2', valueMultiplier: '1.0' })
+        }
+      } else if (tab === 'brainrots') {
+        const res = await fetch('/api/admin/data/brainrots', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: newBrainrot.name,
+            rarity: newBrainrot.rarity || null,
+            baseCost: newBrainrot.baseCost,
+            baseIncome: newBrainrot.baseIncome,
+          }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setBrainrots(prev => [...prev, data.brainrot])
+          setCreateModalOpen(false)
+          setNewBrainrot({ name: '', rarity: '', baseCost: '0', baseIncome: '0' })
+        }
+      }
+    } catch (err) {
+      console.error('Failed to create')
+    }
+    setCreating(false)
+  }
+
+  const addGradientColor = () => {
+    setNewMutation(prev => ({
+      ...prev,
+      gradientColors: [...prev.gradientColors, '#ffffff'],
+    }))
+  }
+
+  const removeGradientColor = (index: number) => {
+    setNewMutation(prev => ({
+      ...prev,
+      gradientColors: prev.gradientColors.filter((_, i) => i !== index),
+    }))
+  }
+
+  const updateGradientColor = (index: number, color: string) => {
+    setNewMutation(prev => ({
+      ...prev,
+      gradientColors: prev.gradientColors.map((c, i) => i === index ? color : c),
+    }))
   }
 
   // Ranking modal functions
@@ -708,6 +798,55 @@ export default function DataManagementPage() {
     setUploadingBrainrotId(null)
   }
 
+  const handleTraitImageUpload = async (traitId: string, traitName: string, file: File) => {
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError('Invalid file type. Only PNG, JPEG, WebP, and GIF are allowed.')
+      setTimeout(() => setUploadError(null), 5000)
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('File too large. Maximum size is 5MB.')
+      setTimeout(() => setUploadError(null), 5000)
+      return
+    }
+
+    const slug = traitName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    setUploadingTraitId(traitId)
+    setUploadError(null)
+    setUploadSuccess(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('slug', slug)
+      formData.append('folder', 'traits')
+
+      const res = await fetch('/api/admin/upload-image', { method: 'POST', body: formData })
+      const data = await res.json()
+
+      if (res.ok && data.localImage) {
+        setTraits(prev => prev.map(t => t.id === traitId ? { ...t, localImage: data.localImage } : t))
+        const saveRes = await fetch(`/api/admin/data/traits/${traitId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ localImage: data.localImage }),
+        })
+        if (saveRes.ok) {
+          setUploadSuccess('Image uploaded and saved!')
+          setTimeout(() => setUploadSuccess(null), 3000)
+        }
+      } else {
+        setUploadError(data.error || 'Upload failed.')
+        setTimeout(() => setUploadError(null), 5000)
+      }
+    } catch {
+      setUploadError('Upload failed.')
+      setTimeout(() => setUploadError(null), 5000)
+    }
+    setUploadingTraitId(null)
+  }
+
   const filteredBrainrots = useMemo(() =>
     brainrots.filter(b => b.name.toLowerCase().includes(search.toLowerCase())),
     [brainrots, search]
@@ -834,6 +973,13 @@ export default function DataManagementPage() {
             </button>
           )}
         </div>
+        <button
+          onClick={() => setCreateModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Add New
+        </button>
       </div>
 
       {/* Content */}
@@ -1032,6 +1178,7 @@ export default function DataManagementPage() {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Trait</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Multiplier</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Value Amp</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Active</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Actions</th>
                   </tr>
@@ -1047,9 +1194,38 @@ export default function DataManagementPage() {
                       <tr key={trait.id} className="hover:bg-darkbg-800/50">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            {trait.localImage && (
-                              <Image src={trait.localImage} alt={trait.name} width={32} height={32} className="rounded" />
-                            )}
+                            <label className="relative flex-shrink-0 group cursor-pointer" title="Click to change image">
+                              {trait.localImage ? (
+                                <Image src={trait.localImage} alt={trait.name} width={32} height={32} className="rounded object-cover w-8 h-8" />
+                              ) : (
+                                <div className="w-8 h-8 rounded bg-darkbg-700 flex items-center justify-center border-2 border-dashed border-darkbg-600">
+                                  <Upload className="w-3.5 h-3.5 text-gray-500" />
+                                </div>
+                              )}
+                              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-600 rounded-full flex items-center justify-center border-2 border-darkbg-900 group-hover:bg-green-500 transition-colors">
+                                {uploadingTraitId === trait.id ? (
+                                  <Loader2 className="w-2.5 h-2.5 text-white animate-spin" />
+                                ) : (
+                                  <Edit2 className="w-2.5 h-2.5 text-white" />
+                                )}
+                              </div>
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                                <Upload className="w-3.5 h-3.5 text-white" />
+                              </div>
+                              <input
+                                type="file"
+                                accept=".png,.jpg,.jpeg,.webp,.gif,image/png,image/jpeg,image/webp,image/gif"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  if (file) {
+                                    handleTraitImageUpload(trait.id, trait.name, file)
+                                    e.target.value = ''
+                                  }
+                                }}
+                                disabled={uploadingTraitId !== null}
+                              />
+                            </label>
                             <span className="text-white font-medium">{trait.name}</span>
                           </div>
                         </td>
@@ -1066,6 +1242,33 @@ export default function DataManagementPage() {
                               className="w-24 px-2 py-1 bg-darkbg-700 border border-darkbg-600 rounded text-white text-sm font-mono focus:outline-none focus:border-green-500"
                             />
                             <span className="text-gray-500 text-sm">x</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={edits.valueMultiplier !== undefined ? edits.valueMultiplier : trait.valueMultiplier}
+                              onChange={(e) => setEditedTraits(prev => ({
+                                ...prev,
+                                [trait.id]: { ...prev[trait.id], valueMultiplier: parseFloat(e.target.value) }
+                              }))}
+                              className="w-20 px-2 py-1 bg-darkbg-700 border border-darkbg-600 rounded text-white text-sm font-mono focus:outline-none focus:border-green-500"
+                            />
+                            <span className={`text-xs ${
+                              (edits.valueMultiplier !== undefined ? edits.valueMultiplier : trait.valueMultiplier) > 1
+                                ? 'text-green-400'
+                                : (edits.valueMultiplier !== undefined ? edits.valueMultiplier : trait.valueMultiplier) < 1
+                                ? 'text-red-400'
+                                : 'text-gray-500'
+                            }`}>
+                              {(() => {
+                                const v = edits.valueMultiplier !== undefined ? edits.valueMultiplier : trait.valueMultiplier
+                                const pct = Math.round((v - 1) * 100)
+                                return pct >= 0 ? `+${pct}%` : `${pct}%`
+                              })()}
+                            </span>
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -1153,6 +1356,7 @@ export default function DataManagementPage() {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Mutation</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Multiplier</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Gradient</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Active</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Actions</th>
                   </tr>
@@ -1167,7 +1371,24 @@ export default function DataManagementPage() {
                     return (
                       <tr key={mutation.id} className="hover:bg-darkbg-800/50">
                         <td className="px-4 py-3">
-                          <span className="text-white font-medium">{mutation.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-white font-medium">{mutation.name}</span>
+                            {mutation.gradientColors && (
+                              <div
+                                className="w-4 h-4 rounded-full border border-darkbg-600 flex-shrink-0"
+                                style={{
+                                  background: (() => {
+                                    try {
+                                      const colors = JSON.parse(mutation.gradientColors)
+                                      if (colors.length === 1) return colors[0]
+                                      return `linear-gradient(${mutation.gradientDirection || '90deg'}, ${colors.join(', ')})`
+                                    } catch { return '#666' }
+                                  })(),
+                                }}
+                                title="Custom gradient"
+                              />
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -1182,6 +1403,41 @@ export default function DataManagementPage() {
                               className="w-24 px-2 py-1 bg-darkbg-700 border border-darkbg-600 rounded text-white text-sm font-mono focus:outline-none focus:border-green-500"
                             />
                             <span className="text-gray-500 text-sm">x</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            {(() => {
+                              const colors = (() => {
+                                try {
+                                  const raw = (edits as Record<string, unknown>).gradientColors !== undefined
+                                    ? (edits as Record<string, unknown>).gradientColors as string
+                                    : mutation.gradientColors
+                                  return raw ? JSON.parse(raw) as string[] : []
+                                } catch { return [] }
+                              })()
+                              return (
+                                <>
+                                  {colors.map((c: string, ci: number) => (
+                                    <input
+                                      key={ci}
+                                      type="color"
+                                      value={c}
+                                      onChange={(e) => {
+                                        const newColors = [...colors]
+                                        newColors[ci] = e.target.value
+                                        setEditedMutations(prev => ({
+                                          ...prev,
+                                          [mutation.id]: { ...prev[mutation.id], gradientColors: JSON.stringify(newColors) } as Partial<Mutation>,
+                                        }))
+                                      }}
+                                      className="w-6 h-6 rounded cursor-pointer border border-darkbg-600 bg-transparent"
+                                    />
+                                  ))}
+                                  {colors.length === 0 && <span className="text-gray-600 text-xs">None</span>}
+                                </>
+                              )
+                            })()}
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -2054,6 +2310,281 @@ export default function DataManagementPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Create New Item Modal */}
+      <AnimatePresence>
+        {createModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => !creating && setCreateModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-darkbg-900 rounded-2xl border border-darkbg-700 w-full max-w-lg p-6"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">
+                  Add New {tab === 'brainrots' ? 'Brainrot' : tab === 'traits' ? 'Trait' : 'Mutation'}
+                </h3>
+                <button
+                  onClick={() => setCreateModalOpen(false)}
+                  className="p-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Mutation Form */}
+              {tab === 'mutations' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={newMutation.name}
+                      onChange={(e) => setNewMutation(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="e.g. Cosmic"
+                      className="w-full px-3 py-2 bg-darkbg-800 border border-darkbg-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Multiplier</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={newMutation.multiplier}
+                      onChange={(e) => setNewMutation(prev => ({ ...prev, multiplier: e.target.value }))}
+                      className="w-full px-3 py-2 bg-darkbg-800 border border-darkbg-700 rounded-lg text-white font-mono focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+
+                  {/* Gradient Colors */}
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-2">Gradient Colors</label>
+                    <div className="space-y-2">
+                      {newMutation.gradientColors.map((color, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={color}
+                            onChange={(e) => updateGradientColor(index, e.target.value)}
+                            className="w-10 h-10 rounded-lg cursor-pointer border border-darkbg-600 bg-transparent"
+                          />
+                          <input
+                            type="text"
+                            value={color}
+                            onChange={(e) => updateGradientColor(index, e.target.value)}
+                            className="flex-1 px-3 py-2 bg-darkbg-800 border border-darkbg-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-green-500"
+                          />
+                          {newMutation.gradientColors.length > 1 && (
+                            <button
+                              onClick={() => removeGradientColor(index)}
+                              className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        onClick={addGradientColor}
+                        className="flex items-center gap-1 text-sm text-green-400 hover:text-green-300"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Add Color
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Direction */}
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Gradient Direction</label>
+                    <select
+                      value={newMutation.gradientDirection}
+                      onChange={(e) => setNewMutation(prev => ({ ...prev, gradientDirection: e.target.value }))}
+                      className="w-full px-3 py-2 bg-darkbg-800 border border-darkbg-700 rounded-lg text-white focus:outline-none focus:border-green-500"
+                    >
+                      <option value="0deg">Top to Bottom (0deg)</option>
+                      <option value="90deg">Left to Right (90deg)</option>
+                      <option value="180deg">Bottom to Top (180deg)</option>
+                      <option value="270deg">Right to Left (270deg)</option>
+                      <option value="45deg">Diagonal ↘ (45deg)</option>
+                      <option value="135deg">Diagonal ↙ (135deg)</option>
+                    </select>
+                  </div>
+
+                  {/* Animated toggle */}
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-gray-400">Animated</label>
+                    <button
+                      onClick={() => setNewMutation(prev => ({ ...prev, isAnimated: !prev.isAnimated }))}
+                      className={`w-10 h-6 rounded-full transition-colors ${newMutation.isAnimated ? 'bg-green-500' : 'bg-darkbg-600'}`}
+                    >
+                      <div className={`w-4 h-4 bg-white rounded-full transition-transform mx-1 ${newMutation.isAnimated ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  {/* Preview */}
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-2">Preview</label>
+                    <div className="bg-darkbg-800 rounded-lg p-4 text-center">
+                      <span
+                        className="font-bold text-lg animation-always-running"
+                        style={(() => {
+                          const colors = newMutation.gradientColors
+                          if (colors.length === 0) return {}
+                          if (colors.length === 1) return { color: colors[0], textShadow: `0 0 10px ${colors[0]}40` }
+                          return {
+                            background: `linear-gradient(${newMutation.gradientDirection}, ${colors.join(', ')})`,
+                            backgroundClip: 'text',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundSize: newMutation.isAnimated ? '200% 200%' : undefined,
+                            animation: newMutation.isAnimated ? 'mutation-gradient 3s linear infinite' : undefined,
+                          }
+                        })()}
+                      >
+                        {newMutation.name || 'Mutation Name'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Trait Form */}
+              {tab === 'traits' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={newTrait.name}
+                      onChange={(e) => setNewTrait(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="e.g. Flame"
+                      className="w-full px-3 py-2 bg-darkbg-800 border border-darkbg-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Multiplier (income)</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={newTrait.multiplier}
+                          onChange={(e) => setNewTrait(prev => ({ ...prev, multiplier: e.target.value }))}
+                          className="w-full px-3 py-2 bg-darkbg-800 border border-darkbg-700 rounded-lg text-white font-mono focus:outline-none focus:border-green-500"
+                        />
+                        <span className="text-gray-500">x</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Value Amplifier</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={newTrait.valueMultiplier}
+                          onChange={(e) => setNewTrait(prev => ({ ...prev, valueMultiplier: e.target.value }))}
+                          className="w-full px-3 py-2 bg-darkbg-800 border border-darkbg-700 rounded-lg text-white font-mono focus:outline-none focus:border-green-500"
+                        />
+                        <span className={`text-xs ${
+                          parseFloat(newTrait.valueMultiplier) > 1 ? 'text-green-400' : parseFloat(newTrait.valueMultiplier) < 1 ? 'text-red-400' : 'text-gray-500'
+                        }`}>
+                          {(() => {
+                            const pct = Math.round((parseFloat(newTrait.valueMultiplier || '1') - 1) * 100)
+                            return pct >= 0 ? `+${pct}%` : `${pct}%`
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Brainrot Form */}
+              {tab === 'brainrots' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={newBrainrot.name}
+                      onChange={(e) => setNewBrainrot(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="e.g. Ultra Skibidi"
+                      className="w-full px-3 py-2 bg-darkbg-800 border border-darkbg-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Rarity</label>
+                    <input
+                      type="text"
+                      value={newBrainrot.rarity}
+                      onChange={(e) => setNewBrainrot(prev => ({ ...prev, rarity: e.target.value }))}
+                      placeholder="e.g. Common, Rare, Epic, Legendary"
+                      className="w-full px-3 py-2 bg-darkbg-800 border border-darkbg-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Base Cost</label>
+                      <input
+                        type="text"
+                        value={newBrainrot.baseCost}
+                        onChange={(e) => setNewBrainrot(prev => ({ ...prev, baseCost: e.target.value }))}
+                        className="w-full px-3 py-2 bg-darkbg-800 border border-darkbg-700 rounded-lg text-white font-mono focus:outline-none focus:border-green-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Base Income</label>
+                      <input
+                        type="text"
+                        value={newBrainrot.baseIncome}
+                        onChange={(e) => setNewBrainrot(prev => ({ ...prev, baseIncome: e.target.value }))}
+                        className="w-full px-3 py-2 bg-darkbg-800 border border-darkbg-700 rounded-lg text-white font-mono focus:outline-none focus:border-green-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setCreateModalOpen(false)}
+                  disabled={creating}
+                  className="flex-1 px-4 py-2.5 bg-darkbg-800 hover:bg-darkbg-700 text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreate}
+                  disabled={creating || (tab === 'mutations' ? !newMutation.name : tab === 'traits' ? !newTrait.name : !newBrainrot.name)}
+                  className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {creating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Create
+                    </>
+                  )}
+                </button>
               </div>
             </motion.div>
           </motion.div>

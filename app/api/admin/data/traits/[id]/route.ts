@@ -15,7 +15,7 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
-    const { multiplier, isActive } = body
+    const { multiplier, valueMultiplier, isActive, localImage } = body
 
     // Validate the trait exists
     const existing = await prisma.trait.findUnique({ where: { id } })
@@ -28,8 +28,14 @@ export async function PATCH(
     if (multiplier !== undefined) {
       updateData.multiplier = parseFloat(multiplier)
     }
+    if (valueMultiplier !== undefined) {
+      updateData.valueMultiplier = parseFloat(valueMultiplier)
+    }
     if (isActive !== undefined) {
       updateData.isActive = isActive
+    }
+    if (localImage !== undefined) {
+      updateData.localImage = localImage
     }
 
     const updated = await prisma.trait.update({

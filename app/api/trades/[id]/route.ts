@@ -29,6 +29,7 @@ export async function GET(
                 id: true,
                 name: true,
                 localImage: true,
+                imageUrl: true,
                 baseIncome: true,
                 rarity: true,
                 robuxValue: true,
@@ -80,6 +81,7 @@ export async function GET(
                     id: true,
                     name: true,
                     localImage: true,
+                    imageUrl: true,
                     baseIncome: true,
                     rarity: true,
                     robuxValue: true,
@@ -221,7 +223,7 @@ export async function GET(
         brainrot: item.brainrot ? {
           id: item.brainrot.id,
           name: item.brainrot.name,
-          localImage: item.brainrot.localImage,
+          localImage: item.brainrot.localImage || item.brainrot.imageUrl,
           baseIncome: item.brainrot.baseIncome.toString(),
           rarity: item.brainrot.rarity,
           demand: item.brainrot.demand,
@@ -240,7 +242,11 @@ export async function GET(
       })),
     }
 
-    return NextResponse.json({ trade: serializedTrade })
+    return NextResponse.json({ trade: serializedTrade }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+      },
+    })
   } catch (error) {
     console.error('Get trade error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

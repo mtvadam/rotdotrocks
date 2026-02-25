@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { User } from 'lucide-react'
 
 interface RobloxAvatarProps {
@@ -41,12 +40,12 @@ export function RobloxAvatar({ avatarUrl, username, size = 'sm', className = '' 
 
   return (
     <div className={`${sizeClass} relative rounded-full overflow-hidden flex-shrink-0 ${className}`} title={username}>
-      <Image
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
         src={avatarUrl}
         alt={`${username}'s avatar`}
-        fill
-        className="object-cover"
-        unoptimized
+        className="absolute inset-0 w-full h-full object-cover"
+        loading="lazy"
       />
     </div>
   )

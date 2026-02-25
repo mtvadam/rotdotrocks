@@ -559,8 +559,8 @@ export default function HomePage() {
                             src={brainrot.localImage}
                             alt={brainrot.name}
                             fill
+                            unoptimized
                             className="object-contain p-2 group-hover:scale-110 transition-transform duration-500 ease-out drop-shadow-lg relative z-10"
-                            sizes="(max-width: 640px) 160px, (max-width: 768px) 180px, 200px"
                             loading={index < 4 ? "eager" : "lazy"}
                             priority={index < 2}
                           />
@@ -816,8 +816,8 @@ export default function HomePage() {
                         src={selectedBrainrot.localImage}
                         alt={selectedBrainrot.name}
                         fill
+                        unoptimized
                         className="object-contain p-8 relative z-10"
-                        sizes="(max-width: 640px) 160px, (max-width: 768px) 180px, 200px"
                         style={{ filter: tier >= 3 ? `drop-shadow(0 0 18px rgba(${glowRgb},0.75))` : 'drop-shadow(0 6px 14px rgba(0,0,0,0.6))' }}
                       />
                     </motion.div>

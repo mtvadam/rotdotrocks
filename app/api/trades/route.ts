@@ -204,6 +204,7 @@ export async function GET(request: NextRequest) {
                 id: true,
                 name: true,
                 localImage: true,
+                imageUrl: true,
                 baseIncome: true,
                 robuxValue: true,
                 demand: true,
@@ -337,7 +338,7 @@ export async function GET(request: NextRequest) {
           brainrot: item.brainrot ? {
             id: item.brainrot.id,
             name: item.brainrot.name,
-            localImage: item.brainrot.localImage,
+            localImage: item.brainrot.localImage || item.brainrot.imageUrl,
             baseIncome: item.brainrot.baseIncome.toString(),
             demand: item.brainrot.demand,
             trend: item.brainrot.trend,
@@ -464,6 +465,10 @@ export async function GET(request: NextRequest) {
       perPage,
       totalPages,
       hasMore: page < totalPages,
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=30',
+      },
     })
   } catch (error) {
     console.error('Get trades error:', error)

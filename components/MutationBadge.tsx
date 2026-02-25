@@ -1,43 +1,26 @@
 'use client'
 
+import { getMutationClass, getMutationInlineStyle, type MutationGradientData } from '@/lib/utils'
+
 interface MutationBadgeProps {
   name: string
   multiplier?: number
   className?: string
+  gradientColors?: string | null
+  gradientDirection?: string | null
+  isAnimated?: boolean
 }
 
-export function MutationBadge({ name, multiplier, className = '' }: MutationBadgeProps) {
-  const getMutationClass = (mutationName: string): string => {
-    const lowerName = mutationName.toLowerCase()
-
-    switch (lowerName) {
-      case 'gold':
-        return 'mutation-gold'
-      case 'diamond':
-        return 'mutation-diamond'
-      case 'rainbow':
-        return 'mutation-rainbow'
-      case 'bloodrot':
-      case 'bloodroot':
-        return 'mutation-bloodrot'
-      case 'candy':
-        return 'mutation-candy'
-      case 'lava':
-        return 'mutation-lava'
-      case 'galaxy':
-        return 'mutation-galaxy'
-      case 'yin yang':
-      case 'yinyang':
-        return 'mutation-yinyang'
-      case 'radioactive':
-        return 'mutation-radioactive'
-      default:
-        return 'text-gray-400'
-    }
-  }
+export function MutationBadge({ name, multiplier, className = '', gradientColors, gradientDirection, isAnimated }: MutationBadgeProps) {
+  const gradientData: MutationGradientData = { gradientColors, gradientDirection, isAnimated }
+  const inlineStyle = getMutationInlineStyle(gradientData)
+  const cssClass = inlineStyle ? '' : getMutationClass(name)
 
   return (
-    <span className={`animation-always-running font-bold ${getMutationClass(name)} ${className}`}>
+    <span
+      className={`animation-always-running font-bold ${cssClass} ${className}`}
+      style={inlineStyle}
+    >
       {name}
       {multiplier !== undefined && ` (${multiplier}x)`}
     </span>

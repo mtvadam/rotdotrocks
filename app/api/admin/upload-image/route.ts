@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     const slug = formData.get('slug') as string | null
+    const folder = (formData.get('folder') as string | null) || 'brainrots'
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
     const filename = `${slug}.${ext}`
 
     // Upload to Vercel Blob
-    const blob = await put(`brainrot-images/brainrots/${filename}`, file, {
+    const blob = await put(`brainrot-images/${folder}/${filename}`, file, {
       access: 'public',
       contentType: file.type || 'image/png',
       addRandomSuffix: false,
