@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { requireAdmin } from '@/lib/auth'
+import { requireModOrAdmin } from '@/lib/auth'
 
 const CONFIG_KEY = 'trait_streak_multipliers'
 const DEFAULT_STREAKS: Record<string, number> = { '3': 2, '5': 3 }
@@ -8,7 +8,8 @@ const DEFAULT_STREAKS: Record<string, number> = { '3': 2, '5': 3 }
 // GET - fetch current streak config
 export async function GET() {
   try {
-    await requireAdmin()
+    const user = await requireModOrAdmin()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const config = await prisma.systemConfig.findUnique({ where: { key: CONFIG_KEY } })
     const streaks = config ? JSON.parse(config.value) : DEFAULT_STREAKS
     return NextResponse.json({ streaks })
@@ -21,10 +22,11 @@ export async function GET() {
   }
 }
 
-// PUT - update streak config
+// PUT - update streak config (admin: apply directly, mod: submit for approval)
 export async function PUT(request: Request) {
   try {
-    await requireAdmin()
+    const user = await requireModOrAdmin()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     const { streaks } = await request.json()
 
     // Validate: keys must be positive integers, values must be positive numbers
@@ -42,6 +44,27 @@ export async function PUT(request: Request) {
       cleaned[String(k)] = v
     }
 
+    const isAdmin = user.role === 'ADMIN'
+
+    if (!isAdmin) {
+      // Mod: submit for approval
+      const config = await prisma.systemConfig.findUnique({ where: { key: CONFIG_KEY } })
+      const oldStreaks = config ? JSON.parse(config.value) : DEFAULT_STREAKS
+
+      await prisma.pendingEdit.create({
+        data: {
+          editType: 'streak_config',
+          description: `Update streak multipliers: ${Object.entries(cleaned).map(([k, v]) => `${k}→${v}x`).join(', ')}`,
+          oldData: JSON.stringify(oldStreaks),
+          newData: JSON.stringify(cleaned),
+          submitterId: user.id,
+        },
+      })
+
+      return NextResponse.json({ submitted: true })
+    }
+
+    // Admin: apply directly
     await prisma.systemConfig.upsert({
       where: { key: CONFIG_KEY },
       update: { value: JSON.stringify(cleaned) },

@@ -30,30 +30,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Mutation not found' }, { status: 404 })
     }
 
-    // Get existing value for audit log
+    // Get existing value
     const existingValue = await prisma.brainrotMutationValue.findUnique({
       where: { brainrotId_mutationId: { brainrotId, mutationId } },
     })
 
-    if (robuxValue === null || robuxValue === '' || robuxValue === undefined) {
-      // Delete the entry if value is null/empty
+    const isAdmin = user.role === 'ADMIN'
+    const newVal = robuxValue === null || robuxValue === '' || robuxValue === undefined ? null : parseInt(robuxValue, 10)
+
+    if (!isAdmin) {
+      // Mod: submit for approval
+      await prisma.pendingEdit.create({
+        data: {
+          editType: 'mutation_value',
+          targetId: `${brainrotId}:${mutationId}`,
+          description: `Update ${brainrot.name} × ${mutation.name} robux value: ${existingValue?.robuxValue ?? 'none'} → ${newVal ?? 'none'}`,
+          oldData: JSON.stringify({ brainrotId, mutationId, robuxValue: existingValue?.robuxValue ?? null }),
+          newData: JSON.stringify({ brainrotId, mutationId, robuxValue: newVal }),
+          submitterId: user.id,
+        },
+      })
+      return NextResponse.json({ submitted: true })
+    }
+
+    // Admin: apply directly
+    if (newVal === null) {
       if (existingValue) {
         await prisma.brainrotMutationValue.delete({
           where: { brainrotId_mutationId: { brainrotId, mutationId } },
         })
       }
     } else {
-      // Upsert the value
       await prisma.brainrotMutationValue.upsert({
         where: { brainrotId_mutationId: { brainrotId, mutationId } },
-        create: {
-          brainrotId,
-          mutationId,
-          robuxValue: parseInt(robuxValue, 10),
-        },
-        update: {
-          robuxValue: parseInt(robuxValue, 10),
-        },
+        create: { brainrotId, mutationId, robuxValue: newVal },
+        update: { robuxValue: newVal },
       })
     }
 
@@ -68,7 +79,7 @@ export async function POST(request: NextRequest) {
           brainrotName: brainrot.name,
           mutationName: mutation.name,
           oldValue: existingValue?.robuxValue || null,
-          newValue: robuxValue || null,
+          newValue: newVal,
         }),
       },
     })
@@ -90,13 +101,54 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
     const { updates } = body
-    // updates: Array<{ brainrotId, mutationId?, robuxValue }>
 
     if (!Array.isArray(updates) || updates.length === 0) {
       return NextResponse.json({ error: 'updates array is required' }, { status: 400 })
     }
 
-    // Batch all operations in a single transaction for speed
+    const isAdmin = user.role === 'ADMIN'
+
+    if (!isAdmin) {
+      // Mod: create pending edits for each change
+      const pendingEdits = []
+      for (const update of updates) {
+        const { brainrotId, mutationId, robuxValue } = update
+        const newVal = robuxValue === null || robuxValue === '' || robuxValue === undefined ? null : parseInt(String(robuxValue), 10)
+
+        // Get names for description
+        const [brainrot, mutation, existing] = await Promise.all([
+          prisma.brainrot.findUnique({ where: { id: brainrotId }, select: { name: true } }),
+          mutationId ? prisma.mutation.findUnique({ where: { id: mutationId }, select: { name: true } }) : null,
+          mutationId
+            ? prisma.brainrotMutationValue.findUnique({ where: { brainrotId_mutationId: { brainrotId, mutationId } } })
+            : prisma.brainrot.findUnique({ where: { id: brainrotId }, select: { robuxValue: true } }),
+        ])
+
+        const oldVal = mutationId
+          ? (existing as any)?.robuxValue ?? null
+          : (existing as any)?.robuxValue ?? null
+
+        const editType = mutationId ? 'mutation_value' : 'brainrot_value'
+        const targetId = mutationId ? `${brainrotId}:${mutationId}` : brainrotId
+        const desc = mutationId
+          ? `Update ${brainrot?.name} × ${mutation?.name} robux: ${oldVal ?? 'none'} → ${newVal ?? 'none'}`
+          : `Update ${brainrot?.name} base robux: ${oldVal ?? 'none'} → ${newVal ?? 'none'}`
+
+        pendingEdits.push({
+          editType,
+          targetId,
+          description: desc,
+          oldData: JSON.stringify({ brainrotId, mutationId: mutationId ?? null, robuxValue: oldVal }),
+          newData: JSON.stringify({ brainrotId, mutationId: mutationId ?? null, robuxValue: newVal }),
+          submitterId: user.id,
+        })
+      }
+
+      await prisma.pendingEdit.createMany({ data: pendingEdits })
+      return NextResponse.json({ submitted: true, count: pendingEdits.length })
+    }
+
+    // Admin: apply directly in a transaction
     const operations = updates.map((update: { brainrotId: string; mutationId?: string; robuxValue: number | string | null }) => {
       if (update.mutationId) {
         if (update.robuxValue === null || update.robuxValue === '' || update.robuxValue === undefined) {
@@ -134,7 +186,6 @@ export async function PUT(request: NextRequest) {
 
     await prisma.$transaction(operations)
 
-    // Create audit log for bulk update
     await prisma.auditLog.create({
       data: {
         adminId: user.id,

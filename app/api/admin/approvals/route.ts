@@ -3,15 +3,16 @@ import { prisma } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth'
 import { applyPriceReview } from '@/lib/price-review-apply'
 
-// GET: List all pending approvals (price reviews + trait edits)
-// Admin-only: mods submit reviews but only admins can view/manage the approvals queue
+const CONFIG_KEY = 'trait_streak_multipliers'
+
+// GET: List all pending approvals (price reviews + trait edits + generic pending edits)
 export async function GET() {
   const user = await requireAdmin()
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const [priceReviews, traitEdits] = await Promise.all([
+  const [priceReviews, traitEdits, pendingEdits] = await Promise.all([
     prisma.priceReview.findMany({
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -29,9 +30,17 @@ export async function GET() {
         reviewedBy: { select: { id: true, robloxUsername: true } },
       },
     }),
+    prisma.pendingEdit.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: {
+        submitter: { select: { id: true, robloxUsername: true, robloxAvatarUrl: true } },
+        reviewedBy: { select: { id: true, robloxUsername: true } },
+      },
+    }),
   ])
 
-  return NextResponse.json({ priceReviews, traitEdits })
+  return NextResponse.json({ priceReviews, traitEdits, pendingEdits })
 }
 
 // POST: Approve or reject a pending item
@@ -41,13 +50,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { type, id, action, adminNote, adminValue } = (await request.json()) as {
-    type: 'price_review' | 'trait_edit'
+  const body = (await request.json()) as {
+    type: 'price_review' | 'trait_edit' | 'pending_edit'
     id: string
     action: 'approve' | 'reject'
     adminNote?: string
-    adminValue?: number // admin can override the proposed value for trait edits
+    adminValue?: number
   }
+  const { type, id, action, adminNote, adminValue } = body
 
   if (!type || !id || !['approve', 'reject'].includes(action)) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
@@ -70,7 +80,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ rejected: true })
     }
 
-    // Approve: apply the value (admin can override with adminValue)
     const finalValue = adminValue ?? edit.newValue
     await prisma.$transaction([
       prisma.trait.update({
@@ -107,6 +116,104 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ approved: true, appliedValue: finalValue })
   }
 
+  if (type === 'pending_edit') {
+    const edit = await prisma.pendingEdit.findUnique({ where: { id } })
+    if (!edit || edit.status !== 'pending') {
+      return NextResponse.json({ error: 'Not found or already processed' }, { status: 404 })
+    }
+
+    if (action === 'reject') {
+      await prisma.pendingEdit.update({
+        where: { id },
+        data: { status: 'rejected', reviewedById: user.id, reviewedAt: new Date(), adminNote },
+      })
+      return NextResponse.json({ rejected: true })
+    }
+
+    // Approve: apply the edit based on editType
+    const newData = JSON.parse(edit.newData)
+
+    try {
+      switch (edit.editType) {
+        case 'streak_config': {
+          await prisma.systemConfig.upsert({
+            where: { key: CONFIG_KEY },
+            update: { value: edit.newData },
+            create: { key: CONFIG_KEY, value: edit.newData },
+          })
+          break
+        }
+        case 'brainrot_value': {
+          if (!edit.targetId) throw new Error('Missing targetId')
+          await prisma.brainrot.update({
+            where: { id: edit.targetId },
+            data: { robuxValue: newData.robuxValue },
+          })
+          break
+        }
+        case 'brainrot_demand': {
+          if (!edit.targetId) throw new Error('Missing targetId')
+          await prisma.brainrot.update({
+            where: { id: edit.targetId },
+            data: { demand: newData.demand },
+          })
+          break
+        }
+        case 'brainrot_trend': {
+          if (!edit.targetId) throw new Error('Missing targetId')
+          await prisma.brainrot.update({
+            where: { id: edit.targetId },
+            data: { trend: newData.trend },
+          })
+          break
+        }
+        case 'mutation_value': {
+          const { brainrotId, mutationId, robuxValue } = newData
+          if (robuxValue === null) {
+            await prisma.brainrotMutationValue.deleteMany({
+              where: { brainrotId, mutationId },
+            })
+          } else {
+            await prisma.brainrotMutationValue.upsert({
+              where: { brainrotId_mutationId: { brainrotId, mutationId } },
+              create: { brainrotId, mutationId, robuxValue },
+              update: { robuxValue },
+            })
+          }
+          break
+        }
+        default:
+          return NextResponse.json({ error: `Unknown edit type: ${edit.editType}` }, { status: 400 })
+      }
+
+      await prisma.$transaction([
+        prisma.pendingEdit.update({
+          where: { id },
+          data: { status: 'approved', reviewedById: user.id, reviewedAt: new Date(), adminNote },
+        }),
+        prisma.auditLog.create({
+          data: {
+            adminId: user.id,
+            action: 'APPROVE_PENDING_EDIT',
+            targetType: edit.editType,
+            targetId: edit.targetId || 'config',
+            details: JSON.stringify({
+              description: edit.description,
+              oldData: edit.oldData,
+              newData: edit.newData,
+              submitterId: edit.submitterId,
+            }),
+          },
+        }),
+      ])
+
+      return NextResponse.json({ approved: true })
+    } catch (error) {
+      console.error('Error applying pending edit:', error)
+      return NextResponse.json({ error: 'Failed to apply edit' }, { status: 500 })
+    }
+  }
+
   if (type === 'price_review') {
     if (action === 'reject') {
       const review = await prisma.priceReview.findUnique({ where: { id } })
@@ -120,7 +227,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ rejected: true })
     }
 
-    // Approve: delegate to shared apply logic
     const result = await applyPriceReview(id, user.id, adminNote)
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: result.status })

@@ -325,7 +325,6 @@ export default function RobuxValuesPage() {
   const [streakEdits, setStreakEdits] = useState<{ threshold: string; multiplier: string }[]>([])
   const [savingStreaks, setSavingStreaks] = useState(false)
   const [streakMsg, setStreakMsg] = useState<string | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -346,11 +345,10 @@ export default function RobuxValuesPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [valRes, traitRes, streakRes, roleRes] = await Promise.all([
+      const [valRes, traitRes, streakRes] = await Promise.all([
         fetch('/api/admin/usd-values'),
         fetch('/api/traits'),
         fetch('/api/admin/usd-values/streak-config'),
-        fetch('/api/auth/me'),
       ])
       const data = await valRes.json()
       setBrainrots(data.brainrots || [])
@@ -362,10 +360,6 @@ export default function RobuxValuesPage() {
       if (streakRes.ok) {
         const streakData = await streakRes.json()
         setStreakConfig(streakData.streaks || { '3': 2, '5': 3 })
-      }
-      if (roleRes.ok) {
-        const roleData = await roleRes.json()
-        setIsAdmin(roleData.user?.role === 'ADMIN')
       }
     } catch {
       console.error('Failed to fetch data')
@@ -441,8 +435,12 @@ export default function RobuxValuesPage() {
       })
       if (res.ok) {
         const data = await res.json()
-        setStreakConfig(data.streaks)
-        setStreakMsg('Saved')
+        if (data.submitted) {
+          setStreakMsg('Submitted for approval')
+        } else {
+          setStreakConfig(data.streaks)
+          setStreakMsg('Saved')
+        }
         setTimeout(() => setStreakMsg(null), 3000)
       } else {
         const data = await res.json()
@@ -577,14 +575,18 @@ export default function RobuxValuesPage() {
         const allOk = results.every(res => res.ok)
 
         if (allOk) {
-          await fetchData()
+          // Check if any response was a pending submission (mod flow)
+          const bodies = await Promise.all(results.map(r => r.clone().json()))
+          const anySubmitted = bodies.some(b => b.submitted)
+
+          if (!anySubmitted) await fetchData()
           setEditedValues(prev => {
             const next = { ...prev }
             delete next[brainrotId]
             return next
           })
-          setSuccess(brainrotId)
-          setTimeout(() => setSuccess(null), 2000)
+          setSuccess(anySubmitted ? 'submitted' : brainrotId)
+          setTimeout(() => setSuccess(null), 3000)
         }
       }
     } catch {
@@ -768,8 +770,8 @@ export default function RobuxValuesPage() {
         )}
       </div>
 
-      {/* Streak Multipliers (admin only) */}
-      {isAdmin && (
+      {/* Streak Multipliers */}
+      {(
         <div className="mb-4">
           <button
             onClick={() => showStreaks ? setShowStreaks(false) : startEditingStreaks()}
@@ -957,7 +959,7 @@ export default function RobuxValuesPage() {
                   const isExpanded = expandedRows.has(brainrot.id)
                   const hasEdits = hasChanges(brainrot.id)
                   const isSaving = saving === brainrot.id
-                  const isSuccess = success === brainrot.id
+                  const isSuccess = success === brainrot.id || success === 'submitted'
                   const currentDemand = editedValues[brainrot.id]?.demand ?? brainrot.demand
                   const currentTrend = editedValues[brainrot.id]?.trend ?? brainrot.trend
                   const activeTab = expandedTab[brainrot.id] || 'values'
@@ -1065,7 +1067,7 @@ export default function RobuxValuesPage() {
                           )}
                           {isSuccess && !hasEdits && (
                             <span className="text-green-400 text-sm flex items-center gap-1">
-                              <Check className="w-4 h-4" /> Saved
+                              <Check className="w-4 h-4" /> {success === 'submitted' ? 'Submitted for approval' : 'Saved'}
                             </span>
                           )}
                         </div>

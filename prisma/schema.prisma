@@ -187,6 +187,8 @@ model User {
   priceReviewsApproved  PriceReview[]     @relation("PriceReviewApprover")
   traitEditsSubmitted   PendingTraitEdit[] @relation("TraitEditSubmitter")
   traitEditsApproved    PendingTraitEdit[] @relation("TraitEditApprover")
+  pendingEditsSubmitted PendingEdit[]      @relation("PendingEditSubmitter")
+  pendingEditsApproved  PendingEdit[]      @relation("PendingEditApprover")
 
   @@index([robloxUsername])
   @@index([shopName])
@@ -819,6 +821,28 @@ model PendingTraitEdit {
   trait      Trait @relation(fields: [traitId], references: [id], onDelete: Cascade)
   submitter  User  @relation("TraitEditSubmitter", fields: [submitterId], references: [id])
   reviewedBy User? @relation("TraitEditApprover", fields: [reviewedById], references: [id])
+}
+
+// Generic pending edit for mod submissions (streak config, brainrot values, mutation values, etc.)
+model PendingEdit {
+  id               String    @id @default(cuid())
+  editType         String    // streak_config, brainrot_value, mutation_value, brainrot_demand, brainrot_trend
+  targetId         String?   // brainrotId or mutationId combo (null for global configs like streak)
+  description      String    // human-readable summary, e.g. "Update OG Skibidi Toilet robux value 500 → 800"
+  oldData          String    @db.Text // JSON snapshot of old values
+  newData          String    @db.Text // JSON snapshot of proposed values
+  status           String    @default("pending") // pending, approved, rejected
+  adminNote        String?
+  submitterId      String
+  reviewedById     String?
+  reviewedAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  submitter  User  @relation("PendingEditSubmitter", fields: [submitterId], references: [id])
+  reviewedBy User? @relation("PendingEditApprover", fields: [reviewedById], references: [id])
+
+  @@index([status])
+  @@index([editType])
 }
 
 // Trade chat messages for negotiation

@@ -299,9 +299,9 @@ body::-webkit-scrollbar {
 }
 
 .card-border-og::before {
-  background: linear-gradient(180deg, var(--legendary) 0%, var(--legendary) 25%, black 25%, black 50%, var(--legendary) 50%, var(--legendary) 75%, black 75%, black 100%);
+  background: linear-gradient(180deg, #FFDA4D 0%, #3B3314 24%, #3B3314 26%, #FFDA4D 50%, #3B3314 74%, #3B3314 76%, #FFDA4D 100%);
   background-size: 100% 200%;
-  animation: basicWave2 var(--typical-loop) linear infinite;
+  animation: ogScroll var(--typical-loop) linear infinite reverse;
 }
 
 .card-border-admin::before {
