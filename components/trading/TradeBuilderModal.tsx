@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Plus, ArrowRightLeft, Gem, Loader2 } from 'lucide-react'
@@ -342,7 +343,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
 
   const canSubmit = offerItems.length > 0 && requestItems.length > 0 && !submitting
 
-  return (
+  return createPortal(
     <>
       <motion.div
         variants={backdropVariants}
@@ -350,7 +351,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
         animate="animate"
         exit="exit"
         onClick={onClose}
-        className="fixed inset-x-0 top-16 bottom-0 z-40 flex items-start md:items-center justify-center pt-4 md:pt-0 bg-black/40 backdrop-blur-sm will-change-[opacity] overflow-y-auto overflow-x-hidden"
+        className="fixed inset-0 z-40 flex items-start md:items-center justify-center pt-20 md:pt-0 bg-black/40 backdrop-blur-sm will-change-[opacity] overflow-y-auto overflow-x-hidden"
       >
         <motion.div
           variants={modalVariants}
@@ -774,6 +775,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </>,
+    document.body
   )
 }

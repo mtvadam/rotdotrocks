@@ -65,9 +65,39 @@ export function getTraitValueMultiplier(trait: string | { name: string; valueMul
 }
 
 /**
+ * Streak multipliers: having more traits multiplies the total trait bonus.
+ * Key = minimum trait count, value = multiplier applied to the trait bonus.
+ * e.g. { 3: 2, 5: 3 } means 3 traits = 2x bonus, 5+ traits = 3x bonus.
+ *
+ * Default streaks (can be overridden at runtime via setStreakMultipliers):
+ */
+let streakMultipliers: Record<number, number> = { 3: 2, 5: 3 }
+
+export function setStreakMultipliers(multipliers: Record<number, number>) {
+  streakMultipliers = multipliers
+}
+
+export function getStreakMultipliers(): Record<number, number> {
+  return { ...streakMultipliers }
+}
+
+function getStreakMultiplier(traitCount: number): number {
+  let best = 1
+  for (const [minCount, mult] of Object.entries(streakMultipliers)) {
+    if (traitCount >= Number(minCount) && mult > best) {
+      best = mult
+    }
+  }
+  return best
+}
+
+/**
  * Calculate the combined value multiplier for multiple traits.
  * Accepts an array of trait name strings OR trait objects with valueMultiplier.
- * Uses additive stacking: (1 + sum of bonuses)
+ * Uses additive stacking: (1 + sum of bonuses) with streak multiplier on the bonus.
+ *
+ * Streak: 3 traits = 2x the bonus, 5 traits = 3x the bonus.
+ * e.g. 3 traits at +20% each = +60% bonus, streak 2x = +120% → final 2.2x
  */
 export function calculateTraitValueMultiplier(traits: Array<string | { name: string; valueMultiplier?: number }>): number {
   if (traits.length === 0) return 1.0
@@ -78,7 +108,8 @@ export function calculateTraitValueMultiplier(traits: Array<string | { name: str
     totalBonus += mult - 1
   }
 
-  return Math.max(0.1, 1 + totalBonus)
+  const streak = getStreakMultiplier(traits.length)
+  return Math.max(0.1, 1 + totalBonus * streak)
 }
 
 /**

@@ -295,7 +295,7 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
             )}
           </div>
           {item.mutation && (
-            <div className="animation-always-running absolute -top-1 -right-1 px-1 py-0.5 rounded text-[9px] font-bold bg-darkbg-900 shadow-lg">
+            <div className="animation-always-running absolute -top-1 -right-1 px-1 py-0.5 rounded text-[9px] font-bold overflow-visible">
               <span className={mutationClass}>
                 {item.mutation.name.charAt(0)}
               </span>
@@ -372,7 +372,7 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
           <motion.div
             {...mutationBadgeAnimation}
             transition={mutationBadgeTransition}
-            className="animation-always-running absolute -top-1 -right-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-darkbg-900 shadow-lg"
+            className="animation-always-running absolute -top-1 -right-1 px-1.5 py-0.5 rounded text-[10px] font-bold overflow-visible"
           >
             <span className={mutationClass}>
               {item.mutation.name.charAt(0)}

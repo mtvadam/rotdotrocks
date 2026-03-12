@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Info } from 'lucide-react'
 import { calculateTraitValueMultiplier, getTraitValueMultiplier } from '@/lib/trait-value'
+import { formatCompactValue } from '@/lib/trade-calculations'
 
 type TraitInput = string | { name: string; valueMultiplier?: number }
 
@@ -196,7 +197,7 @@ export function TotalValueBreakdown({
         onMouseEnter={() => setShow(true)}
         onMouseLeave={() => setShow(false)}
       >
-        R${compact ? formatValue(totalValue) : totalValue.toLocaleString()}{hasEstimated ? '+' : ''}
+        R${compact ? formatCompactValue(totalValue) : totalValue.toLocaleString()}{hasEstimated ? '+' : ''}
         {(hasEstimated || hasTraitEffects) && <Info className="w-3 h-3 opacity-60" />}
       </span>
       {typeof window !== 'undefined' && show && createPortal(
@@ -272,9 +273,5 @@ export function TotalValueBreakdown({
   )
 }
 
-// Simple format value helper
-export function formatValue(value: number): string {
-  if (value >= 1_000_000) return (value / 1_000_000).toFixed(1) + 'M'
-  if (value >= 1_000) return (value / 1_000).toFixed(1) + 'K'
-  return value.toLocaleString()
-}
+// Re-export for backwards compatibility
+export { formatCompactValue as formatValue } from '@/lib/trade-calculations'

@@ -1,6 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { requireAdmin } from '@/lib/auth'
 
 // Name mappings: DB name -> Eldorado name
 const NAME_MAPPINGS: Record<string, string> = {
@@ -8,10 +6,20 @@ const NAME_MAPPINGS: Record<string, string> = {
   'Chimnino': 'Chimino',
 }
 
-// Convert mutation name to Eldorado URL slug (e.g. "Yin Yang" -> "yin-yang")
+// Brainrots worth checking outside Secret/OG
+const EXTRA_BRAINROTS = [
+  'Raccooni Jandelini',
+  'Los Lucky Blocks',
+  'Mythic Lucky Block',
+  'Brainrot God Lucky Block',
+  'Festive Lucky Block',
+]
+
 function mutationToSlug(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-')
 }
+
+const roundToNearest50 = (value: number) => Math.round(value / 50) * 50
 
 interface EldoradoOffer {
   offer: {
@@ -32,6 +40,25 @@ interface EldoradoResponse {
   recordCount: number
   pageSize: number
   results: EldoradoOffer[]
+}
+
+export interface PriceResult {
+  brainrotId: string
+  brainrotName: string
+  mutation: string
+  mutationId: string
+  usdPrice: number | null
+  robuxPrice: number | null
+  listingCount: number
+  isOutlier: boolean
+  error?: string
+}
+
+function getMinListings(rarity: string, mutationName: string): number {
+  const isRareMutation = !['Default', 'Gold'].includes(mutationName)
+  if (rarity === 'OG') return isRareMutation ? 1 : 3
+  if (rarity === 'Secret') return isRareMutation ? 3 : 10
+  return isRareMutation ? 5 : 15
 }
 
 async function fetchBrainrotPrice(
@@ -55,10 +82,8 @@ async function fetchBrainrotPrice(
   })
 
   if (isDefault) {
-    // Default uses the old attribute filter (only way to filter to default-only)
     params.set('offerAttributeIdsCsv', '1-0')
   } else {
-    // All other mutations use the slug-based filter (fully dynamic)
     params.set('steal-a-brainrot-mutations', mutationToSlug(mutation))
   }
 
@@ -88,7 +113,6 @@ async function fetchBrainrotPrice(
       return { price: null, count: 0 }
     }
 
-    // Filter: trusted sellers, title contains brainrot name
     const brainrotNameLower = brainrotName.toLowerCase()
     const trustedOffers = data.results.filter(r =>
       r.userOrderInfo.feedbackScore >= 85 &&
@@ -100,12 +124,10 @@ async function fetchBrainrotPrice(
       return { price: null, count: 0 }
     }
 
-    // Sort by price
     const offers = trustedOffers.sort((a, b) =>
       a.offer.pricePerUnitInUSD.amount - b.offer.pricePerUnitInUSD.amount
     )
 
-    // Filter fake listings (<20% of median)
     const prices = offers.map(o => o.offer.pricePerUnitInUSD.amount)
     const median = prices[Math.floor(prices.length / 2)]
 
@@ -120,109 +142,80 @@ async function fetchBrainrotPrice(
 
     return {
       price: validOffers[0].offer.pricePerUnitInUSD.amount,
-      count: validOffers.length
+      count: validOffers.length,
     }
   } catch (error) {
     return { price: null, count: 0, error: `Fetch error: ${error}` }
   }
 }
 
-// GET: Fetch price for a single brainrot+mutation
-export async function GET(request: NextRequest) {
-  const user = await requireAdmin()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { searchParams } = new URL(request.url)
-  const brainrotName = searchParams.get('name')
-  const rarity = searchParams.get('rarity')
-  const mutation = searchParams.get('mutation') || 'default'
-  const brainrotId = searchParams.get('brainrotId')
-  const mutationId = searchParams.get('mutationId')
-
-  if (!brainrotName || !rarity) {
-    return NextResponse.json({ error: 'Missing name or rarity' }, { status: 400 })
-  }
-
-  const eldoradoName = NAME_MAPPINGS[brainrotName] || brainrotName
-  const result = await fetchBrainrotPrice(eldoradoName, rarity, mutation)
-
-  // Round Robux to nearest 50
-  const roundToNearest50 = (value: number) => Math.round(value / 50) * 50
-
-  const usdPrice = result.price
-  const robuxPrice = result.price ? roundToNearest50(result.price * 100) : null
-
-  // Record PriceSnapshot non-blocking (don't slow down the UI response)
-  if (brainrotId && mutationId) {
-    prisma.priceSnapshot.create({
-      data: {
-        brainrotId,
-        mutationId,
-        usdPrice,
-        robuxPrice,
-        listingCount: result.count,
-        isOutlier: result.count < 3, // Basic server-side outlier check
-        source: 'eldorado',
-      },
-    }).catch(e => console.error('Failed to record price snapshot:', e))
-  }
-
-  return NextResponse.json({
-    brainrotName,
-    mutation,
-    usdPrice,
-    robuxPrice,
-    listingCount: result.count,
-    error: result.error
-  })
-}
-
-// Brainrots worth checking outside Secret/OG
-const EXTRA_BRAINROTS = [
-  'Raccooni Jandelini',
-  'Los Lucky Blocks',
-  'Mythic Lucky Block',
-  'Brainrot God Lucky Block',
-  'Festive Lucky Block',
-]
-
-// POST: Get list of all brainrots to import
-export async function POST(request: NextRequest) {
-  const user = await requireAdmin()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+/**
+ * Fetch prices for all Secret/OG brainrots + extra brainrots across all mutations.
+ * Uses batched parallel requests with delays to avoid rate limiting.
+ */
+export async function fetchAllBrainrotPrices(): Promise<PriceResult[]> {
   const brainrots = await prisma.brainrot.findMany({
     where: {
       isActive: true,
       OR: [
         { rarity: { in: ['Secret', 'OG'] } },
-        { name: { in: EXTRA_BRAINROTS } }
-      ]
+        { name: { in: EXTRA_BRAINROTS } },
+      ],
     },
-    select: {
-      id: true,
-      name: true,
-      rarity: true,
-      mutationValues: {
-        include: {
-          mutation: { select: { id: true, name: true } }
-        }
-      }
-    },
-    orderBy: [
-      { rarity: 'asc' },
-      { name: 'asc' }
-    ]
+    select: { id: true, name: true, rarity: true },
+    orderBy: [{ rarity: 'asc' }, { name: 'asc' }],
   })
 
   const mutations = await prisma.mutation.findMany({
     select: { id: true, name: true },
-    orderBy: { multiplier: 'asc' }
+    orderBy: { multiplier: 'asc' },
   })
 
-  return NextResponse.json({ brainrots, mutations })
+  const results: PriceResult[] = []
+
+  // Build all combinations
+  const combinations: { brainrot: typeof brainrots[0]; mutation: typeof mutations[0] }[] = []
+  for (const brainrot of brainrots) {
+    for (const mutation of mutations) {
+      combinations.push({ brainrot, mutation })
+    }
+  }
+
+  // Fetch in batches of 3 with 300ms delay between batches
+  const BATCH_SIZE = 3
+  const BATCH_DELAY = 300
+
+  for (let i = 0; i < combinations.length; i += BATCH_SIZE) {
+    const batch = combinations.slice(i, i + BATCH_SIZE)
+
+    const batchResults = await Promise.all(
+      batch.map(async ({ brainrot, mutation }) => {
+        const eldoradoName = NAME_MAPPINGS[brainrot.name] || brainrot.name
+        const rarity = brainrot.rarity || 'Common'
+        const result = await fetchBrainrotPrice(eldoradoName, rarity, mutation.name.toLowerCase())
+        const minListings = getMinListings(rarity, mutation.name)
+        const isOutlier = result.count < minListings
+
+        return {
+          brainrotId: brainrot.id,
+          brainrotName: brainrot.name,
+          mutation: mutation.name,
+          mutationId: mutation.id,
+          usdPrice: result.price,
+          robuxPrice: result.price ? roundToNearest50(result.price * 100) : null,
+          listingCount: result.count,
+          isOutlier,
+          error: result.error,
+        }
+      })
+    )
+
+    results.push(...batchResults)
+
+    if (i + BATCH_SIZE < combinations.length) {
+      await new Promise(r => setTimeout(r, BATCH_DELAY))
+    }
+  }
+
+  return results
 }

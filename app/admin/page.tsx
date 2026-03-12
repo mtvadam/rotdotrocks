@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Users, ArrowRightLeft, Flag, Gem, UserX, Snowflake, Clock } from 'lucide-react'
 import { StatCard } from '@/components/admin'
@@ -41,8 +42,16 @@ interface Stats {
 }
 
 export default function AdminDashboard() {
+  const router = useRouter()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Redirect mods to their default page
+  useEffect(() => {
+    fetch('/api/auth/me').then(r => r.json()).then(d => {
+      if (d.user?.role === 'MOD') router.replace('/admin/usd-values')
+    }).catch(() => {})
+  }, [router])
 
   useEffect(() => {
     fetch('/api/admin/stats')

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface Mutation {
   id: string
@@ -51,6 +51,10 @@ export default function PriceImportPage() {
   const [saveMessage, setSaveMessage] = useState('')
   const [filterRarity, setFilterRarity] = useState<string>('all')
   const [showOnlyMissing, setShowOnlyMissing] = useState(false)
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
+  const [fetchJustCompleted, setFetchJustCompleted] = useState(false)
+  const autoSaveRef = useRef(autoSaveEnabled)
+  useEffect(() => { autoSaveRef.current = autoSaveEnabled }, [autoSaveEnabled])
 
   // Load brainrots and mutations
   useEffect(() => {
@@ -85,7 +89,9 @@ export default function PriceImportPage() {
       const params = new URLSearchParams({
         name: brainrot.name,
         rarity: brainrot.rarity,
-        mutation: mutation.name.toLowerCase()
+        mutation: mutation.name.toLowerCase(),
+        brainrotId: brainrot.id,
+        mutationId: mutation.id
       })
 
       const res = await fetch(`/api/admin/price-import?${params}`)
@@ -151,6 +157,11 @@ export default function PriceImportPage() {
     }
 
     setIsFetching(false)
+
+    // Trigger auto-save after fetch completes (use ref to get latest toggle value)
+    if (autoSaveRef.current) {
+      setFetchJustCompleted(true)
+    }
   }
 
   const handleValueChange = (brainrotId: string, mutationId: string, value: string) => {
@@ -168,7 +179,7 @@ export default function PriceImportPage() {
     }
   }
 
-  const saveValues = async () => {
+  const saveValues = useCallback(async () => {
     if (editedValues.size === 0) {
       setSaveMessage('No values to save')
       return
@@ -176,6 +187,7 @@ export default function PriceImportPage() {
 
     setIsSaving(true)
     setSaveMessage('')
+    const saveStart = Date.now()
 
     try {
       // Build updates array
@@ -193,7 +205,8 @@ export default function PriceImportPage() {
       })
 
       if (res.ok) {
-        setSaveMessage(`Saved ${updates.length} values successfully!`)
+        const duration = ((Date.now() - saveStart) / 1000).toFixed(1)
+        setSaveMessage(`Saved ${updates.length} values in ${duration}s`)
         // Clear edited values after save
         setEditedValues(new Map())
         // Reload brainrots to get updated values
@@ -210,7 +223,15 @@ export default function PriceImportPage() {
     } finally {
       setIsSaving(false)
     }
-  }
+  }, [editedValues])
+
+  // Auto-save after fetch completes and state has settled
+  useEffect(() => {
+    if (fetchJustCompleted && !isFetching && editedValues.size > 0) {
+      setFetchJustCompleted(false)
+      saveValues()
+    }
+  }, [fetchJustCompleted, isFetching, editedValues.size, saveValues])
 
   const uniqueRarities = [...new Set(brainrots.map(b => b.rarity))].sort()
 
@@ -278,8 +299,18 @@ export default function PriceImportPage() {
             disabled={isSaving || editedValues.size === 0}
             className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 px-4 py-2 rounded font-medium"
           >
-            {isSaving ? 'Saving...' : `Save ${editedValues.size} Values`}
+            {isSaving ? `Saving ${editedValues.size} values...` : `Save ${editedValues.size} Values`}
           </button>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={autoSaveEnabled}
+              onChange={(e) => setAutoSaveEnabled(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <span>Auto-save after fetch</span>
+          </label>
         </div>
 
         {/* Progress */}
@@ -310,6 +341,10 @@ export default function PriceImportPage() {
           <span>Values to save: {completedCount}</span>
           <span>Results fetched: {results.size}</span>
         </div>
+
+        <p className="text-xs text-gray-500">
+          All fetched prices are recorded as snapshots for historical tracking, including outliers.
+        </p>
       </div>
 
       {/* Table */}

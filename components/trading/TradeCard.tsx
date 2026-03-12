@@ -11,20 +11,11 @@ import { RobloxAvatar } from '@/components/ui'
 import { easeOut } from '@/lib/animations'
 import { getMutationClass } from '@/lib/utils'
 import { calculateTraitValueMultiplier } from '@/lib/trait-value'
+import { formatCompactIncome, formatCompactValue, calculateTotalIncome, calculateTotalValue, MONEYMAKER_THRESHOLD, LB_VIABLE_THRESHOLD, TRAIT_STACKED_THRESHOLD } from '@/lib/trade-calculations'
 import { DemandTrendBadge, type DemandLevel, type TrendDirection } from './DemandTrendBadge'
 import { TotalValueBreakdown } from './ValueBreakdown'
 import { CompactTradeVoting } from './TradeVoting'
 
-// Income formatting thresholds as constants to avoid recreation
-const TRILLION = 1_000_000_000_000
-const BILLION = 1_000_000_000
-const MILLION = 1_000_000
-const THOUSAND = 1_000
-
-// Income thresholds for badges
-const MONEYMAKER_THRESHOLD = BILLION // 1B
-const LB_VIABLE_THRESHOLD = 2 * BILLION // 2B
-const TRAIT_STACKED_THRESHOLD = 5 // 5+ traits
 
 interface TradeCardProps {
   trade: {
@@ -241,14 +232,14 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
   const maxTraits = size === 'xs' ? 2 : size === 'lg' ? 4 : 3
 
   return (
-    <div className="flex flex-col items-center gap-1 flex-shrink-0">
+    <div className="flex flex-col items-center gap-1 min-w-0">
       <div
         ref={itemRef}
         className="relative cursor-pointer"
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >
-        <div className={`${sizeClasses} rounded-lg bg-darkbg-700 overflow-hidden flex items-center justify-center`}>
+        <div className={`${sizeClasses} max-w-full rounded-lg bg-darkbg-700 overflow-hidden flex items-center justify-center aspect-square`}>
           {item.brainrot.localImage ? (
             <Image
               src={item.brainrot.localImage}
@@ -264,7 +255,7 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
         </div>
         {/* Mutation badge - top right, responsive sizing */}
         {item.mutation && (
-          <div className={`animation-always-running absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 lg:-top-2 lg:-right-2 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-2.5 lg:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] lg:text-xs font-bold bg-darkbg-800 shadow-md lg:shadow-lg ${getMutationClass(item.mutation.name)}`}>
+          <div className={`animation-always-running absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 lg:-top-2 lg:-right-2 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-2.5 lg:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] lg:text-xs font-bold overflow-visible ${getMutationClass(item.mutation.name)}`}>
             {item.mutation.name.charAt(0)}
           </div>
         )}
@@ -387,7 +378,7 @@ function IPadEnhancedItem({ item, size = 'md' }: { item: TradeCardProps['trade']
         </div>
         {/* Mutation badge - larger for iPad */}
         {item.mutation && (
-          <div className={`animation-always-running absolute -top-2 -right-2 px-2.5 py-1 rounded-md text-sm font-bold bg-darkbg-800 shadow-lg border border-darkbg-600 ${getMutationClass(item.mutation.name)}`}>
+          <div className={`animation-always-running absolute -top-2 -right-2 px-2.5 py-1 rounded-md text-sm font-bold overflow-visible ${getMutationClass(item.mutation.name)}`}>
             {item.mutation.name.charAt(0)}
           </div>
         )}
@@ -576,113 +567,6 @@ function TotalsDisplay({
   )
 }
 
-// Calculate total income from items
-function calculateTotalIncome(items: TradeCardProps['trade']['items']): string | null {
-  let total = 0
-  let hasIncome = false
-
-  for (const item of items) {
-    if (item.calculatedIncome) {
-      hasIncome = true
-      total += parseFloat(item.calculatedIncome)
-    }
-  }
-
-  return hasIncome ? total.toFixed(2) : null
-}
-
-// Calculate total Robux value from items (includes brainrot values + Robux addon amounts)
-// Returns { value, hasEstimated, itemBreakdowns } for tracking inherited values and showing breakdowns
-function calculateTotalValue(items: TradeCardProps['trade']['items']): {
-  value: number | null
-  hasEstimated: boolean
-  itemBreakdowns: Array<{
-    brainrotName: string
-    mutationName: string
-    robuxValue: number
-    traitNames: Array<string | { name: string; valueMultiplier?: number }>
-    valueFallback?: boolean
-    valueFallbackSource?: string | null
-  }>
-} {
-  let total = 0
-  let hasValue = false
-  let hasEstimated = false
-  const itemBreakdowns: Array<{
-    brainrotName: string
-    mutationName: string
-    robuxValue: number
-    traitNames: Array<string | { name: string; valueMultiplier?: number }>
-    valueFallback?: boolean
-    valueFallbackSource?: string | null
-  }> = []
-
-  for (const item of items) {
-    // Add brainrot's robux value with trait multiplier applied
-    if (item.robuxValue != null) {
-      hasValue = true
-      // Apply trait value multiplier
-      const traitObjects = item.traits?.map(t => t.trait) || []
-      const traitMult = calculateTraitValueMultiplier(traitObjects)
-      total += Math.round(item.robuxValue * traitMult)
-      // Check if this item has an estimated/inherited value
-      if (item.valueFallback) {
-        hasEstimated = true
-      }
-      itemBreakdowns.push({
-        brainrotName: item.brainrot.name,
-        mutationName: item.mutation?.name || 'Default',
-        robuxValue: item.robuxValue,
-        traitNames: traitObjects,
-        valueFallback: item.valueFallback,
-        valueFallbackSource: item.valueFallbackSource,
-      })
-    }
-    // Add Robux addon amount
-    if (item.robuxAmount != null) {
-      hasValue = true
-      total += item.robuxAmount
-      itemBreakdowns.push({
-        brainrotName: 'Robux',
-        mutationName: '',
-        robuxValue: item.robuxAmount,
-        traitNames: [],
-      })
-    }
-  }
-
-  return { value: hasValue ? total : null, hasEstimated, itemBreakdowns }
-}
-
-// Format Robux value compactly (e.g., 1.5K, 2.3M)
-function formatCompactValue(value: number): string {
-  if (value >= MILLION) {
-    return (Math.round(value / MILLION * 10) / 10).toFixed(1) + 'M'
-  }
-  if (value >= THOUSAND) {
-    return (Math.round(value / THOUSAND * 10) / 10).toFixed(1) + 'K'
-  }
-  return value.toLocaleString()
-}
-
-// Optimized income formatting using pre-defined constants
-function formatCompactIncome(income: string): string {
-  const num = parseFloat(income)
-  if (num >= TRILLION) {
-    return (Math.floor(num / TRILLION * 10) / 10).toFixed(1) + 'T'
-  }
-  if (num >= BILLION) {
-    return (Math.floor(num / BILLION * 10) / 10).toFixed(1) + 'B'
-  }
-  if (num >= MILLION) {
-    return (Math.floor(num / MILLION * 10) / 10).toFixed(1) + 'M'
-  }
-  if (num >= THOUSAND) {
-    return (Math.floor(num / THOUSAND * 10) / 10).toFixed(1) + 'K'
-  }
-  return Math.floor(num).toString()
-}
-
 // Grid display component - shows items in 3-per-row grid, max 2 rows
 // When compact=true (both sides single row), use smaller height
 // Single-row layouts get larger brainrots since there's more vertical space
@@ -707,21 +591,21 @@ function ItemGrid({ items, size = 'sm', compact = false }: { items: TradeCardPro
     : size
 
   return (
-    <div className={`flex flex-col gap-1 sm:gap-2 ${containerHeight} ${!hasSecondRow ? 'justify-center' : ''}`}>
+    <div className={`flex flex-col gap-1 sm:gap-2 ${containerHeight} ${!hasSecondRow ? 'justify-center' : ''} overflow-hidden`}>
       {/* Row 1 - always centered horizontally */}
-      <div className="flex justify-center gap-1 sm:gap-2">
+      <div className="flex justify-center gap-1 sm:gap-2 min-w-0">
         {row1.map((item) => (
           <CompactItem key={item.id} item={item} size={itemSize} />
         ))}
       </div>
       {/* Row 2 - centered, only if there are items */}
       {hasSecondRow && (
-        <div className="flex justify-center gap-1 sm:gap-2">
+        <div className="flex justify-center gap-1 sm:gap-2 min-w-0">
           {row2.map((item) => (
             <CompactItem key={item.id} item={item} size={size} />
           ))}
           {hidden > 0 && (
-            <div className="flex flex-col items-center gap-1 flex-shrink-0">
+            <div className="flex flex-col items-center gap-1 min-w-0">
               <div className={`${size === 'xs' ? 'w-12 h-12' : 'w-14 h-14 sm:w-16 sm:h-16'} rounded-lg bg-darkbg-800 flex items-center justify-center`}>
                 <span className={`${size === 'xs' ? 'text-sm' : 'text-base'} font-medium text-gray-400`}>+{hidden}</span>
               </div>
@@ -781,7 +665,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
         whileTap={{ scale: 0.98 }}
         className="
           h-full
-          bg-darkbg-900/90 backdrop-blur-sm rounded-xl
+          bg-darkbg-800 rounded-xl
           p-3 md:p-5 lg:p-3
           border border-darkbg-700
           hover:border-green-500/50
@@ -804,7 +688,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
           {/* Items grid with arrow */}
           <div className="flex items-start gap-2 sm:gap-3">
             {/* Offer Side */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               {/* XS screens get smaller items */}
               <div className="sm:hidden">
                 <ItemGrid items={offerItems} size="xs" compact={isBothSingleRow} />
@@ -821,7 +705,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
             </div>
 
             {/* Request Side */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               {/* XS screens get smaller items */}
               <div className="sm:hidden">
                 <ItemGrid items={requestItems} size="xs" compact={isBothSingleRow} />
@@ -848,7 +732,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
           {/* Items grid with arrow */}
           <div className="flex items-start gap-3">
             {/* Offer Side */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               <ItemGrid items={offerItems} size="sm" />
               <TotalsDisplay income={offerIncome} value={offerValue.value} hasEstimated={offerValue.hasEstimated} itemBreakdowns={offerValue.itemBreakdowns} align="center" />
             </div>
@@ -859,7 +743,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
             </div>
 
             {/* Request Side */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               <ItemGrid items={requestItems} size="sm" />
               <TotalsDisplay income={requestIncome} value={requestValue.value} hasEstimated={requestValue.hasEstimated} itemBreakdowns={requestValue.itemBreakdowns} align="center" />
             </div>
@@ -898,7 +782,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
           {/* Main trade content - horizontal layout */}
           <div className="flex items-stretch gap-4">
             {/* Offer Side */}
-            <div className="flex-1 bg-darkbg-800/50 rounded-xl p-3">
+            <div className="flex-1 min-w-0 overflow-hidden bg-darkbg-800/50 rounded-xl p-3">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-bold text-green-400 uppercase tracking-wider">{trade.isVerified ? 'Gave' : 'Offering'}</p>
                 <div className="flex items-center gap-2">
@@ -925,7 +809,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
             </div>
 
             {/* Request Side */}
-            <div className="flex-1 bg-darkbg-800/50 rounded-xl p-3">
+            <div className="flex-1 min-w-0 overflow-hidden bg-darkbg-800/50 rounded-xl p-3">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-bold text-green-400 uppercase tracking-wider">{trade.isVerified ? 'Received' : 'Wants'}</p>
                 <div className="flex items-center gap-2">
@@ -1047,7 +931,7 @@ export function TradeCardSkeleton({ index = 0 }: { index?: number }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.15, delay: index * 0.03 }}
-      className="bg-darkbg-900 rounded-xl border border-darkbg-700 p-3 md:p-5 lg:p-3"
+      className="bg-darkbg-800 rounded-xl border border-darkbg-700 p-3 md:p-5 lg:p-3"
     >
       {/* ============================================ */}
       {/* MOBILE SKELETON (0 - 767px) */}
@@ -1063,7 +947,7 @@ export function TradeCardSkeleton({ index = 0 }: { index?: number }) {
         {/* Items grid with arrow */}
         <div className="flex items-start gap-2 sm:gap-3">
           {/* Offer Side - 3x2 grid skeleton */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 overflow-hidden">
             {/* XS screens skeleton */}
             <div className="sm:hidden min-h-[144px] flex flex-col gap-1">
               {/* Row 1 */}
@@ -1120,7 +1004,7 @@ export function TradeCardSkeleton({ index = 0 }: { index?: number }) {
           </div>
 
           {/* Request Side - 3x2 grid skeleton */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 overflow-hidden">
             {/* XS screens skeleton */}
             <div className="sm:hidden min-h-[144px] flex flex-col gap-1">
               {/* Row 1 */}
@@ -1187,7 +1071,7 @@ export function TradeCardSkeleton({ index = 0 }: { index?: number }) {
         {/* Items grid with arrow */}
         <div className="flex items-start gap-3">
           {/* Offer Side - 3x2 grid skeleton */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <div className="flex flex-col gap-1 min-h-[176px]">
               {/* Row 1 */}
               <div className="flex justify-center gap-1">
@@ -1220,7 +1104,7 @@ export function TradeCardSkeleton({ index = 0 }: { index?: number }) {
           </div>
 
           {/* Request Side - 3x2 grid skeleton */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <div className="flex flex-col gap-1 min-h-[176px]">
               {/* Row 1 */}
               <div className="flex justify-center gap-1">
@@ -1267,7 +1151,7 @@ export function TradeCardSkeleton({ index = 0 }: { index?: number }) {
         {/* Main trade content - horizontal layout */}
         <div className="flex items-stretch gap-4">
           {/* Offer Side */}
-          <div className="flex-1 bg-darkbg-800/50 rounded-xl p-3">
+          <div className="flex-1 min-w-0 overflow-hidden bg-darkbg-800/50 rounded-xl p-3">
             <div className="flex items-center justify-between mb-3">
               <div className="h-3 w-16 skeleton rounded" />
               <div className="h-5 w-16 skeleton rounded-full" />
@@ -1305,7 +1189,7 @@ export function TradeCardSkeleton({ index = 0 }: { index?: number }) {
           </div>
 
           {/* Request Side */}
-          <div className="flex-1 bg-darkbg-800/50 rounded-xl p-3">
+          <div className="flex-1 min-w-0 overflow-hidden bg-darkbg-800/50 rounded-xl p-3">
             <div className="flex items-center justify-between mb-3">
               <div className="h-3 w-12 skeleton rounded" />
               <div className="h-5 w-16 skeleton rounded-full" />

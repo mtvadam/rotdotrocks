@@ -9,7 +9,7 @@ import { TradeItemDisplay, TradeBuilderModal, TotalValueBreakdown, TradeVoting, 
 import { useAuth } from '@/components/Providers'
 import { RobloxAvatar } from '@/components/ui'
 import { formatIncome } from '@/lib/utils'
-import { calculateTraitValueMultiplier } from '@/lib/trait-value'
+import { calculateTotalValue, calculateTotalIncome } from '@/lib/trade-calculations'
 import type { DemandLevel, TrendDirection } from '@/components/trading/DemandTrendBadge'
 
 interface TradeItem {
@@ -298,58 +298,10 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
   const offerItems = trade.items.filter((i) => i.side === 'OFFER')
   const requestItems = trade.items.filter((i) => i.side === 'REQUEST')
 
-  // Calculate totals for a side
-  const calculateTotals = (items: TradeItem[]) => {
-    let totalIncome = BigInt(0)
-    let totalValue = 0
-    let hasEstimated = false
-    const itemBreakdowns: Array<{
-      brainrotName: string
-      mutationName: string
-      robuxValue: number
-      traitNames: Array<string | { name: string; valueMultiplier?: number }>
-      valueFallback?: boolean
-      valueFallbackSource?: string | null
-    }> = []
-
-    for (const item of items) {
-      if (item.calculatedIncome) {
-        totalIncome += BigInt(Math.round(parseFloat(String(item.calculatedIncome))))
-      }
-      if (item.robuxValue) {
-        // Apply trait value multiplier
-        const traitObjects = item.traits?.map(t => t.trait) || []
-        const traitMult = calculateTraitValueMultiplier(traitObjects)
-        totalValue += Math.round(item.robuxValue * traitMult)
-        // Track for breakdown
-        if (item.valueFallback) {
-          hasEstimated = true
-        }
-        itemBreakdowns.push({
-          brainrotName: item.brainrot.name,
-          mutationName: item.mutation?.name || 'Default',
-          robuxValue: item.robuxValue,
-          traitNames: traitObjects,
-          valueFallback: item.valueFallback,
-          valueFallbackSource: item.valueFallbackSource,
-        })
-      }
-      // Add robux from "Add Robux" addon
-      if (item.addonType === 'ROBUX' && item.robuxAmount) {
-        totalValue += item.robuxAmount
-        itemBreakdowns.push({
-          brainrotName: 'Robux',
-          mutationName: '',
-          robuxValue: item.robuxAmount,
-          traitNames: [],
-        })
-      }
-    }
-    return { totalIncome, totalValue, hasEstimated, itemBreakdowns }
-  }
-
-  const offerTotals = calculateTotals(offerItems)
-  const requestTotals = calculateTotals(requestItems)
+  const offerValueResult = calculateTotalValue(offerItems)
+  const requestValueResult = calculateTotalValue(requestItems)
+  const offerTotals = { totalValue: offerValueResult.value ?? 0, hasEstimated: offerValueResult.hasEstimated, itemBreakdowns: offerValueResult.itemBreakdowns, totalIncome: calculateTotalIncome(offerItems) }
+  const requestTotals = { totalValue: requestValueResult.value ?? 0, hasEstimated: requestValueResult.hasEstimated, itemBreakdowns: requestValueResult.itemBreakdowns, totalIncome: calculateTotalIncome(requestItems) }
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-darkbg-950">
@@ -425,10 +377,10 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
               </div>
               {/* Totals - pushed to bottom */}
               <div className="mt-3 pt-3 border-t border-darkbg-700 flex items-center justify-between text-sm">
-                {offerTotals.totalIncome > 0 ? (
+                {offerTotals.totalIncome ? (
                   <div>
                     <span className="text-gray-500">Total: </span>
-                    <span className="font-bold text-green-500">{formatIncome(offerTotals.totalIncome.toString())}</span>
+                    <span className="font-bold text-green-500">{formatIncome(offerTotals.totalIncome)}</span>
                   </div>
                 ) : <div />}
                 {offerTotals.totalValue > 0 ? (
@@ -459,10 +411,10 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
               </div>
               {/* Totals - pushed to bottom */}
               <div className="mt-3 pt-3 border-t border-darkbg-700 flex items-center justify-between text-sm">
-                {requestTotals.totalIncome > 0 ? (
+                {requestTotals.totalIncome ? (
                   <div>
                     <span className="text-gray-500">Total: </span>
-                    <span className="font-bold text-green-500">{formatIncome(requestTotals.totalIncome.toString())}</span>
+                    <span className="font-bold text-green-500">{formatIncome(requestTotals.totalIncome)}</span>
                   </div>
                 ) : <div />}
                 {requestTotals.totalValue > 0 ? (

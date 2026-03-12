@@ -292,7 +292,7 @@ function FilterButton({
         `}
       >
         <span className={count > 0 ? colorClasses.icon : ''}>{icon}</span>
-        <span className="text-sm font-medium hidden sm:inline">{label}</span>
+        <span className="text-sm font-medium">{label}</span>
         {count > 0 && (
           <span className={`min-w-[18px] h-[18px] px-1 ${colorClasses.badge} text-white text-[10px] font-bold rounded-full flex items-center justify-center`}>
             {count}

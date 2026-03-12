@@ -4,12 +4,13 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
-import { Calculator, Plus, Trash2, Scale, RotateCcw, Pencil, HelpCircle, ChevronDown, Minus, X, Info } from 'lucide-react'
+import { Plus, Scale, ArrowRightLeft, RotateCcw, Pencil, HelpCircle, ChevronDown, Minus, X, Info } from 'lucide-react'
 import { BrainrotPicker, prefetchPickerData, DemandTrendBadge, type DemandLevel, type TrendDirection } from '@/components/trading'
 import { PageTransition } from '@/components/ui'
 import { formatIncome, getMutationClass } from '@/lib/utils'
 import { easeOut } from '@/lib/animations'
 import { calculateTraitValueMultiplier, getTraitValueMultiplier } from '@/lib/trait-value'
+import { formatCompactValue, calculateCalculatorTotals } from '@/lib/trade-calculations'
 
 interface TradeItem {
   brainrotId: string
@@ -43,43 +44,6 @@ interface TradeItem {
   quantity: number
 }
 
-function formatValue(value: number): string {
-  if (value >= 1_000_000) return (value / 1_000_000).toFixed(1) + 'M'
-  if (value >= 1_000) return (value / 1_000).toFixed(1) + 'K'
-  return value.toLocaleString()
-}
-
-// Calculate with quantity support (applies trait value multiplier)
-function calculateTotals(items: TradeItem[]) {
-  let totalIncome = BigInt(0)
-  let totalValue = 0
-  let hasEstimated = false
-  const breakdown: Array<{ name: string; income: bigint; value: number; qty: number; source?: string }> = []
-
-  for (const item of items) {
-    const income = BigInt(item.calculatedIncome || item.brainrot.baseIncome) * BigInt(item.quantity)
-    const baseValue = item.robuxValue ?? item.brainrot.robuxValue ?? 0
-    const traitObjects = item.traits || []
-    const traitMult = calculateTraitValueMultiplier(traitObjects)
-    const value = Math.round(baseValue * traitMult) * item.quantity
-
-    totalIncome += income
-    totalValue += value
-
-    if (item.valueFallback) hasEstimated = true
-
-    breakdown.push({
-      name: item.brainrot.name,
-      income,
-      value,
-      qty: item.quantity,
-      source: item.valueFallback ? item.valueFallbackSource || undefined : undefined
-    })
-  }
-
-  return { totalIncome, totalValue, hasEstimated, breakdown }
-}
-
 // Value breakdown tooltip
 function ValueBreakdown({ item }: { item: TradeItem }) {
   const [show, setShow] = useState(false)
@@ -89,10 +53,11 @@ function ValueBreakdown({ item }: { item: TradeItem }) {
 
   const traitObjects = item.traits || []
   const traitMult = calculateTraitValueMultiplier(traitObjects)
-  const finalValue = item.robuxValue ?? 0
+  const baseValue = item.robuxValue ?? 0
+  const finalValue = Math.round(baseValue * traitMult)
 
-  // Back-calculate the mutation base value (finalValue = mutationBase * traitMult)
-  const mutationBaseValue = traitMult !== 0 ? Math.round(finalValue / traitMult) : finalValue
+  // baseValue is already the mutation-adjusted value (from the API)
+  const mutationBaseValue = baseValue
 
   useEffect(() => {
     if (!show) {
@@ -116,7 +81,7 @@ function ValueBreakdown({ item }: { item: TradeItem }) {
     }
   }, [show])
 
-  if (finalValue === 0) return <span className="text-gray-500 text-xs">N/A</span>
+  if (baseValue === 0) return <span className="text-gray-500 text-xs">N/A</span>
 
   return (
     <>
@@ -124,9 +89,9 @@ function ValueBreakdown({ item }: { item: TradeItem }) {
         ref={ref}
         onMouseEnter={() => setShow(true)}
         onMouseLeave={() => setShow(false)}
-        className="text-orange-400 font-medium text-sm hover:text-orange-300 transition-colors flex items-center gap-1"
+        className="text-yellow-400 font-medium text-sm hover:text-yellow-300 transition-colors flex items-center gap-1"
       >
-        R${formatValue(finalValue * item.quantity)}
+        R${formatCompactValue(finalValue * item.quantity)}
         {(item.valueFallback || traitMult !== 1) && <Info className="w-3 h-3 opacity-60" />}
       </button>
       {typeof window !== 'undefined' && show && createPortal(
@@ -170,7 +135,7 @@ function ValueBreakdown({ item }: { item: TradeItem }) {
                 <span>x{item.quantity}</span>
               </div>
             )}
-            <div className="flex justify-between text-orange-400 font-medium pt-1 border-t border-darkbg-600">
+            <div className="flex justify-between text-yellow-400 font-medium pt-1 border-t border-darkbg-600">
               <span>Total</span>
               <span>R${(finalValue * item.quantity).toLocaleString()}</span>
             </div>
@@ -392,7 +357,12 @@ function HowItWorks() {
     if (traitTiers.length > 0) return
     fetch('/api/traits')
       .then(r => r.json())
-      .then((res: { traits: Array<{ name: string; valueMultiplier?: number }> }) => {
+      .then(async (res: { traits: Array<{ name: string; valueMultiplier?: number }>; streakMultipliers?: Record<number, number> }) => {
+        // Initialize streak multipliers
+        if (res.streakMultipliers) {
+          const { setStreakMultipliers } = await import('@/lib/trait-value')
+          setStreakMultipliers(res.streakMultipliers)
+        }
         // Group traits by their bonus percentage
         const groups = new Map<number, string[]>()
         for (const t of res.traits) {
@@ -428,7 +398,7 @@ function HowItWorks() {
   }, [open, traitTiers.length])
 
   return (
-    <div className="bg-darkbg-900/60 backdrop-blur-sm rounded-2xl border border-darkbg-700/80 overflow-hidden shadow-lg shadow-black/10">
+    <div className="bg-darkbg-800 rounded-2xl border border-darkbg-700 overflow-hidden shadow-lg shadow-black/10">
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between p-4 text-left hover:bg-darkbg-800/30 transition-all duration-200 group"
@@ -494,11 +464,11 @@ function HowItWorks() {
                   transition={{ delay: 0.1 }}
                   className="relative bg-gradient-to-br from-darkbg-800/80 to-darkbg-850/60 rounded-xl p-4 border border-darkbg-700/60 overflow-hidden"
                 >
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
                   <div className="relative">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-                      <p className="font-semibold text-orange-400 text-sm">Value Formula (R$)</p>
+                      <div className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
+                      <p className="font-semibold text-yellow-400 text-sm">Value Formula (R$)</p>
                     </div>
                     <p className="text-xs text-gray-300 font-mono bg-darkbg-900/50 rounded-lg px-3 py-2">
                       Base Value <span className="text-gray-500">x</span> Trait Bonus
@@ -582,8 +552,8 @@ export default function CalculatorPage() {
 
   useEffect(() => { prefetchPickerData() }, [])
 
-  const leftTotals = calculateTotals(leftItems)
-  const rightTotals = calculateTotals(rightItems)
+  const leftTotals = calculateCalculatorTotals(leftItems)
+  const rightTotals = calculateCalculatorTotals(rightItems)
 
   const incomeDiff = rightTotals.totalIncome - leftTotals.totalIncome
   const valueDiff = rightTotals.totalValue - leftTotals.totalValue
@@ -647,21 +617,36 @@ export default function CalculatorPage() {
   const hasValue = leftTotals.totalValue > 0 || rightTotals.totalValue > 0
 
   return (
-    <PageTransition className="min-h-[calc(100vh-64px)] bg-darkbg-950">
-      <div className="container mx-auto px-4 py-6 max-w-5xl">
+    <PageTransition className="bg-darkbg-950 relative overflow-hidden">
+      {/* Background gradient orbs */}
+      <div className="absolute -top-20 left-1/4 w-72 h-72 bg-green-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/3 -right-20 w-64 h-64 bg-emerald-500/4 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-1/3 w-56 h-56 bg-green-500/3 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative container mx-auto px-4 py-6 max-w-5xl">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-1 h-10 bg-green-500 rounded-full" />
-            <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">Trade Calculator (Steal a Brainrot)</h1>
-              <p className="text-sm text-gray-500">Compare values before you trade</p>
-            </div>
+        <div className="mb-6 flex items-center gap-3">
+          <motion.div
+            className="p-2 bg-gradient-to-br from-green-500/20 to-emerald-500/10 rounded-xl border border-green-500/20 flex-shrink-0"
+            animate={{
+              boxShadow: [
+                '0 0 12px rgba(34,197,94,0.15)',
+                '0 0 24px rgba(34,197,94,0.3)',
+                '0 0 12px rgba(34,197,94,0.15)'
+              ]
+            }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <Scale className="w-5 h-5 text-green-400" />
+          </motion.div>
+          <div>
+            <h1 className="text-xl font-bold text-white tracking-tight">Trade Calculator <span className="text-gray-500 font-normal text-sm">(Steal a Brainrot)</span></h1>
+            <p className="text-sm text-gray-500">Compare values before you trade</p>
           </div>
         </div>
 
         {/* Main Calculator */}
-        <div className="bg-darkbg-900/80 backdrop-blur-sm rounded-2xl border border-darkbg-700 overflow-hidden">
+        <div className="bg-darkbg-800 rounded-2xl border border-darkbg-700 overflow-hidden">
           <div className="grid md:grid-cols-[1fr_auto_1fr]">
             {/* Left Side */}
             <div className="p-4">
@@ -688,7 +673,7 @@ export default function CalculatorPage() {
 
               <button
                 onClick={() => setPickerSide('left')}
-                className="w-full py-3 border border-dashed border-darkbg-600 rounded-xl text-gray-500 hover:text-green-500 hover:border-green-500/50 transition-colors flex items-center justify-center gap-2 text-sm"
+                className="w-full py-3 border border-dashed border-darkbg-600 rounded-xl text-gray-500 hover:text-green-400 hover:border-green-500/40 hover:bg-gradient-to-r hover:from-green-500/5 hover:to-emerald-500/5 transition-all duration-200 flex items-center justify-center gap-2 text-sm"
               >
                 <Plus className="w-4 h-4" />
                 Add Item
@@ -704,8 +689,8 @@ export default function CalculatorPage() {
                   {leftTotals.totalValue > 0 && (
                     <div className="flex justify-between items-center mt-1">
                       <span className="text-xs text-gray-500">Total Value</span>
-                      <span className="font-bold text-orange-400">
-                        R${formatValue(leftTotals.totalValue)}{leftTotals.hasEstimated ? '+' : ''}
+                      <span className="font-bold text-yellow-400">
+                        R${formatCompactValue(leftTotals.totalValue)}{leftTotals.hasEstimated ? '+' : ''}
                       </span>
                     </div>
                   )}
@@ -715,11 +700,9 @@ export default function CalculatorPage() {
 
             {/* Center - Comparison */}
             <div className="hidden md:flex flex-col items-center justify-center px-6 py-4 bg-darkbg-800/30 border-x border-darkbg-700">
-              <Scale className="w-8 h-8 text-gray-600 mb-3" />
-
               {hasItems ? (
                 <div className="text-center space-y-4">
-                  {/* Income comparison */}
+                  {/* Income comparison  */}
                   <div>
                     <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Income</p>
                     <p className={`text-lg font-bold ${incomeDiff > 0 ? 'text-green-500' : incomeDiff < 0 ? 'text-red-500' : 'text-gray-500'}`}>
@@ -735,7 +718,7 @@ export default function CalculatorPage() {
                     <div>
                       <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Value</p>
                       <p className={`text-lg font-bold ${valueDiff > 0 ? 'text-green-500' : valueDiff < 0 ? 'text-red-500' : 'text-gray-500'}`}>
-                        {valueDiff > 0 ? '+' : ''}R${formatValue(Math.abs(valueDiff))}
+                        {valueDiff > 0 ? '+' : ''}R${formatCompactValue(Math.abs(valueDiff))}
                       </p>
                       <p className="text-xs text-gray-500">
                         {valuePercent > 0 ? '+' : ''}{valuePercent.toFixed(1)}%
@@ -757,7 +740,10 @@ export default function CalculatorPage() {
                   )}
                 </div>
               ) : (
-                <p className="text-xs text-gray-500 text-center">Add items to<br/>compare trades</p>
+                <div className="flex flex-col items-center gap-2">
+                  <ArrowRightLeft className="w-6 h-6 text-gray-600" />
+                  <p className="text-xs text-gray-500 text-center">Add items to<br/>compare trades</p>
+                </div>
               )}
             </div>
 
@@ -786,7 +772,7 @@ export default function CalculatorPage() {
 
               <button
                 onClick={() => setPickerSide('right')}
-                className="w-full py-3 border border-dashed border-darkbg-600 rounded-xl text-gray-500 hover:text-green-500 hover:border-green-500/50 transition-colors flex items-center justify-center gap-2 text-sm"
+                className="w-full py-3 border border-dashed border-darkbg-600 rounded-xl text-gray-500 hover:text-green-400 hover:border-green-500/40 hover:bg-gradient-to-r hover:from-green-500/5 hover:to-emerald-500/5 transition-all duration-200 flex items-center justify-center gap-2 text-sm"
               >
                 <Plus className="w-4 h-4" />
                 Add Item
@@ -802,8 +788,8 @@ export default function CalculatorPage() {
                   {rightTotals.totalValue > 0 && (
                     <div className="flex justify-between items-center mt-1">
                       <span className="text-xs text-gray-500">Total Value</span>
-                      <span className="font-bold text-orange-400">
-                        R${formatValue(rightTotals.totalValue)}{rightTotals.hasEstimated ? '+' : ''}
+                      <span className="font-bold text-yellow-400">
+                        R${formatCompactValue(rightTotals.totalValue)}{rightTotals.hasEstimated ? '+' : ''}
                       </span>
                     </div>
                   )}
@@ -826,7 +812,7 @@ export default function CalculatorPage() {
                   <div className="text-center">
                     <p className="text-[10px] text-gray-500 uppercase">Value</p>
                     <p className={`font-bold ${valueDiff > 0 ? 'text-green-500' : valueDiff < 0 ? 'text-red-500' : 'text-gray-500'}`}>
-                      {valueDiff > 0 ? '+' : ''}R${formatValue(Math.abs(valueDiff))}
+                      {valueDiff > 0 ? '+' : ''}R${formatCompactValue(Math.abs(valueDiff))}
                     </p>
                   </div>
                 )}

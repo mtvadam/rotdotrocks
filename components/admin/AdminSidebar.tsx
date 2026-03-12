@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, Flag, ScrollText, ArrowLeft, Database, Gauge, Settings, DollarSign, Download } from 'lucide-react'
+import { LayoutDashboard, Users, Flag, ScrollText, ArrowLeft, Database, Gauge, Settings, DollarSign, Download, Camera, ClipboardCheck } from 'lucide-react'
 
 type NavItem = {
   href: string
@@ -16,6 +16,8 @@ const navItems: NavItem[] = [
   { href: '/admin/data', label: 'Data Management', icon: Database, adminOnly: true },
   { href: '/admin/usd-values', label: 'Robux Values', icon: DollarSign },
   { href: '/admin/price-import', label: 'Price Import', icon: Download, adminOnly: true },
+  { href: '/admin/price-snapshots', label: 'Price Snapshots', icon: Camera },
+  { href: '/admin/approvals', label: 'Approvals', icon: ClipboardCheck, adminOnly: true },
   { href: '/admin/users', label: 'Users', icon: Users, adminOnly: true },
   { href: '/admin/reports', label: 'Reports', icon: Flag, adminOnly: true },
   { href: '/admin/rate-limits', label: 'Rate Limits', icon: Gauge, adminOnly: true },

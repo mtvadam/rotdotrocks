@@ -220,12 +220,30 @@ const faqs: FAQItem[] = [
   },
 ]
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.06,
+    },
+  },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: easeOut } },
+}
+
 function FAQAccordion({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boolean; onToggle: () => void }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-darkbg-900/90 backdrop-blur-sm rounded-xl border border-darkbg-700 overflow-hidden"
+      variants={itemVariants}
+      className={`bg-darkbg-900/90 backdrop-blur-sm rounded-xl overflow-hidden transition-all duration-300 ${
+        isOpen
+          ? 'border border-green-500/30 shadow-[0_0_20px_rgba(34,197,94,0.08)]'
+          : 'border border-darkbg-700'
+      }`}
     >
       <button
         onClick={onToggle}
@@ -237,7 +255,7 @@ function FAQAccordion({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boole
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
         >
-          <ChevronDown className="w-5 h-5 text-gray-400" />
+          <ChevronDown className={`w-5 h-5 transition-colors duration-300 ${isOpen ? 'text-green-400' : 'text-gray-400'}`} />
         </motion.div>
       </button>
       <AnimatePresence>
@@ -262,25 +280,46 @@ export default function FAQPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(0)
 
   return (
-    <PageTransition className="min-h-[calc(100vh-64px)] bg-darkbg-950">
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
+    <PageTransition className="min-h-[calc(100vh-64px)] bg-darkbg-950 relative overflow-hidden">
+      {/* Background gradient orbs */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-20 right-1/4 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-40 left-1/2 -translate-x-1/2 w-[600px] h-64 bg-green-500/3 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="container mx-auto px-4 py-8 max-w-3xl relative z-10">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: easeOut }}
-          className="text-center mb-8"
+          className="flex items-center justify-center gap-3 mb-6"
         >
-          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
-            Frequently Asked Questions
-          </h1>
-          <p className="text-gray-400">
-            Everything you need to know about rot.rocks
-          </p>
+          <motion.div
+            className="p-2.5 bg-gradient-to-br from-green-500/20 to-emerald-500/10 rounded-xl border border-green-500/20"
+            animate={{
+              boxShadow: [
+                '0 0 12px rgba(34,197,94,0.15)',
+                '0 0 24px rgba(34,197,94,0.3)',
+                '0 0 12px rgba(34,197,94,0.15)'
+              ]
+            }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <HelpCircle className="w-6 h-6 text-green-400" />
+          </motion.div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-black text-white">frequently asked questions</h1>
+            <p className="text-gray-500 text-sm">everything you need to know about rot.rocks</p>
+          </div>
         </motion.div>
 
         {/* FAQ List */}
-        <div className="space-y-3">
+        <motion.div
+          className="space-y-3"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
           {faqs.map((faq, index) => (
             <FAQAccordion
               key={index}
@@ -289,26 +328,26 @@ export default function FAQPage() {
               onToggle={() => setOpenIndex(openIndex === index ? null : index)}
             />
           ))}
-        </div>
+        </motion.div>
 
         {/* Discord CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.2, ease: easeOut }}
-          className="mt-8 text-center"
+          transition={{ duration: 0.3, delay: 0.5, ease: easeOut }}
+          className="mt-10 text-center"
         >
-          <p className="text-gray-400 mb-4">Still have questions?</p>
+          <p className="text-gray-500 mb-4 text-sm">still have questions?</p>
           <a
             href="https://discord.gg/N5fnmraeee"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold rounded-xl transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold rounded-xl transition-all duration-200 hover:shadow-[0_0_24px_rgba(88,101,242,0.3)]"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
             </svg>
-            Join our Discord
+            join our discord
           </a>
         </motion.div>
       </div>

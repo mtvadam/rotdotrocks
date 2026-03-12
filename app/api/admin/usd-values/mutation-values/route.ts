@@ -96,44 +96,43 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'updates array is required' }, { status: 400 })
     }
 
-    // Process updates individually to avoid transaction timeout
-    for (const update of updates) {
+    // Batch all operations in a single transaction for speed
+    const operations = updates.map((update: { brainrotId: string; mutationId?: string; robuxValue: number | string | null }) => {
       if (update.mutationId) {
-        // Mutation-specific value
         if (update.robuxValue === null || update.robuxValue === '' || update.robuxValue === undefined) {
-          await prisma.brainrotMutationValue.deleteMany({
+          return prisma.brainrotMutationValue.deleteMany({
             where: { brainrotId: update.brainrotId, mutationId: update.mutationId },
           })
-        } else {
-          await prisma.brainrotMutationValue.upsert({
-            where: {
-              brainrotId_mutationId: {
-                brainrotId: update.brainrotId,
-                mutationId: update.mutationId,
-              },
-            },
-            create: {
+        }
+        return prisma.brainrotMutationValue.upsert({
+          where: {
+            brainrotId_mutationId: {
               brainrotId: update.brainrotId,
               mutationId: update.mutationId,
-              robuxValue: parseInt(update.robuxValue, 10),
             },
-            update: {
-              robuxValue: parseInt(update.robuxValue, 10),
-            },
-          })
-        }
+          },
+          create: {
+            brainrotId: update.brainrotId,
+            mutationId: update.mutationId,
+            robuxValue: parseInt(String(update.robuxValue), 10),
+          },
+          update: {
+            robuxValue: parseInt(String(update.robuxValue), 10),
+          },
+        })
       } else {
-        // Base brainrot value
-        await prisma.brainrot.update({
+        return prisma.brainrot.update({
           where: { id: update.brainrotId },
           data: {
             robuxValue: update.robuxValue === null || update.robuxValue === ''
               ? null
-              : parseInt(update.robuxValue, 10),
+              : parseInt(String(update.robuxValue), 10),
           },
         })
       }
-    }
+    })
+
+    await prisma.$transaction(operations)
 
     // Create audit log for bulk update
     await prisma.auditLog.create({

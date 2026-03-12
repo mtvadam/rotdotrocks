@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, Check, CheckCheck, ArrowRightLeft, MessageSquare, X } from 'lucide-react'
@@ -30,23 +30,23 @@ export function NotificationBell() {
   const [mounted, setMounted] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState({ top: 0, right: 0 })
+  const [scrollFade, setScrollFade] = useState({ top: false, bottom: false })
+
+  const updateScrollFade = useCallback(() => {
+    const el = listRef.current
+    if (!el) return
+    setScrollFade({
+      top: el.scrollTop > 4,
+      bottom: el.scrollTop + el.clientHeight < el.scrollHeight - 4,
+    })
+  }, [])
 
   // For portal
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  // Update position when opening
-  useEffect(() => {
-    if (isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect()
-      setPosition({
-        top: rect.bottom + 8,
-        right: window.innerWidth - rect.right,
-      })
-    }
-  }, [isOpen])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -109,6 +109,11 @@ export function NotificationBell() {
     }
   }, [])
 
+  // Update scroll fades when notifications change or dropdown opens
+  useEffect(() => {
+    if (isOpen) requestAnimationFrame(updateScrollFade)
+  }, [isOpen, notifications, updateScrollFade])
+
   // Mark single notification as read
   const markAsRead = async (notificationId: string) => {
     try {
@@ -167,7 +172,16 @@ export function NotificationBell() {
         ref={buttonRef}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!isOpen && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect()
+            setPosition({
+              top: rect.bottom + 8,
+              right: window.innerWidth - rect.right,
+            })
+          }
+          setIsOpen(!isOpen)
+        }}
         className="relative p-2 text-gray-400 hover:text-white transition-colors"
       >
         <Bell className="w-5 h-5" />
@@ -211,7 +225,16 @@ export function NotificationBell() {
               </div>
 
               {/* Notifications List */}
-              <div className="max-h-80 overflow-y-auto">
+              <div className="relative">
+                <div
+                  className="absolute top-0 left-0 right-0 h-6 z-10 pointer-events-none transition-opacity duration-200"
+                  style={{ background: 'linear-gradient(to bottom, rgb(41,48,71), transparent)', opacity: scrollFade.top ? 1 : 0 }}
+                />
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-6 z-10 pointer-events-none transition-opacity duration-200"
+                  style={{ background: 'linear-gradient(to top, rgb(41,48,71), transparent)', opacity: scrollFade.bottom ? 1 : 0 }}
+                />
+              <div ref={listRef} className="max-h-80 overflow-y-auto" onScroll={updateScrollFade}>
                 {notifications.length === 0 ? (
                   <div className="p-6 text-center text-gray-500">
                     <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -264,6 +287,7 @@ export function NotificationBell() {
                     </Link>
                   ))
                 )}
+              </div>
               </div>
             </div>
           )}

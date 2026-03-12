@@ -40,17 +40,6 @@ export function Select({ value, onChange, options, className = '', disabled = fa
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
-  useEffect(() => {
-    if (isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect()
-      setPosition({
-        top: rect.bottom + 8,
-        left: rect.left,
-        width: rect.width,
-      })
-    }
-  }, [isOpen])
-
   const handleSelect = (optionValue: string) => {
     onChange(optionValue)
     setIsOpen(false)
@@ -61,7 +50,18 @@ export function Select({ value, onChange, options, className = '', disabled = fa
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onClick={() => {
+          if (disabled) return
+          if (!isOpen && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect()
+            setPosition({
+              top: rect.bottom + 8,
+              left: rect.left,
+              width: rect.width,
+            })
+          }
+          setIsOpen(!isOpen)
+        }}
         disabled={disabled}
         className={`
           flex items-center justify-between gap-2 pl-4 pr-3 py-2.5

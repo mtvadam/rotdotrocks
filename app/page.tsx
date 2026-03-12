@@ -69,12 +69,13 @@ const RARITY_TIER_MAP: Record<string, number> = {
   admin: 8,
 }
 
-const DEFAULT_BORDER = { border: 'border-darkbg-700 hover:border-darkbg-600', glow: '' }
+// Unknown/event rarities get admin-style treatment
+const DEFAULT_BORDER = { border: 'border-amber-500/40', animated: 'card-border-animated card-border-admin', glow: 'shadow-[0_0_20px_rgba(255,165,0,0.25)]' }
 
 // Optimized rarity functions using lookup maps
 function getRarityColor(rarity: string | null): string {
   if (!rarity) return 'text-gray-400'
-  return RARITY_COLOR_MAP[rarity.toLowerCase()] || 'text-gray-400'
+  return RARITY_COLOR_MAP[rarity.toLowerCase()] || 'rarity-admin animation-always-running'
 }
 
 function getRarityBorder(rarity: string | null): { border: string; animated?: string; glow?: string } {
@@ -84,7 +85,7 @@ function getRarityBorder(rarity: string | null): { border: string; animated?: st
 
 function getRarityTier(rarity: string | null): number {
   if (!rarity) return 0
-  return RARITY_TIER_MAP[rarity.toLowerCase()] || 0
+  return RARITY_TIER_MAP[rarity.toLowerCase()] || 6
 }
 
 // Static data moved outside component to prevent recreation
@@ -330,7 +331,7 @@ export default function HomePage() {
         </motion.div>
       </div>
 
-      {/* Stats bar */}
+      {/* Values bar */}
       <motion.div
         className="relative z-[10] border-y border-darkbg-800 bg-darkbg-900/50 backdrop-blur-sm"
         initial={{ opacity: 0, y: 20 }}
@@ -338,49 +339,34 @@ export default function HomePage() {
         viewport={{ once: true }}
         transition={{ duration: 0.5 }}
       >
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-5">
           <motion.div
-            className="flex flex-wrap justify-center gap-8 md:gap-20 text-center"
+            className="flex flex-wrap justify-center gap-3 md:gap-4"
             variants={containerVariants}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
           >
-            <motion.div variants={itemVariants}>
-              <motion.p
-                className="text-2xl md:text-3xl font-black text-white"
-                initial={{ opacity: 0, scale: 0.5 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
-              >
-                Free
-              </motion.p>
-              <p className="text-gray-500 text-sm">to use, always</p>
+            <motion.div
+              variants={itemVariants}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-darkbg-800/60 border border-darkbg-700 rounded-full"
+            >
+              <span className="text-lg font-semibold text-gray-300">Free</span>
+              <span className="text-gray-500 text-sm">to use, always</span>
             </motion.div>
-            <motion.div variants={itemVariants}>
-              <motion.p
-                className="text-2xl md:text-3xl font-black text-green-400"
-                initial={{ opacity: 0, scale: 0.5 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
-              >
-                Open
-              </motion.p>
-              <p className="text-gray-500 text-sm">for everyone</p>
+            <motion.div
+              variants={itemVariants}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-darkbg-800/60 border border-green-500/20 rounded-full"
+            >
+              <span className="text-lg font-semibold text-green-400">Open</span>
+              <span className="text-gray-500 text-sm">for everyone</span>
             </motion.div>
-            <motion.div variants={itemVariants}>
-              <motion.p
-                className="text-2xl md:text-3xl font-black text-white"
-                initial={{ opacity: 0, scale: 0.5 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ type: "spring", stiffness: 200, delay: 0.3 }}
-              >
-                Community
-              </motion.p>
-              <p className="text-gray-500 text-sm">built and run</p>
+            <motion.div
+              variants={itemVariants}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-darkbg-800/60 border border-darkbg-700 rounded-full"
+            >
+              <span className="text-lg font-semibold text-gray-300">Community</span>
+              <span className="text-gray-500 text-sm">built and run</span>
             </motion.div>
           </motion.div>
         </div>

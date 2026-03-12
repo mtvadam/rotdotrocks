@@ -38,9 +38,35 @@ export function CookieConsent() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-md z-[200]"
+          className="fixed bottom-0 left-0 right-0 md:bottom-4 md:left-auto md:right-4 md:max-w-md z-[200]"
         >
-          <div className="bg-darkbg-900/95 backdrop-blur-xl border border-darkbg-700 rounded-2xl p-5 shadow-2xl shadow-black/50">
+          {/* Mobile: compact full-width banner */}
+          <div className="md:hidden bg-darkbg-900/95 backdrop-blur-xl border-t border-darkbg-700 px-4 py-3 shadow-2xl shadow-black/50">
+            <div className="flex items-center gap-3">
+              <Cookie className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <p className="text-xs text-gray-400 flex-1">
+                We use cookies for login & preferences.{' '}
+                <Link href="/privacy" className="text-gray-500 hover:text-gray-400 underline">Learn more</Link>
+              </p>
+              <div className="flex gap-2 flex-shrink-0">
+                <button
+                  onClick={handleDecline}
+                  className="px-3 py-1.5 bg-darkbg-700 hover:bg-darkbg-600 text-gray-300 text-xs font-medium rounded-lg transition-colors"
+                >
+                  Decline
+                </button>
+                <button
+                  onClick={handleAccept}
+                  className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-xs font-medium rounded-lg transition-colors"
+                >
+                  Accept
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop: floating card (original design) */}
+          <div className="hidden md:block bg-darkbg-900/95 backdrop-blur-xl border border-darkbg-700 rounded-2xl p-5 shadow-2xl shadow-black/50">
             <div className="flex items-start gap-4">
               <div className="p-2 bg-amber-500/20 rounded-xl flex-shrink-0">
                 <Cookie className="w-5 h-5 text-amber-400" />

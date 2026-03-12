@@ -19,20 +19,27 @@ export async function GET(request: NextRequest) {
       where.name = { contains: search, mode: 'insensitive' }
     }
 
-    const traits = await prisma.trait.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        localImage: true,
-        multiplier: true,
-        valueMultiplier: true,
-      },
-      orderBy: { name: 'asc' },
-      take: 100,
-    })
+    const [traits, streakConfig] = await Promise.all([
+      prisma.trait.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          localImage: true,
+          multiplier: true,
+          valueMultiplier: true,
+        },
+        orderBy: { name: 'asc' },
+        take: 100,
+      }),
+      prisma.systemConfig.findUnique({ where: { key: 'trait_streak_multipliers' } }),
+    ])
 
-    return NextResponse.json({ traits }, {
+    const streakMultipliers = streakConfig
+      ? JSON.parse(streakConfig.value)
+      : { 3: 2, 5: 3 }
+
+    return NextResponse.json({ traits, streakMultipliers }, {
       headers: {
         'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
       },

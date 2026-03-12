@@ -183,6 +183,10 @@ model User {
   notifications       Notification[]    @relation("UserNotifications")
   triggeredNotifications Notification[] @relation("TriggeredNotifications")
   tradeMessages       TradeMessage[]
+  priceReviewsSubmitted PriceReview[]     @relation("PriceReviewSubmitter")
+  priceReviewsApproved  PriceReview[]     @relation("PriceReviewApprover")
+  traitEditsSubmitted   PendingTraitEdit[] @relation("TraitEditSubmitter")
+  traitEditsApproved    PendingTraitEdit[] @relation("TraitEditApprover")
 
   @@index([robloxUsername])
   @@index([shopName])
@@ -236,6 +240,7 @@ model Brainrot {
   tradeItems     TradeItem[]
   reports        Report[]
   mutationValues BrainrotMutationValue[]
+  priceSnapshots PriceSnapshot[]
 
   @@index([slug])
   @@index([isActive])
@@ -257,6 +262,7 @@ model Trait {
   inventoryItemTraits InventoryItemTrait[]
   tradeItemTraits     TradeItemTrait[]
   reports             Report[]
+  pendingEdits        PendingTraitEdit[]
 
   @@index([name])
 }
@@ -291,6 +297,7 @@ model Mutation {
   tradeItems     TradeItem[]
   reports        Report[]
   brainrotValues BrainrotMutationValue[]
+  priceSnapshots PriceSnapshot[]
 
   @@index([name])
 }
@@ -756,6 +763,62 @@ model TradeVote {
   @@unique([tradeId, sessionId]) // One vote per session per trade
   @@index([tradeId])
   @@index([sessionId])
+}
+
+// Historical price snapshots from Eldorado fetches
+model PriceSnapshot {
+  id             String   @id @default(cuid())
+  brainrotId     String
+  mutationId     String
+  usdPrice       Float?   // USD price from Eldorado (lowest valid listing)
+  robuxPrice     Int?     // Converted Robux value (rounded to nearest 50)
+  listingCount   Int      @default(0)
+  isOutlier      Boolean  @default(false)
+  usedForDemand    Boolean  @default(true) // Whether this snapshot counts toward demand calculation
+  appliedToValues  Boolean  @default(false) // Whether this batch has been reviewed and applied to mutation values
+  source           String   @default("eldorado")
+  createdAt        DateTime @default(now())
+
+  brainrot Brainrot @relation(fields: [brainrotId], references: [id], onDelete: Cascade)
+  mutation Mutation @relation(fields: [mutationId], references: [id], onDelete: Cascade)
+
+  @@index([brainrotId, mutationId, createdAt])
+  @@index([createdAt])
+}
+
+model PriceReview {
+  id                  String   @id @default(cuid())
+  reviewerId          String
+  snapshotIds         Json     // string[] of snapshot IDs
+  verifiedBrainrotIds Json     // string[] of verified brainrot IDs
+  overrides           Json?    // Record<brainrotId, Record<mutationId, number>>
+  status              String   @default("pending") // pending, approved, rejected
+  note                String?  // optional note from mod
+  adminNote           String?  // optional note from admin on approve/reject
+  reviewedById        String?  // admin who approved/rejected
+  reviewedAt          DateTime?
+  createdAt           DateTime @default(now())
+
+  reviewer   User  @relation("PriceReviewSubmitter", fields: [reviewerId], references: [id])
+  reviewedBy User? @relation("PriceReviewApprover", fields: [reviewedById], references: [id])
+}
+
+model PendingTraitEdit {
+  id               String    @id @default(cuid())
+  traitId          String
+  submitterId      String
+  oldValue         Float     // previous valueMultiplier
+  newValue         Float     // proposed valueMultiplier
+  adminValue       Float?    // admin can override before approving
+  status           String    @default("pending") // pending, approved, rejected
+  adminNote        String?
+  reviewedById     String?
+  reviewedAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  trait      Trait @relation(fields: [traitId], references: [id], onDelete: Cascade)
+  submitter  User  @relation("TraitEditSubmitter", fields: [submitterId], references: [id])
+  reviewedBy User? @relation("TraitEditApprover", fields: [reviewedById], references: [id])
 }
 
 // Trade chat messages for negotiation

@@ -123,6 +123,6 @@ export function getRarityColorClass(rarity: string | null | undefined): string {
     case 'festive': return 'rarity-festive animation-always-running'
     case 'og': return 'rarity-og animation-always-running'
     case 'admin': return 'rarity-admin animation-always-running'
-    default: return 'text-gray-400'
+    default: return 'rarity-admin animation-always-running'
   }
 }

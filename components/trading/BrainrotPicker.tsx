@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { Search, X, Plus, Check, ArrowDownUp, ArrowLeft, Flag, Send, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
@@ -68,12 +69,17 @@ export function prefetchPickerData() {
     fetch('/api/brainrots').then((r) => r.json()),
     fetch('/api/mutations').then((r) => r.json()),
     fetch('/api/traits').then((r) => r.json()),
-  ]).then(([b, m, t]) => {
+  ]).then(async ([b, m, t]) => {
     dataCache.brainrots = b.brainrots || []
     dataCache.mutations = m.mutations || []
     dataCache.traits = t.traits || []
     dataCache.loaded = true
     dataCache.loading = false
+    // Initialize streak multipliers from server config
+    if (t.streakMultipliers) {
+      const { setStreakMultipliers } = await import('@/lib/trait-value')
+      setStreakMultipliers(t.streakMultipliers)
+    }
   })
 }
 
@@ -474,10 +480,10 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
     { value: 'OTHER', label: 'Other Issue' },
   ]
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
-      className="fixed inset-x-0 top-16 bottom-0 z-50 flex items-start md:items-center justify-center pt-4 md:pt-0 bg-black/40 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-start md:items-center justify-center pt-20 md:pt-0 bg-black/40 backdrop-blur-md overflow-y-auto"
     >
       <motion.div
         initial={{ scale: 0.95, y: 10 }}
@@ -1167,6 +1173,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
             )}
           </AnimatePresence>
         </motion.div>
-      </div>
+      </div>,
+    document.body
   )
 }
