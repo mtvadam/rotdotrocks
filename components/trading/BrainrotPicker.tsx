@@ -14,6 +14,8 @@ import { DemandDot, type DemandLevel, type TrendDirection } from './DemandTrendB
 interface MutationValue {
   mutationId: string
   robuxValue: number
+  demand?: DemandLevel
+  trend?: TrendDirection
   mutationName: string
   mutationMultiplier: number
 }
@@ -412,9 +414,17 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
 
     // Store base robuxValue WITHOUT trait multiplier applied
     // TradeItemDisplay will apply trait multiplier at display time (consistent with API data)
+    // Use mutation-specific demand/trend when a mutation is selected
+    const mutMv = selectedMutation && selectedBrainrot.mutationValues
+      ? selectedBrainrot.mutationValues.find(mv => mv.mutationId === selectedMutation.id)
+      : null
+    const brainrotWithDT = mutMv?.demand || mutMv?.trend
+      ? { ...selectedBrainrot, demand: mutMv.demand ?? selectedBrainrot.demand, trend: mutMv.trend ?? selectedBrainrot.trend }
+      : selectedBrainrot
+
     onSelect({
       brainrotId: selectedBrainrot.id,
-      brainrot: selectedBrainrot,
+      brainrot: brainrotWithDT,
       mutationId: selectedMutation?.id,
       mutation: selectedMutation || undefined,
       traitIds: selectedTraits.map((t) => t.id),
@@ -483,7 +493,7 @@ export function BrainrotPicker({ onSelect, onClose, initialItem }: BrainrotPicke
   return createPortal(
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-start md:items-center justify-center pt-20 md:pt-0 bg-black/40 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-[60] flex items-start md:items-center justify-center pt-20 md:pt-0 bg-black/40 backdrop-blur-md overflow-y-auto"
     >
       <motion.div
         initial={{ scale: 0.95, y: 10 }}

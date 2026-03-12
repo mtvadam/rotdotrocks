@@ -182,6 +182,18 @@ export async function POST(request: NextRequest) {
           }
           break
         }
+        case 'mutation_demand_trend': {
+          if (!edit.targetId) throw new Error('Missing targetId')
+          const [brainrotId, mutationId] = edit.targetId.split(':')
+          const updateData: Record<string, string> = {}
+          if (newData.demand) updateData.demand = newData.demand
+          if (newData.trend) updateData.trend = newData.trend
+          await prisma.brainrotMutationValue.update({
+            where: { brainrotId_mutationId: { brainrotId, mutationId } },
+            data: updateData,
+          })
+          break
+        }
         default:
           return NextResponse.json({ error: `Unknown edit type: ${edit.editType}` }, { status: 400 })
       }

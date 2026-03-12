@@ -39,6 +39,8 @@ export async function GET(
                   select: {
                     mutationId: true,
                     robuxValue: true,
+                    demand: true,
+                    trend: true,
                     mutation: {
                       select: {
                         name: true,
@@ -220,15 +222,20 @@ export async function GET(
         valueFallback: resolvedValue.isFallback,
         valueFallbackSource: resolvedValue.sourceMutationName,
         traitCount: item.traits?.length || 0,
-        brainrot: item.brainrot ? {
-          id: item.brainrot.id,
-          name: item.brainrot.name,
-          localImage: item.brainrot.localImage || item.brainrot.imageUrl,
-          baseIncome: item.brainrot.baseIncome.toString(),
-          rarity: item.brainrot.rarity,
-          demand: item.brainrot.demand,
-          trend: item.brainrot.trend,
-        } : null,
+        brainrot: item.brainrot ? (() => {
+          const mutDT = item.mutationId
+            ? item.brainrot.mutationValues.find(mv => mv.mutationId === item.mutationId)
+            : null
+          return {
+            id: item.brainrot.id,
+            name: item.brainrot.name,
+            localImage: item.brainrot.localImage || item.brainrot.imageUrl,
+            baseIncome: item.brainrot.baseIncome.toString(),
+            rarity: item.brainrot.rarity,
+            demand: mutDT?.demand ?? item.brainrot.demand,
+            trend: mutDT?.trend ?? item.brainrot.trend,
+          }
+        })() : null,
       }
     }
 

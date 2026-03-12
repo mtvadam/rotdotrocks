@@ -19,6 +19,8 @@ type TrendIndicator = 'LOWERING' | 'STABLE' | 'RISING'
 interface MutationValue {
   mutationId: string
   robuxValue: number
+  demand: DemandLevel
+  trend: TrendIndicator
   mutation: {
     id: string
     name: string
@@ -48,6 +50,8 @@ interface EditedValue {
   mutations?: Record<string, string | null>
   demand?: DemandLevel
   trend?: TrendIndicator
+  mutationDemand?: Record<string, DemandLevel>  // mutationId -> demand
+  mutationTrend?: Record<string, TrendIndicator> // mutationId -> trend
 }
 
 interface HistorySnapshot {
@@ -511,7 +515,9 @@ export default function RobuxValuesPage() {
     if (!edited) return false
     return edited.demand !== undefined ||
            edited.trend !== undefined ||
-           (edited.mutations && Object.keys(edited.mutations).length > 0)
+           (edited.mutations && Object.keys(edited.mutations).length > 0) ||
+           (edited.mutationDemand && Object.keys(edited.mutationDemand).length > 0) ||
+           (edited.mutationTrend && Object.keys(edited.mutationTrend).length > 0)
   }
 
   const updateDemand = (brainrotId: string, value: DemandLevel) => {
@@ -530,6 +536,32 @@ export default function RobuxValuesPage() {
       [brainrotId]: {
         ...prev[brainrotId],
         trend: value,
+      },
+    }))
+  }
+
+  const updateMutationDemand = (brainrotId: string, mutationId: string, value: DemandLevel) => {
+    setEditedValues(prev => ({
+      ...prev,
+      [brainrotId]: {
+        ...prev[brainrotId],
+        mutationDemand: {
+          ...prev[brainrotId]?.mutationDemand,
+          [mutationId]: value,
+        },
+      },
+    }))
+  }
+
+  const updateMutationTrend = (brainrotId: string, mutationId: string, value: TrendIndicator) => {
+    setEditedValues(prev => ({
+      ...prev,
+      [brainrotId]: {
+        ...prev[brainrotId],
+        mutationTrend: {
+          ...prev[brainrotId]?.mutationTrend,
+          [mutationId]: value,
+        },
       },
     }))
   }
@@ -566,6 +598,30 @@ export default function RobuxValuesPage() {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ updates }),
+          })
+        )
+      }
+
+      // Mutation-specific demand/trend changes
+      const mutDTUpdates: Array<{ brainrotId: string; mutationId: string; demand?: DemandLevel; trend?: TrendIndicator }> = []
+      if (edited.mutationDemand) {
+        for (const [mutationId, demand] of Object.entries(edited.mutationDemand)) {
+          const existing = mutDTUpdates.find(u => u.mutationId === mutationId)
+          if (existing) { existing.demand = demand } else { mutDTUpdates.push({ brainrotId, mutationId, demand }) }
+        }
+      }
+      if (edited.mutationTrend) {
+        for (const [mutationId, trend] of Object.entries(edited.mutationTrend)) {
+          const existing = mutDTUpdates.find(u => u.mutationId === mutationId)
+          if (existing) { existing.trend = trend } else { mutDTUpdates.push({ brainrotId, mutationId, trend }) }
+        }
+      }
+      if (mutDTUpdates.length > 0) {
+        promises.push(
+          fetch('/api/admin/usd-values/mutation-values/demand-trend', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ updates: mutDTUpdates }),
           })
         )
       }
@@ -1119,6 +1175,9 @@ export default function RobuxValuesPage() {
                                     const effective = getEffectiveValue(brainrot, mutation.id)
                                     const hasExplicitValue = brainrot.mutationValues.some(mv => mv.mutationId === mutation.id)
                                     const isEdited = editedValues[brainrot.id]?.mutations?.[mutation.id] !== undefined
+                                    const mv = brainrot.mutationValues.find(mv => mv.mutationId === mutation.id)
+                                    const curMutDemand = editedValues[brainrot.id]?.mutationDemand?.[mutation.id] ?? mv?.demand ?? 'NORMAL'
+                                    const curMutTrend = editedValues[brainrot.id]?.mutationTrend?.[mutation.id] ?? mv?.trend ?? 'STABLE'
 
                                     return (
                                       <div key={mutation.id} className="bg-darkbg-800 rounded-lg p-3">
@@ -1143,6 +1202,37 @@ export default function RobuxValuesPage() {
                                         {effective.isFallback && !hasExplicitValue && !isEdited && effective.source !== 'none' && (
                                           <div className="mt-1 text-xs text-gray-500 italic">
                                             Inherits from {effective.source}
+                                          </div>
+                                        )}
+                                        {/* Mutation-specific demand/trend */}
+                                        {hasExplicitValue && (
+                                          <div className="flex items-center gap-2 mt-2">
+                                            <div className="flex items-center gap-1">
+                                              <DemandBadge demand={curMutDemand} />
+                                              <select
+                                                value={curMutDemand}
+                                                onChange={(e) => updateMutationDemand(brainrot.id, mutation.id, e.target.value as DemandLevel)}
+                                                className="w-5 h-5 bg-transparent border border-darkbg-600 rounded text-transparent cursor-pointer focus:outline-none hover:border-darkbg-500 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20width%3d%228%22%20height%3d%228%22%20viewBox%3d%220%200%2012%2012%22%3e%3cpath%20fill%3d%22%239ca3af%22%20d%3d%22M3%205l3%203%203-3%22%2f%3e%3c%2fsvg%3e')] bg-center bg-no-repeat"
+                                              >
+                                                <option value="TERRIBLE">Terrible</option>
+                                                <option value="LOW">Low</option>
+                                                <option value="NORMAL">Normal</option>
+                                                <option value="HIGH">High</option>
+                                                <option value="AMAZING">Amazing</option>
+                                              </select>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                              <TrendBadge trend={curMutTrend} />
+                                              <select
+                                                value={curMutTrend}
+                                                onChange={(e) => updateMutationTrend(brainrot.id, mutation.id, e.target.value as TrendIndicator)}
+                                                className="w-5 h-5 bg-transparent border border-darkbg-600 rounded text-transparent cursor-pointer focus:outline-none hover:border-darkbg-500 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20width%3d%228%22%20height%3d%228%22%20viewBox%3d%220%200%2012%2012%22%3e%3cpath%20fill%3d%22%239ca3af%22%20d%3d%22M3%205l3%203%203-3%22%2f%3e%3c%2fsvg%3e')] bg-center bg-no-repeat"
+                                              >
+                                                <option value="LOWERING">Lowering</option>
+                                                <option value="STABLE">Stable</option>
+                                                <option value="RISING">Rising</option>
+                                              </select>
+                                            </div>
                                           </div>
                                         )}
                                       </div>

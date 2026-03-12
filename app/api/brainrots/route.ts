@@ -37,6 +37,8 @@ export async function GET(request: NextRequest) {
           select: {
             mutationId: true,
             robuxValue: true,
+            demand: true,
+            trend: true,
             mutation: {
               select: { name: true, multiplier: true },
             },
@@ -59,6 +61,8 @@ export async function GET(request: NextRequest) {
       mutationValues: b.mutationValues.map(mv => ({
         mutationId: mv.mutationId,
         robuxValue: mv.robuxValue,
+        demand: mv.demand,
+        trend: mv.trend,
         mutationName: mv.mutation.name,
         mutationMultiplier: mv.mutation.multiplier,
       })),

@@ -306,12 +306,14 @@ model Mutation {
 
 // Junction table for brainrot-specific mutation Robux values
 model BrainrotMutationValue {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   brainrotId  String
   mutationId  String
   robuxValue  Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  demand      DemandLevel     @default(NORMAL)
+  trend       TrendIndicator  @default(STABLE)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   brainrot Brainrot @relation(fields: [brainrotId], references: [id], onDelete: Cascade)
   mutation Mutation @relation(fields: [mutationId], references: [id], onDelete: Cascade)

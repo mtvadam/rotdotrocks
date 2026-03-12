@@ -55,6 +55,7 @@ const EDIT_TYPE_LABELS: Record<string, string> = {
   brainrot_demand: 'Demand',
   brainrot_trend: 'Trend',
   mutation_value: 'Mutation Value',
+  mutation_demand_trend: 'Mutation Demand/Trend',
 }
 
 export default function ApprovalsPage() {
