@@ -3,6 +3,10 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 
 // GET /api/notifications - Get user's notifications
+// Query params:
+//   ?countOnly=true  — lightweight poll, returns { unreadCount } only
+//   ?since=<ISO>     — incremental fetch, returns notifications created after the timestamp
+//   ?unread=true     — only unread notifications
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
@@ -11,15 +15,23 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
+    const countOnly = searchParams.get('countOnly') === 'true'
+    const since = searchParams.get('since')
     const unreadOnly = searchParams.get('unread') === 'true'
 
-    const where: any = {
-      userId: user.id,
+    // Lightweight count-only mode for polling
+    if (countOnly) {
+      const unreadCount = await prisma.notification.count({
+        where: { userId: user.id, isRead: false },
+      })
+      return NextResponse.json({ unreadCount }, {
+        headers: { 'Cache-Control': 'private, no-cache' },
+      })
     }
 
-    if (unreadOnly) {
-      where.isRead = false
-    }
+    const where: any = { userId: user.id }
+    if (unreadOnly) where.isRead = false
+    if (since) where.createdAt = { gt: new Date(since) }
 
     const notifications = await prisma.notification.findMany({
       where,
@@ -36,18 +48,12 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Get unread count
     const unreadCount = await prisma.notification.count({
-      where: {
-        userId: user.id,
-        isRead: false,
-      },
+      where: { userId: user.id, isRead: false },
     })
 
     return NextResponse.json({ notifications, unreadCount }, {
-      headers: {
-        'Cache-Control': 'private, max-age=10',
-      },
+      headers: { 'Cache-Control': 'private, no-cache' },
     })
   } catch (error) {
     console.error('Get notifications error:', error)

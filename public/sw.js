@@ -1,9 +1,11 @@
-const CACHE_NAME = 'brainrot-images-v1'
+const CACHE_NAME = 'brainrot-images-v2'
 
 // Patterns to cache (cache-first strategy)
 function shouldCache(url) {
   return (
     url.hostname.endsWith('.public.blob.vercel-storage.com') ||
+    url.hostname === 'tr.rbxcdn.com' ||
+    url.hostname === 'thumbnails.roblox.com' ||
     url.pathname.startsWith('/brainrot-images/') ||
     url.pathname.startsWith('/trade-only/')
   )

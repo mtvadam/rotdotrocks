@@ -34,6 +34,13 @@ export function NotificationBell() {
   const [position, setPosition] = useState({ top: 0, right: 0 })
   const [scrollFade, setScrollFade] = useState({ top: false, bottom: false })
 
+  // Track the latest notification timestamp for incremental fetches
+  const latestTimestampRef = useRef<string | null>(null)
+  // Track last known unread count to detect changes
+  const lastUnreadRef = useRef<number | null>(null)
+  // Whether we've done the initial full fetch
+  const initializedRef = useRef(false)
+
   const updateScrollFade = useCallback(() => {
     const el = listRef.current
     if (!el) return
@@ -65,27 +72,70 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Fetch notifications
-  const fetchNotifications = async () => {
+  // Full fetch — used on initial load
+  const fetchAll = useCallback(async () => {
     try {
       const res = await fetch('/api/notifications')
-      if (res.ok) {
-        const data = await res.json()
-        setNotifications(data.notifications)
-        setUnreadCount(data.unreadCount)
+      if (!res.ok) return
+      const data = await res.json()
+      setNotifications(data.notifications)
+      setUnreadCount(data.unreadCount)
+      lastUnreadRef.current = data.unreadCount
+      initializedRef.current = true
+      // Track latest timestamp
+      if (data.notifications.length > 0) {
+        latestTimestampRef.current = data.notifications[0].createdAt
       }
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error)
+    } catch {
+      // ignore
     }
-  }
+  }, [])
 
-  // Initial fetch and polling (pause when tab is hidden to save edge requests)
+  // Lightweight count-only poll
+  const pollCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications?countOnly=true')
+      if (!res.ok) return
+      const data = await res.json()
+      const newCount = data.unreadCount
+
+      setUnreadCount(newCount)
+
+      // If count changed, fetch only new notifications since our latest
+      if (lastUnreadRef.current !== null && newCount !== lastUnreadRef.current) {
+        if (latestTimestampRef.current) {
+          const incRes = await fetch(`/api/notifications?since=${encodeURIComponent(latestTimestampRef.current)}`)
+          if (incRes.ok) {
+            const incData = await incRes.json()
+            if (incData.notifications.length > 0) {
+              setNotifications(prev => {
+                const existingIds = new Set(prev.map(n => n.id))
+                const newOnes = incData.notifications.filter((n: Notification) => !existingIds.has(n.id))
+                const merged = [...newOnes, ...prev].slice(0, 50)
+                return merged
+              })
+              latestTimestampRef.current = incData.notifications[0].createdAt
+            }
+          }
+        } else {
+          // No timestamp yet, do full fetch
+          await fetchAll()
+        }
+      }
+      lastUnreadRef.current = newCount
+    } catch {
+      // ignore
+    }
+  }, [fetchAll])
+
+  // Initial fetch and polling
   useEffect(() => {
-    fetchNotifications()
+    fetchAll()
     let interval: ReturnType<typeof setInterval>
 
     const startPolling = () => {
-      interval = setInterval(fetchNotifications, 60000)
+      // Poll count every 30s — lightweight, no notification payloads
+      interval = setInterval(pollCount, 30000)
     }
     const stopPolling = () => {
       clearInterval(interval)
@@ -95,7 +145,8 @@ export function NotificationBell() {
       if (document.hidden) {
         stopPolling()
       } else {
-        fetchNotifications()
+        // On tab focus, do a count check immediately
+        pollCount()
         startPolling()
       }
     }
@@ -107,7 +158,7 @@ export function NotificationBell() {
       stopPolling()
       document.removeEventListener('visibilitychange', handleVisibility)
     }
-  }, [])
+  }, [fetchAll, pollCount])
 
   // Update scroll fades when notifications change or dropdown opens
   useEffect(() => {
@@ -126,6 +177,7 @@ export function NotificationBell() {
         prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
       )
       setUnreadCount((prev) => Math.max(0, prev - 1))
+      lastUnreadRef.current = Math.max(0, (lastUnreadRef.current ?? 1) - 1)
     } catch (error) {
       console.error('Failed to mark as read:', error)
     }
@@ -142,6 +194,7 @@ export function NotificationBell() {
       })
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
       setUnreadCount(0)
+      lastUnreadRef.current = 0
     } catch (error) {
       console.error('Failed to mark all as read:', error)
     }

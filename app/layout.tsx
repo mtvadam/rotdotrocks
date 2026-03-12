@@ -48,6 +48,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
+        <link rel="preconnect" href="https://tr.rbxcdn.com" crossOrigin="anonymous" />
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-17864892799"
           strategy="afterInteractive"
@@ -66,7 +67,7 @@ export default function RootLayout({
           <SeasonalEffects />
           <NavBar />
           <MOTD />
-          <main className="relative z-[10] flex-1">
+          <main className="relative flex-1">
             {children}
           </main>
           <Footer />
