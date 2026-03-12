@@ -21,7 +21,7 @@ export async function GET(req: Request) {
     const offset = Math.max(0, isNaN(rawOffset) ? 0 : rawOffset)
 
     // Validate role enum
-    const validRoles = ['USER', 'SELLER', 'ADMIN']
+    const validRoles = ['USER', 'SELLER', 'MOD', 'ADMIN']
     const validStatuses = ['banned', 'frozen', 'active']
 
     const where: Record<string, unknown> = {}

@@ -21,14 +21,18 @@ interface SelectProps {
 export function Select({ value, onChange, options, className = '', disabled = false }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 })
-  const containerRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const selectedOption = options.find(o => o.value === value)
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      if (
+        buttonRef.current && !buttonRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setIsOpen(false)
       }
     }
@@ -46,7 +50,7 @@ export function Select({ value, onChange, options, className = '', disabled = fa
   }
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div className={`relative ${className}`}>
       <button
         ref={buttonRef}
         type="button"
@@ -84,6 +88,7 @@ export function Select({ value, onChange, options, className = '', disabled = fa
         <AnimatePresence>
           {isOpen && (
             <div
+              ref={dropdownRef}
               style={{ top: position.top, left: position.left, width: position.width }}
               className="fixed z-[60] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-xl shadow-2xl shadow-black/50 overflow-hidden"
             >
