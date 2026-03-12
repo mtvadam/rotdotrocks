@@ -151,6 +151,23 @@ export default function BrainrotsPage() {
   const [sortBy, setSortBy] = useState<SortKey>('income')
   const [scrolled, setScrolled] = useState(false)
   const [selectedBrainrot, setSelectedBrainrot] = useState<Brainrot | null>(null)
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (selectedBrainrot) {
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
+      document.body.style.overflow = 'hidden'
+      document.body.style.paddingRight = `${scrollbarWidth}px`
+    } else {
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
+    }
+  }, [selectedBrainrot])
+
   const [page, setPage] = useState(1)
   const [compactView, setCompactView] = useState(false)
   const [pillFade, setPillFade] = useState({ left: false, right: false })
@@ -673,7 +690,7 @@ export default function BrainrotsPage() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => setSelectedBrainrot(null)}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md"
+              className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-md"
               style={{ background: `radial-gradient(ellipse at 50% 40%, rgba(${glowRgb},0.15) 0%, rgba(0,0,0,0.88) 65%)` }}
             >
               <motion.div

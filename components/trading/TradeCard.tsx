@@ -8,6 +8,7 @@ import Image from 'next/image'
 import { formatDistanceToNow } from 'date-fns'
 import { BadgeCheck, MessageSquare, MoveRight, ArrowRightLeft } from 'lucide-react'
 import { RobloxAvatar } from '@/components/ui'
+import { getTooltipPosition } from '@/lib/tooltip-position'
 import { easeOut } from '@/lib/animations'
 import { getMutationClass } from '@/lib/utils'
 import { calculateTraitValueMultiplier } from '@/lib/trait-value'
@@ -99,7 +100,7 @@ function hasTraitStackedBadge(traitCount: number = 0): boolean {
 // maxShow is the TOTAL slots including the "+X" indicator
 function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trait: { id: string; name: string; localImage: string | null; multiplier: number; valueMultiplier?: number } }>; maxShow?: number; size?: 'sm' | 'md' }) {
   const [showTooltip, setShowTooltip] = useState(false)
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
   const iconsRef = useRef<HTMLDivElement>(null)
 
   // Sort by highest multiplier first
@@ -116,15 +117,12 @@ function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trai
   const fontSize = size === 'md' ? 'text-[8px]' : 'text-[7px]'
   const overflowFontSize = size === 'md' ? 'text-[9px]' : 'text-[8px]'
 
-  useEffect(() => {
-    if (showTooltip && iconsRef.current) {
+  const updatePos = useCallback(() => {
+    if (iconsRef.current) {
       const rect = iconsRef.current.getBoundingClientRect()
-      setTooltipPos({
-        top: rect.bottom + 8,
-        left: rect.left,
-      })
+      setTooltipPos(getTooltipPosition(rect, { tooltipWidth: 160, tooltipHeight: 80 }))
     }
-  }, [showTooltip])
+  }, [])
 
   return (
     <div className="flex gap-0.5">
@@ -134,11 +132,12 @@ function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trai
         tabIndex={0}
         aria-label={`View ${sortedTraits.length} trait${sortedTraits.length === 1 ? '' : 's'}`}
         className="flex gap-0.5 cursor-pointer"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        onMouseEnter={() => { updatePos(); setShowTooltip(true) }}
+        onMouseLeave={() => { setShowTooltip(false); setTooltipPos(null) }}
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
+          if (!showTooltip) updatePos()
           setShowTooltip(!showTooltip)
         }}
         onKeyDown={(e) => {
@@ -168,10 +167,10 @@ function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trai
         )}
       </div>
       {/* Tooltip rendered via portal */}
-      {typeof window !== 'undefined' && showTooltip && createPortal(
+      {typeof window !== 'undefined' && showTooltip && tooltipPos && createPortal(
         <div
           style={{ top: tooltipPos.top, left: tooltipPos.left }}
-          className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px]"
+          className="fixed z-[70] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px]"
         >
           {sortedTraits.map((t) => (
             <div key={t.trait.id} className="flex items-center gap-2 py-1">
@@ -198,18 +197,8 @@ function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trai
 function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['items'][0]; size?: 'xs' | 'sm' | 'lg' }) {
   const traits = item.traits || []
   const [showTooltip, setShowTooltip] = useState(false)
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
   const itemRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (showTooltip && itemRef.current) {
-      const rect = itemRef.current.getBoundingClientRect()
-      setTooltipPos({
-        top: rect.bottom + 8,
-        left: rect.left + rect.width / 2,
-      })
-    }
-  }, [showTooltip])
 
   const formattedIncome = item.calculatedIncome
     ? formatCompactIncome(item.calculatedIncome) + '/s'
@@ -236,8 +225,14 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
       <div
         ref={itemRef}
         className="relative cursor-pointer"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
+        onMouseEnter={() => {
+          if (itemRef.current) {
+            const rect = itemRef.current.getBoundingClientRect()
+            setTooltipPos(getTooltipPosition(rect, { tooltipWidth: 180, tooltipHeight: 120, align: 'center' }))
+          }
+          setShowTooltip(true)
+        }}
+        onMouseLeave={() => { setShowTooltip(false); setTooltipPos(null) }}
       >
         <div className={`${sizeClasses} max-w-full rounded-lg bg-darkbg-700 overflow-hidden flex items-center justify-center aspect-square`}>
           {item.brainrot.localImage ? (
@@ -267,10 +262,10 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
         ) : null}
       </div>
       {/* Brainrot tooltip */}
-      {typeof window !== 'undefined' && showTooltip && createPortal(
+      {typeof window !== 'undefined' && showTooltip && tooltipPos && createPortal(
         <div
           style={{ top: tooltipPos.top, left: tooltipPos.left }}
-          className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px] -translate-x-1/2"
+          className="fixed z-[70] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px] -translate-x-1/2"
         >
           <p
             className="text-xs font-semibold text-white text-center"

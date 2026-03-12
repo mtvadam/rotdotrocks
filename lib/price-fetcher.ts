@@ -6,13 +6,10 @@ const NAME_MAPPINGS: Record<string, string> = {
   'Chimnino': 'Chimino',
 }
 
-// Brainrots worth checking outside Secret/OG
-const EXTRA_BRAINROTS = [
-  'Raccooni Jandelini',
-  'Los Lucky Blocks',
-  'Mythic Lucky Block',
-  'Brainrot God Lucky Block',
-  'Festive Lucky Block',
+// All rarities that have listings on Eldorado
+const ELDORADO_RARITIES = [
+  'Secret', 'OG', 'Brainrot God', 'Legendary',
+  'Festive', 'Valentines', 'Admin', 'Taco',
 ]
 
 function mutationToSlug(name: string): string {
@@ -58,6 +55,10 @@ function getMinListings(rarity: string, mutationName: string): number {
   const isRareMutation = !['Default', 'Gold'].includes(mutationName)
   if (rarity === 'OG') return isRareMutation ? 1 : 3
   if (rarity === 'Secret') return isRareMutation ? 3 : 10
+  if (rarity === 'Brainrot God') return isRareMutation ? 3 : 8
+  if (rarity === 'Legendary') return isRareMutation ? 5 : 10
+  // Festive, Valentines, Admin, Taco — limited rarities with fewer listings
+  if (['Festive', 'Valentines', 'Admin', 'Taco'].includes(rarity)) return isRareMutation ? 2 : 5
   return isRareMutation ? 5 : 15
 }
 
@@ -89,6 +90,8 @@ async function fetchBrainrotPrice(
 
   if (rarity === 'OG') {
     params.set('lowestPrice', '300')
+  } else if (rarity === 'Secret') {
+    params.set('lowestPrice', '1')
   }
 
   const apiUrl = `https://www.eldorado.gg/api/flexibleOffers?${params.toString()}`
@@ -150,17 +153,17 @@ async function fetchBrainrotPrice(
 }
 
 /**
- * Fetch prices for all Secret/OG brainrots + extra brainrots across all mutations.
+ * Fetch prices for all brainrots listed on Eldorado across all mutations.
+ * Searches all rarities that have Eldorado listings.
  * Uses batched parallel requests with delays to avoid rate limiting.
  */
-export async function fetchAllBrainrotPrices(): Promise<PriceResult[]> {
+export async function fetchAllBrainrotPrices(
+  onProgress?: (fetched: number, total: number) => void | Promise<void>
+): Promise<PriceResult[]> {
   const brainrots = await prisma.brainrot.findMany({
     where: {
       isActive: true,
-      OR: [
-        { rarity: { in: ['Secret', 'OG'] } },
-        { name: { in: EXTRA_BRAINROTS } },
-      ],
+      rarity: { in: ELDORADO_RARITIES },
     },
     select: { id: true, name: true, rarity: true },
     orderBy: [{ rarity: 'asc' }, { name: 'asc' }],
@@ -181,9 +184,15 @@ export async function fetchAllBrainrotPrices(): Promise<PriceResult[]> {
     }
   }
 
-  // Fetch in batches of 3 with 300ms delay between batches
-  const BATCH_SIZE = 3
-  const BATCH_DELAY = 300
+  // Fetch in batches of 5 with 250ms delay between batches
+  const BATCH_SIZE = 5
+  const BATCH_DELAY = 250
+
+  // Report total upfront so progress shows immediately
+  console.log(`[price-fetcher] ${combinations.length} combinations (${brainrots.length} brainrots × ${mutations.length} mutations)`)
+  if (onProgress) {
+    await onProgress(0, combinations.length)
+  }
 
   for (let i = 0; i < combinations.length; i += BATCH_SIZE) {
     const batch = combinations.slice(i, i + BATCH_SIZE)
@@ -211,6 +220,10 @@ export async function fetchAllBrainrotPrices(): Promise<PriceResult[]> {
     )
 
     results.push(...batchResults)
+
+    if (onProgress) {
+      await onProgress(Math.min(i + BATCH_SIZE, combinations.length), combinations.length)
+    }
 
     if (i + BATCH_SIZE < combinations.length) {
       await new Promise(r => setTimeout(r, BATCH_DELAY))

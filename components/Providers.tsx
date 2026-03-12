@@ -3,6 +3,20 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { ToastProvider } from '@/components/ui'
 
+// Modal overlay context — hides nav when a fullscreen modal is open
+interface ModalOverlayContextType {
+  navHidden: boolean
+  setNavHidden: (hidden: boolean) => void
+}
+
+const ModalOverlayContext = createContext<ModalOverlayContextType | undefined>(undefined)
+
+export function useNavVisibility() {
+  const context = useContext(ModalOverlayContext)
+  if (!context) throw new Error('useNavVisibility must be used within Providers')
+  return context
+}
+
 // Auth Context
 interface User {
   id: string
@@ -30,6 +44,7 @@ export function useAuth() {
 export function Providers({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [navHidden, setNavHidden] = useState(false)
 
   // Always use dark mode
   useEffect(() => {
@@ -58,10 +73,12 @@ export function Providers({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, refreshUser }}>
-      <ToastProvider>
-        {children}
-      </ToastProvider>
-    </AuthContext.Provider>
+    <ModalOverlayContext.Provider value={{ navHidden, setNavHidden }}>
+      <AuthContext.Provider value={{ user, loading, refreshUser }}>
+        <ToastProvider>
+          {children}
+        </ToastProvider>
+      </AuthContext.Provider>
+    </ModalOverlayContext.Provider>
   )
 }

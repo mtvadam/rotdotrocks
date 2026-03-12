@@ -28,7 +28,7 @@ function formatCountdown(diff: number): string {
 function EventCard({ event, isLive }: { event: EventInfo; isLive: boolean }) {
   const [countdown, setCountdown] = useState('')
   const [showTooltip, setShowTooltip] = useState(false)
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
   const cardRef = useRef<HTMLAnchorElement>(null)
 
   useEffect(() => {
@@ -92,7 +92,7 @@ function EventCard({ event, isLive }: { event: EventInfo; isLive: boolean }) {
       </a>
 
       {/* Portal tooltip with glass effect */}
-      {typeof window !== 'undefined' && event.description && showTooltip && createPortal(
+      {typeof window !== 'undefined' && event.description && showTooltip && tooltipPos && createPortal(
         <div
           style={{ top: tooltipPos.top, left: tooltipPos.left }}
           className="fixed z-[100] w-64 p-2 bg-darkbg-950/90 backdrop-blur-xl border border-darkbg-600 rounded-lg shadow-2xl shadow-black/50 pointer-events-none"

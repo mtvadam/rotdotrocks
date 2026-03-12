@@ -82,8 +82,83 @@ export default function PriceSnapshotsPage() {
   const [pendingReviews, setPendingReviews] = useState<PriceReview[]>([])
   const [processingReview, setProcessingReview] = useState<string | null>(null)
 
+  const [snapshotRunning, setSnapshotRunning] = useState(false)
+  const [snapshotProgress, setSnapshotProgress] = useState<{ fetched: number; total: number } | null>(null)
+  const [snapshotMsg, setSnapshotMsg] = useState<string | null>(null)
+
   const isAdmin = userRole === 'ADMIN'
   const isMod = userRole === 'MOD'
+
+  // Poll for snapshot progress
+  useEffect(() => {
+    if (!snapshotRunning) return
+    const interval = setInterval(async () => {
+      try {
+        console.log('[snapshot-poll] fetching progress...')
+        const res = await fetch('/api/admin/price-snapshots/trigger')
+        console.log('[snapshot-poll] status:', res.status)
+        if (res.ok) {
+          const data = await res.json()
+          console.log('[snapshot-poll] data:', JSON.stringify(data))
+          if (data.running) {
+            setSnapshotProgress({ fetched: data.fetched, total: data.total })
+          } else {
+            setSnapshotRunning(false)
+            setSnapshotProgress(null)
+            setSnapshotMsg('Snapshot complete')
+            fetchBatches()
+            setTimeout(() => setSnapshotMsg(null), 5000)
+          }
+        } else {
+          const err = await res.text()
+          console.log('[snapshot-poll] error response:', res.status, err)
+        }
+      } catch (e) {
+        console.log('[snapshot-poll] fetch error:', e)
+      }
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [snapshotRunning])
+
+  // Check if snapshot is already running on mount
+  useEffect(() => {
+    console.log('[snapshot-mount] checking if running...')
+    fetch('/api/admin/price-snapshots/trigger')
+      .then(r => {
+        console.log('[snapshot-mount] status:', r.status)
+        return r.json()
+      })
+      .then(data => {
+        console.log('[snapshot-mount] data:', JSON.stringify(data))
+        if (data.running) {
+          setSnapshotRunning(true)
+          setSnapshotProgress({ fetched: data.fetched, total: data.total })
+        }
+      })
+      .catch((e) => console.log('[snapshot-mount] error:', e))
+  }, [])
+
+  const triggerSnapshot = async () => {
+    setSnapshotRunning(true)
+    setSnapshotProgress({ fetched: 0, total: 0 })
+    setSnapshotMsg(null)
+    try {
+      const res = await fetch('/api/admin/price-snapshots/trigger', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setSnapshotMsg(`Done — ${data.snapshotsCreated} snapshots, ${data.outliers} outliers, ${data.errors} errors`)
+        await fetchBatches()
+      } else {
+        setSnapshotMsg(data.error || 'Failed')
+      }
+    } catch {
+      setSnapshotMsg('Network error')
+    } finally {
+      setSnapshotRunning(false)
+      setSnapshotProgress(null)
+      setTimeout(() => setSnapshotMsg(null), 8000)
+    }
+  }
 
   const fetchBatches = async () => {
     setLoading(true)
@@ -279,15 +354,40 @@ export default function PriceSnapshotsPage() {
             Review and apply imported prices to the dataset.
           </p>
         </div>
-        <select
-          value={days}
-          onChange={(e) => setDays(Number(e.target.value))}
-          className="bg-darkbg-800 border border-darkbg-700 rounded-lg px-3 py-2 text-sm text-white"
-        >
-          <option value={7}>Last 7 days</option>
-          <option value={14}>Last 14 days</option>
-          <option value={30}>Last 30 days</option>
-        </select>
+        <div className="flex items-center gap-3">
+          {snapshotMsg && (
+            <span className={`text-xs ${snapshotMsg.startsWith('Done') ? 'text-green-400' : 'text-red-400'}`}>
+              {snapshotMsg}
+            </span>
+          )}
+          {isAdmin && (
+            <button
+              onClick={triggerSnapshot}
+              disabled={snapshotRunning}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
+            >
+              {snapshotRunning ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {snapshotProgress && snapshotProgress.total > 0
+                    ? `${snapshotProgress.fetched}/${snapshotProgress.total}`
+                    : 'Starting...'}
+                </>
+              ) : (
+                'Take Snapshot'
+              )}
+            </button>
+          )}
+          <select
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            className="bg-darkbg-800 border border-darkbg-700 rounded-lg px-3 py-2 text-sm text-white"
+          >
+            <option value={7}>Last 7 days</option>
+            <option value={14}>Last 14 days</option>
+            <option value={30}>Last 30 days</option>
+          </select>
+        </div>
       </div>
 
       {/* Pending warning */}

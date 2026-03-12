@@ -754,7 +754,7 @@ export default function HomePage() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => setSelectedBrainrot(null)}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md"
+              className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-md"
               style={{ background: `radial-gradient(ellipse at 50% 40%, rgba(${glowRgb},0.15) 0%, rgba(0,0,0,0.88) 65%)` }}
             >
               <motion.div

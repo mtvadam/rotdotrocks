@@ -92,7 +92,7 @@ interface TradeItemDisplayProps {
 
 const TraitIcons = memo(function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: string; name: string; localImage: string | null; multiplier: number } }>; maxShow?: number }) {
   const [showTooltip, setShowTooltip] = useState(false)
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
   const iconsRef = useRef<HTMLDivElement>(null)
 
   // Memoize computed values
@@ -100,12 +100,22 @@ const TraitIcons = memo(function TraitIcons({ traits, maxShow = 3 }: { traits: A
   const overflow = traits.length - maxShow
 
   // Memoized handlers
-  const handleMouseEnter = useCallback(() => setShowTooltip(true), [])
-  const handleMouseLeave = useCallback(() => setShowTooltip(false), [])
+  const handleMouseEnter = useCallback(() => {
+    if (iconsRef.current) {
+      const rect = iconsRef.current.getBoundingClientRect()
+      setTooltipPos({ top: rect.bottom + 8, left: rect.left })
+    }
+    setShowTooltip(true)
+  }, [])
+  const handleMouseLeave = useCallback(() => { setShowTooltip(false); setTooltipPos(null) }, [])
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
+    if (!showTooltip && iconsRef.current) {
+      const rect = iconsRef.current.getBoundingClientRect()
+      setTooltipPos({ top: rect.bottom + 8, left: rect.left })
+    }
     setShowTooltip(prev => !prev)
-  }, [])
+  }, [showTooltip])
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
@@ -113,18 +123,14 @@ const TraitIcons = memo(function TraitIcons({ traits, maxShow = 3 }: { traits: A
       setShowTooltip(prev => !prev)
     }
   }, [])
-  const handleFocus = useCallback(() => setShowTooltip(true), [])
-  const handleBlur = useCallback(() => setShowTooltip(false), [])
-
-  useEffect(() => {
-    if (showTooltip && iconsRef.current) {
+  const handleFocus = useCallback(() => {
+    if (iconsRef.current) {
       const rect = iconsRef.current.getBoundingClientRect()
-      setTooltipPos({
-        top: rect.bottom + 8,
-        left: rect.left,
-      })
+      setTooltipPos({ top: rect.bottom + 8, left: rect.left })
     }
-  }, [showTooltip])
+    setShowTooltip(true)
+  }, [])
+  const handleBlur = useCallback(() => { setShowTooltip(false); setTooltipPos(null) }, [])
 
   return (
     <div className="flex gap-0.5 mt-1">
@@ -165,11 +171,11 @@ const TraitIcons = memo(function TraitIcons({ traits, maxShow = 3 }: { traits: A
       {/* Tooltip rendered via portal */}
       {typeof window !== 'undefined' && createPortal(
         <AnimatePresence>
-          {showTooltip && (
+          {showTooltip && tooltipPos && (
             <motion.div
               {...tooltipAnimation}
               style={{ top: tooltipPos.top, left: tooltipPos.left }}
-              className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px]"
+              className="fixed z-[70] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-2 shadow-lg shadow-black/20 min-w-[120px]"
             >
               {traits.map((t) => (
                 <div key={t.trait.id} className="flex items-center gap-2 py-1">

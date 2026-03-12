@@ -201,7 +201,7 @@ export function getHeatLevel(demand: DemandLevel, trend: TrendDirection): 'cold'
 interface TooltipProps {
   demand: DemandLevel
   trend: TrendDirection
-  position: { top: number; left: number }
+  position: { top: number; left: number } | null
   visible: boolean
 }
 
@@ -217,10 +217,10 @@ const DemandTrendTooltip = memo(function DemandTrendTooltip({ demand, trend, pos
 
   return createPortal(
     <AnimatePresence>
-      {visible && (
+      {visible && position && (
         <div
           style={{ top: position.top, left: position.left }}
-          className="fixed z-50 bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-3 shadow-lg shadow-black/20 min-w-[160px] -translate-x-1/2"
+          className="fixed z-[70] bg-darkbg-950/95 backdrop-blur-xl border border-darkbg-600 rounded-lg p-3 shadow-lg shadow-black/20 min-w-[160px] -translate-x-1/2"
         >
           {/* Demand */}
           <div className="flex items-center gap-2 mb-2">
@@ -282,7 +282,7 @@ export const DemandTrendBadge = memo(function DemandTrendBadge({
   className = '',
 }: DemandTrendBadgeProps) {
   const [tooltipVisible, setTooltipVisible] = useState(false)
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
   const badgeRef = useRef<HTMLDivElement>(null)
 
   // Normalize to lowercase for config lookups
@@ -304,19 +304,14 @@ export const DemandTrendBadge = memo(function DemandTrendBadge({
   const isHot = heatLevel === 'hot' || heatLevel === 'warm'
   const isCold = heatLevel === 'cold'
 
-  // Update tooltip position
-  useEffect(() => {
-    if (tooltipVisible && badgeRef.current) {
+  const handleMouseEnter = () => {
+    if (showTooltip && badgeRef.current) {
       const rect = badgeRef.current.getBoundingClientRect()
-      setTooltipPos({
-        top: rect.bottom + 8,
-        left: rect.left + rect.width / 2,
-      })
+      setTooltipPos({ top: rect.bottom + 8, left: rect.left + rect.width / 2 })
+      setTooltipVisible(true)
     }
-  }, [tooltipVisible])
-
-  const handleMouseEnter = () => showTooltip && setTooltipVisible(true)
-  const handleMouseLeave = () => setTooltipVisible(false)
+  }
+  const handleMouseLeave = () => { setTooltipVisible(false); setTooltipPos(null) }
 
   // ==================== ICON-ONLY VARIANT ====================
   // Best for: Trade cards, picker grids (space-constrained)

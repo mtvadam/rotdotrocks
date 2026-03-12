@@ -48,8 +48,6 @@ interface Mutation {
 
 interface EditedValue {
   mutations?: Record<string, string | null>
-  demand?: DemandLevel
-  trend?: TrendIndicator
   mutationDemand?: Record<string, DemandLevel>  // mutationId -> demand
   mutationTrend?: Record<string, TrendIndicator> // mutationId -> trend
 }
@@ -75,7 +73,7 @@ interface HistoryData {
   demandInfo: DemandInfo
 }
 
-type SortField = 'name' | 'rarity' | 'demand'
+type SortField = 'name' | 'rarity'
 type SortDirection = 'asc' | 'desc'
 
 const DEMAND_CONFIG: Record<DemandLevel, { label: string; color: string; bg: string; border: string }> = {
@@ -92,7 +90,6 @@ const TREND_CONFIG: Record<TrendIndicator, { label: string; color: string; icon:
   RISING: { label: 'Rising', color: 'text-green-400', icon: TrendingUp },
 }
 
-const DEMAND_ORDER: DemandLevel[] = ['TERRIBLE', 'LOW', 'NORMAL', 'HIGH', 'AMAZING']
 
 function DemandBadge({ demand }: { demand: DemandLevel }) {
   const config = DEMAND_CONFIG[demand]
@@ -318,7 +315,6 @@ export default function RobuxValuesPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [interpolating, setInterpolating] = useState(false)
   const [interpolateMsg, setInterpolateMsg] = useState<string | null>(null)
-  const [demandFilter, setDemandFilter] = useState<DemandLevel | 'ALL'>('ALL')
   const [expandedTab, setExpandedTab] = useState<Record<string, 'values' | 'history'>>({})
   const [traits, setTraits] = useState<{ id: string; name: string; multiplier: number; valueMultiplier: number; localImage: string | null }[]>([])
   const [traitEdits, setTraitEdits] = useState<Record<string, string>>({})
@@ -513,31 +509,9 @@ export default function RobuxValuesPage() {
   const hasChanges = (brainrotId: string) => {
     const edited = editedValues[brainrotId]
     if (!edited) return false
-    return edited.demand !== undefined ||
-           edited.trend !== undefined ||
-           (edited.mutations && Object.keys(edited.mutations).length > 0) ||
+    return (edited.mutations && Object.keys(edited.mutations).length > 0) ||
            (edited.mutationDemand && Object.keys(edited.mutationDemand).length > 0) ||
            (edited.mutationTrend && Object.keys(edited.mutationTrend).length > 0)
-  }
-
-  const updateDemand = (brainrotId: string, value: DemandLevel) => {
-    setEditedValues(prev => ({
-      ...prev,
-      [brainrotId]: {
-        ...prev[brainrotId],
-        demand: value,
-      },
-    }))
-  }
-
-  const updateTrend = (brainrotId: string, value: TrendIndicator) => {
-    setEditedValues(prev => ({
-      ...prev,
-      [brainrotId]: {
-        ...prev[brainrotId],
-        trend: value,
-      },
-    }))
   }
 
   const updateMutationDemand = (brainrotId: string, mutationId: string, value: DemandLevel) => {
@@ -573,20 +547,6 @@ export default function RobuxValuesPage() {
     setSaving(brainrotId)
     try {
       const promises: Promise<Response>[] = []
-
-      if (edited.demand !== undefined || edited.trend !== undefined) {
-        const brainrotUpdate: Record<string, unknown> = {}
-        if (edited.demand !== undefined) brainrotUpdate.demand = edited.demand
-        if (edited.trend !== undefined) brainrotUpdate.trend = edited.trend
-
-        promises.push(
-          fetch(`/api/admin/usd-values/brainrots/${brainrotId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(brainrotUpdate),
-          })
-        )
-      }
 
       if (edited.mutations && Object.keys(edited.mutations).length > 0) {
         const updates: Array<{ brainrotId: string; mutationId?: string; robuxValue: string | null }> = []
@@ -693,11 +653,7 @@ export default function RobuxValuesPage() {
   }
 
   const filteredBrainrots = useMemo(() => {
-    let filtered = brainrots.filter(b => b.name.toLowerCase().includes(search.toLowerCase()))
-
-    if (demandFilter !== 'ALL') {
-      filtered = filtered.filter(b => b.demand === demandFilter)
-    }
+    const filtered = brainrots.filter(b => b.name.toLowerCase().includes(search.toLowerCase()))
 
     return filtered.sort((a, b) => {
       let comparison = 0
@@ -709,21 +665,10 @@ export default function RobuxValuesPage() {
         if (!aRarity && bRarity) return 1
         if (aRarity && !bRarity) return -1
         comparison = aRarity.localeCompare(bRarity)
-      } else if (sortField === 'demand') {
-        comparison = DEMAND_ORDER.indexOf(a.demand) - DEMAND_ORDER.indexOf(b.demand)
       }
       return sortDirection === 'asc' ? comparison : -comparison
     })
-  }, [brainrots, search, sortField, sortDirection, demandFilter])
-
-  // Demand distribution counts
-  const demandCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: brainrots.length }
-    for (const level of DEMAND_ORDER) {
-      counts[level] = brainrots.filter(b => b.demand === level).length
-    }
-    return counts
-  }, [brainrots])
+  }, [brainrots, search, sortField, sortDirection])
 
   return (
     <div className="p-6">
@@ -902,8 +847,8 @@ export default function RobuxValuesPage() {
         </div>
       )}
 
-      {/* Search + Demand filter */}
-      <div className="flex items-center gap-4 mb-4 flex-wrap">
+      {/* Search */}
+      <div className="flex items-center gap-4 mb-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input
@@ -921,37 +866,6 @@ export default function RobuxValuesPage() {
               <X className="w-4 h-4" />
             </button>
           )}
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setDemandFilter('ALL')}
-            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              demandFilter === 'ALL'
-                ? 'bg-darkbg-700 text-white'
-                : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            All ({demandCounts.ALL})
-          </button>
-          {DEMAND_ORDER.map(level => {
-            const config = DEMAND_CONFIG[level]
-            const count = demandCounts[level] || 0
-            if (count === 0) return null
-            return (
-              <button
-                key={level}
-                onClick={() => setDemandFilter(demandFilter === level ? 'ALL' : level)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                  demandFilter === level
-                    ? `${config.bg} ${config.color} ${config.border}`
-                    : 'border-transparent text-gray-500 hover:text-gray-300'
-                }`}
-              >
-                {config.label} ({count})
-              </button>
-            )
-          })}
         </div>
       </div>
 
@@ -997,16 +911,6 @@ export default function RobuxValuesPage() {
                       <SortIcon field="rarity" />
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">
-                    <button
-                      onClick={() => handleSort('demand')}
-                      className="flex items-center gap-1 hover:text-white transition-colors"
-                    >
-                      Demand
-                      <SortIcon field="demand" />
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Trend</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase">Actions</th>
                 </tr>
               </thead>
@@ -1016,8 +920,6 @@ export default function RobuxValuesPage() {
                   const hasEdits = hasChanges(brainrot.id)
                   const isSaving = saving === brainrot.id
                   const isSuccess = success === brainrot.id || success === 'submitted'
-                  const currentDemand = editedValues[brainrot.id]?.demand ?? brainrot.demand
-                  const currentTrend = editedValues[brainrot.id]?.trend ?? brainrot.trend
                   const activeTab = expandedTab[brainrot.id] || 'values'
 
                   return (
@@ -1060,40 +962,6 @@ export default function RobuxValuesPage() {
                       {/* Rarity */}
                       <td className="px-4 py-3 text-gray-400 text-sm">
                         {brainrot.rarity || '-'}
-                      </td>
-
-                      {/* Demand */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <DemandBadge demand={currentDemand} />
-                          <select
-                            value={currentDemand}
-                            onChange={(e) => updateDemand(brainrot.id, e.target.value as DemandLevel)}
-                            className="w-7 h-7 bg-transparent border border-darkbg-600 rounded text-transparent cursor-pointer focus:outline-none hover:border-darkbg-500 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20width%3d%2212%22%20height%3d%2212%22%20viewBox%3d%220%200%2012%2012%22%3e%3cpath%20fill%3d%22%239ca3af%22%20d%3d%22M3%205l3%203%203-3%22%2f%3e%3c%2fsvg%3e')] bg-center bg-no-repeat"
-                          >
-                            <option value="TERRIBLE">Terrible</option>
-                            <option value="LOW">Low</option>
-                            <option value="NORMAL">Normal</option>
-                            <option value="HIGH">High</option>
-                            <option value="AMAZING">Amazing</option>
-                          </select>
-                        </div>
-                      </td>
-
-                      {/* Trend */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <TrendBadge trend={currentTrend} />
-                          <select
-                            value={currentTrend}
-                            onChange={(e) => updateTrend(brainrot.id, e.target.value as TrendIndicator)}
-                            className="w-7 h-7 bg-transparent border border-darkbg-600 rounded text-transparent cursor-pointer focus:outline-none hover:border-darkbg-500 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20width%3d%2212%22%20height%3d%2212%22%20viewBox%3d%220%200%2012%2012%22%3e%3cpath%20fill%3d%22%239ca3af%22%20d%3d%22M3%205l3%203%203-3%22%2f%3e%3c%2fsvg%3e')] bg-center bg-no-repeat"
-                          >
-                            <option value="LOWERING">Lowering</option>
-                            <option value="STABLE">Stable</option>
-                            <option value="RISING">Rising</option>
-                          </select>
-                        </div>
                       </td>
 
                       {/* Actions */}
@@ -1140,7 +1008,7 @@ export default function RobuxValuesPage() {
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.2 }}
                         >
-                          <td colSpan={6} className="px-4 pb-4 pt-0">
+                          <td colSpan={4} className="px-4 pb-4 pt-0">
                             <div className="ml-8 border-l-2 border-darkbg-700 pl-4">
                               {/* Tab switcher */}
                               <div className="flex items-center gap-1 mb-3">

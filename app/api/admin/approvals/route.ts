@@ -151,22 +151,6 @@ export async function POST(request: NextRequest) {
           })
           break
         }
-        case 'brainrot_demand': {
-          if (!edit.targetId) throw new Error('Missing targetId')
-          await prisma.brainrot.update({
-            where: { id: edit.targetId },
-            data: { demand: newData.demand },
-          })
-          break
-        }
-        case 'brainrot_trend': {
-          if (!edit.targetId) throw new Error('Missing targetId')
-          await prisma.brainrot.update({
-            where: { id: edit.targetId },
-            data: { trend: newData.trend },
-          })
-          break
-        }
         case 'mutation_value': {
           const { brainrotId, mutationId, robuxValue } = newData
           if (robuxValue === null) {
