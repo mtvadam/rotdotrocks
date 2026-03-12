@@ -120,7 +120,7 @@ body::-webkit-scrollbar {
 }
 
 .mutation-divine {
-  background: linear-gradient(90deg, #ffd700, #fffbe6, #ffd700, #ffffff, #ffd700);
+  background: linear-gradient(90deg, #ffd700, #ffffff, #ffd700, #fffbe6, #ffd700);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
