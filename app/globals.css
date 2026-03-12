@@ -121,7 +121,7 @@ body::-webkit-scrollbar {
 
 .mutation-divine {
   background: linear-gradient(90deg, #ffd700, #fffbe6, #ffd700, #ffffff, #ffd700);
-  background-size: 300% 100%;
+  background-size: 200% 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -130,8 +130,8 @@ body::-webkit-scrollbar {
 }
 
 @keyframes divine-shift {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 300% 50%; }
+  0% { background-position: 200% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* Rarity text styles */
