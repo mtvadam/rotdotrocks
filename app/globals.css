@@ -52,8 +52,8 @@ body::-webkit-scrollbar {
 }
 
 @keyframes rainbow-shift {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
+  0% { background-position: 200% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .mutation-bloodrot {
@@ -96,8 +96,8 @@ body::-webkit-scrollbar {
 }
 
 @keyframes yinyang-shift {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
+  0% { background-position: 200% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .mutation-radioactive {
@@ -115,8 +115,8 @@ body::-webkit-scrollbar {
 }
 
 @keyframes cursed-shift {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
+  0% { background-position: 200% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .mutation-divine {
@@ -130,8 +130,8 @@ body::-webkit-scrollbar {
 }
 
 @keyframes divine-shift {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 300% 50%; }
+  0% { background-position: 300% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* Rarity text styles */
