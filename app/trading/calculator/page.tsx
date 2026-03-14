@@ -267,75 +267,83 @@ function CalculatorItem({
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="flex items-center gap-3 p-3 bg-darkbg-800/80 rounded-xl group hover:bg-darkbg-800 transition-colors"
+      className="p-3 bg-darkbg-800/80 rounded-xl group hover:bg-darkbg-800 transition-colors"
     >
-      {/* Image */}
-      <div className="flex-shrink-0">
-        {item.brainrot.localImage ? (
-          <Image
-            src={item.brainrot.localImage}
-            alt={item.brainrot.name}
-            width={44}
-            height={44}
-            unoptimized
-            className="rounded-lg"
-          />
-        ) : (
-          <div className="w-11 h-11 rounded-lg bg-darkbg-700" />
-        )}
-      </div>
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Image */}
+        <div className="flex-shrink-0">
+          {item.brainrot.localImage ? (
+            <Image
+              src={item.brainrot.localImage}
+              alt={item.brainrot.name}
+              width={44}
+              height={44}
+              unoptimized
+              className="rounded-lg"
+            />
+          ) : (
+            <div className="w-11 h-11 rounded-lg bg-darkbg-700" />
+          )}
+        </div>
 
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-white text-sm truncate">{item.brainrot.name}</p>
-        {item.mutation && item.mutation.name !== 'Default' && (
-          <p className={`animation-always-running font-medium text-xs ${getMutationClass(item.mutation.name)}`}>
-            {item.mutation.name}
-          </p>
-        )}
-        {item.traits && item.traits.length > 0 && (
-          <div className="mt-1">
-            <TraitIcons traits={item.traits} maxShow={5} />
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-medium text-white text-sm truncate">{item.brainrot.name}</p>
+              {item.mutation && item.mutation.name !== 'Default' && (
+                <p className={`animation-always-running font-medium text-xs ${getMutationClass(item.mutation.name)}`}>
+                  {item.mutation.name}
+                </p>
+              )}
+              {item.traits && item.traits.length > 0 && (
+                <div className="mt-1">
+                  <TraitIcons traits={item.traits} maxShow={5} />
+                </div>
+              )}
+              {item.brainrot.demand && item.brainrot.trend && (
+                <DemandTrendBadge demand={item.brainrot.demand} trend={item.brainrot.trend} size="xs" variant="badge" hideIfNormal />
+              )}
+            </div>
+
+            {/* Actions - top right */}
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              <button onClick={onEdit} className="p-1 text-gray-500 hover:text-green-400 transition-colors">
+                <Pencil className="w-3 h-3" />
+              </button>
+              <button onClick={onRemove} className="p-1 text-gray-500 hover:text-red-400 transition-colors">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
           </div>
-        )}
-        {item.brainrot.demand && item.brainrot.trend && (
-          <DemandTrendBadge demand={item.brainrot.demand} trend={item.brainrot.trend} size="xs" variant="badge" hideIfNormal />
-        )}
-      </div>
 
-      {/* Values */}
-      <div className="text-right flex-shrink-0">
-        <p className="font-bold text-green-400 text-sm">
-          {formatIncome((BigInt(item.calculatedIncome || item.brainrot.baseIncome) * BigInt(item.quantity)).toString())}
-        </p>
-        <ValueBreakdown item={item} />
-      </div>
+          {/* Values + Quantity row */}
+          <div className="flex items-center justify-between mt-1.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <p className="font-bold text-green-400 text-sm whitespace-nowrap">
+                {formatIncome((BigInt(item.calculatedIncome || item.brainrot.baseIncome) * BigInt(item.quantity)).toString())}
+              </p>
+              <ValueBreakdown item={item} />
+            </div>
 
-      {/* Quantity */}
-      <div className="flex flex-col items-center bg-darkbg-700 rounded-lg p-0.5">
-        <button
-          onClick={() => onQuantityChange(item.quantity + 1)}
-          className="w-6 h-5 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-        >
-          <Plus className="w-3 h-3" />
-        </button>
-        <span className="text-xs font-medium">{item.quantity}</span>
-        <button
-          onClick={() => onQuantityChange(Math.max(1, item.quantity - 1))}
-          className="w-6 h-5 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-        >
-          <Minus className="w-3 h-3" />
-        </button>
-      </div>
-
-      {/* Actions */}
-      <div className="flex flex-col sm:flex-row items-center gap-0.5">
-        <button onClick={onEdit} className="p-1.5 text-gray-500 hover:text-green-400 transition-colors">
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-        <button onClick={onRemove} className="p-1.5 text-gray-500 hover:text-red-400 transition-colors">
-          <X className="w-3.5 h-3.5" />
-        </button>
+            {/* Quantity */}
+            <div className="flex items-center gap-1 bg-darkbg-700 rounded-lg px-1 py-0.5 flex-shrink-0">
+              <button
+                onClick={() => onQuantityChange(Math.max(1, item.quantity - 1))}
+                className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <span className="text-xs font-medium w-4 text-center">{item.quantity}</span>
+              <button
+                onClick={() => onQuantityChange(item.quantity + 1)}
+                className="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </motion.div>
   )
@@ -681,15 +689,15 @@ export default function CalculatorPage() {
 
               {/* Left Totals */}
               {leftItems.length > 0 && (
-                <div className="mt-3 p-3 bg-darkbg-800/50 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Total Income</span>
-                    <span className="font-bold text-green-400">{formatIncome(leftTotals.totalIncome.toString())}</span>
+                <div className="mt-3 p-3 bg-darkbg-800/50 rounded-lg overflow-hidden">
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-xs text-gray-500 flex-shrink-0">Total Income</span>
+                    <span className="font-bold text-green-400 text-sm truncate">{formatIncome(leftTotals.totalIncome.toString())}</span>
                   </div>
                   {leftTotals.totalValue > 0 && (
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-xs text-gray-500">Total Value</span>
-                      <span className="font-bold text-yellow-400">
+                    <div className="flex justify-between items-center mt-1 gap-2">
+                      <span className="text-xs text-gray-500 flex-shrink-0">Total Value</span>
+                      <span className="font-bold text-yellow-400 text-sm truncate">
                         R${formatCompactValue(leftTotals.totalValue)}{leftTotals.hasEstimated ? '+' : ''}
                       </span>
                     </div>
@@ -780,15 +788,15 @@ export default function CalculatorPage() {
 
               {/* Right Totals */}
               {rightItems.length > 0 && (
-                <div className="mt-3 p-3 bg-darkbg-800/50 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Total Income</span>
-                    <span className="font-bold text-green-400">{formatIncome(rightTotals.totalIncome.toString())}</span>
+                <div className="mt-3 p-3 bg-darkbg-800/50 rounded-lg overflow-hidden">
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-xs text-gray-500 flex-shrink-0">Total Income</span>
+                    <span className="font-bold text-green-400 text-sm truncate">{formatIncome(rightTotals.totalIncome.toString())}</span>
                   </div>
                   {rightTotals.totalValue > 0 && (
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-xs text-gray-500">Total Value</span>
-                      <span className="font-bold text-yellow-400">
+                    <div className="flex justify-between items-center mt-1 gap-2">
+                      <span className="text-xs text-gray-500 flex-shrink-0">Total Value</span>
+                      <span className="font-bold text-yellow-400 text-sm truncate">
                         R${formatCompactValue(rightTotals.totalValue)}{rightTotals.hasEstimated ? '+' : ''}
                       </span>
                     </div>
