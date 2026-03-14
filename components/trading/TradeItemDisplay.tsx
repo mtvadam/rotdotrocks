@@ -88,6 +88,7 @@ interface TradeItemDisplayProps {
   interactive?: boolean
   onEdit?: () => void
   onRemove?: () => void
+  onBrainrotClick?: (brainrotId: string) => void
 }
 
 const TraitIcons = memo(function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: string; name: string; localImage: string | null; multiplier: number } }>; maxShow?: number }) {
@@ -208,6 +209,7 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
   interactive = false,
   onEdit,
   onRemove,
+  onBrainrotClick,
 }: TradeItemDisplayProps) {
   // Memoize computed values
   const imageSize = useMemo(
@@ -350,12 +352,20 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
     )
   }
 
+  const handleBrainrotClick = onBrainrotClick ? (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onBrainrotClick(item.brainrot.id)
+  } : undefined
+
+  const clickableClass = onBrainrotClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
+
   const content = (
     <>
       {/* Brainrot Image */}
       <div
-        className="relative flex-shrink-0 flex items-center justify-center"
+        className={`relative flex-shrink-0 flex items-center justify-center ${clickableClass}`}
         style={{ width: imageSize, height: imageSize }}
+        onClick={handleBrainrotClick}
       >
         {item.brainrot.localImage ? (
           <Image
@@ -391,7 +401,7 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
       <div className="flex-1 min-w-0 overflow-hidden">
         {/* Name row - stacks on very small screens */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-          <p className={`font-semibold text-white truncate ${size === 'sm' ? 'text-sm' : ''}`}>
+          <p className={`font-semibold text-white truncate ${size === 'sm' ? 'text-sm' : ''} ${clickableClass}`} onClick={handleBrainrotClick}>
             {item.brainrot.name}
           </p>
           {/* Income & Value - below name on mobile, inline on sm+ */}

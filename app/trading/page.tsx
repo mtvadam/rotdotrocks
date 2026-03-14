@@ -6,6 +6,7 @@ import { RefreshCw, Plus, BadgeCheck, Loader2, ArrowRightLeft, ChevronLeft, Chev
 import { TradeCard, TradeCardSkeleton, TradeBuilderModal, TradeFilters, defaultFilters } from '@/components/trading'
 import type { TradeFiltersState } from '@/components/trading'
 import { useAuth } from '@/components/Providers'
+import { BrainrotDetailModal } from '@/components/BrainrotDetailModal'
 import { PageTransition, Select } from '@/components/ui'
 import { AdminAbuseCard, LiveEventCard, UpcomingEventCard } from '@/components/AdminAbuseCard'
 import { easeOut, staggerContainer } from '@/lib/animations'
@@ -84,6 +85,7 @@ export default function TradingPage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [selectedBrainrotId, setSelectedBrainrotId] = useState<string | null>(null)
   const [filters, setFilters] = useState<TradeFiltersState>(defaultFilters)
   const [brainrots, setBrainrots] = useState<Brainrot[]>([])
 
@@ -448,7 +450,7 @@ export default function TradingPage() {
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-4">
                 {trades.map((trade, index) => (
-                  <TradeCard key={trade.id} trade={trade} index={index} />
+                  <TradeCard key={trade.id} trade={trade} index={index} onBrainrotClick={setSelectedBrainrotId} />
                 ))}
               </div>
 
@@ -556,6 +558,11 @@ export default function TradingPage() {
           />
         )}
       </AnimatePresence>
+
+      <BrainrotDetailModal
+        brainrotId={selectedBrainrotId}
+        onClose={() => setSelectedBrainrotId(null)}
+      />
     </PageTransition>
   )
 }

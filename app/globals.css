@@ -261,6 +261,8 @@ body::-webkit-scrollbar {
   opacity: 0;
   transition: opacity 0.3s;
   z-index: 50;
+  will-change: background-position;
+  animation-play-state: paused;
 }
 
 .card-border-animated::after {
@@ -274,6 +276,7 @@ body::-webkit-scrollbar {
 
 .card-border-animated:hover::before {
   opacity: 1;
+  animation-play-state: running;
 }
 
 .card-border-animated:hover {
@@ -410,8 +413,19 @@ body::-webkit-scrollbar {
 }
 
 /* Keep animations running even when parent is not visible */
+/* Only force animations inside modals/detail views, not in card grids */
 .animation-always-running,
 .animation-always-running * {
+  animation-play-state: running !important;
+}
+
+/* Pause animations on grid cards by default - run on hover only */
+.card-anim-on-hover .animation-always-running,
+.card-anim-on-hover .animation-always-running * {
+  animation-play-state: paused !important;
+}
+.card-anim-on-hover:hover .animation-always-running,
+.card-anim-on-hover:hover .animation-always-running * {
   animation-play-state: running !important;
 }
 

@@ -72,6 +72,7 @@ interface TradeCardProps {
     }
   }
   index?: number
+  onBrainrotClick?: (brainrotId: string) => void
 }
 
 // Format Robux value with + for fallback/inherited values
@@ -194,7 +195,7 @@ function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trai
 
 // Compact item display for trade cards - shows image with mutation badge, traits, and hover tooltip
 // size: 'xs' for very small mobile, 'sm' for normal 2-row layouts, 'lg' for single-row centered layouts
-function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['items'][0]; size?: 'xs' | 'sm' | 'lg' }) {
+function CompactItem({ item, size = 'sm', onBrainrotClick }: { item: TradeCardProps['trade']['items'][0]; size?: 'xs' | 'sm' | 'lg'; onBrainrotClick?: (id: string) => void }) {
   const traits = item.traits || []
   const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
@@ -233,6 +234,7 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
           setShowTooltip(true)
         }}
         onMouseLeave={() => { setShowTooltip(false); setTooltipPos(null) }}
+        onClick={() => onBrainrotClick?.(item.brainrot.id)}
       >
         <div className={`${sizeClasses} max-w-full rounded-lg bg-darkbg-700 overflow-hidden flex items-center justify-center aspect-square`}>
           {item.brainrot.localImage ? (
@@ -328,7 +330,7 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
 // Enhanced iPad item display - larger images with visible name, income, and details
 // Used for the iPad-specific single-column layout (md breakpoint, 768-1024px)
 // size: 'md' for 2-row layouts (72px), 'lg' for single-row centered layouts (100px)
-function IPadEnhancedItem({ item, size = 'md' }: { item: TradeCardProps['trade']['items'][0]; size?: 'md' | 'lg' }) {
+function IPadEnhancedItem({ item, size = 'md', onBrainrotClick }: { item: TradeCardProps['trade']['items'][0]; size?: 'md' | 'lg'; onBrainrotClick?: (id: string) => void }) {
   const traits = item.traits || []
 
   const formattedIncome = item.calculatedIncome
@@ -355,7 +357,7 @@ function IPadEnhancedItem({ item, size = 'md' }: { item: TradeCardProps['trade']
   return (
     <div className={`flex flex-col items-center gap-1.5 flex-shrink-0 ${containerClass}`}>
       {/* Image container */}
-      <div className="relative">
+      <div className={`relative ${onBrainrotClick ? 'cursor-pointer' : ''}`} onClick={() => onBrainrotClick?.(item.brainrot.id)}>
         <div className={`${imgContainerClass} rounded-xl bg-darkbg-700 overflow-hidden flex items-center justify-center shadow-lg shadow-black/10`}>
           {item.brainrot.localImage ? (
             <Image
@@ -441,7 +443,7 @@ function IPadEnhancedItem({ item, size = 'md' }: { item: TradeCardProps['trade']
 // iPad Grid display component - shows items in 3-per-row grid, max 2 rows with enhanced items
 // Always maintains consistent height for 2 rows to align cards in grid
 // Single-row layouts get larger brainrots since there's more vertical space
-function IPadItemGrid({ items }: { items: TradeCardProps['trade']['items'] }) {
+function IPadItemGrid({ items, onBrainrotClick }: { items: TradeCardProps['trade']['items']; onBrainrotClick?: (id: string) => void }) {
   const maxVisible = 6
   const visible = items.slice(0, maxVisible)
   const hidden = Math.max(0, items.length - maxVisible)
@@ -459,14 +461,14 @@ function IPadItemGrid({ items }: { items: TradeCardProps['trade']['items'] }) {
       {/* Row 1 - always centered horizontally */}
       <div className="flex justify-center gap-3">
         {row1.map((item) => (
-          <IPadEnhancedItem key={item.id} item={item} size={itemSize} />
+          <IPadEnhancedItem key={item.id} item={item} size={itemSize} onBrainrotClick={onBrainrotClick} />
         ))}
       </div>
       {/* Row 2 - centered, only if there are items */}
       {hasSecondRow && (
         <div className="flex justify-center gap-3">
           {row2.map((item) => (
-            <IPadEnhancedItem key={item.id} item={item} size="md" />
+            <IPadEnhancedItem key={item.id} item={item} size="md" onBrainrotClick={onBrainrotClick} />
           ))}
           {hidden > 0 && (
             <div className="flex flex-col items-center gap-1.5 flex-shrink-0 min-w-[72px]">
@@ -564,7 +566,7 @@ function TotalsDisplay({
 // Grid display component - shows items in 3-per-row grid, max 2 rows
 // When compact=true (both sides single row), use smaller height
 // Single-row layouts get larger brainrots since there's more vertical space
-function ItemGrid({ items, size = 'sm', compact = false }: { items: TradeCardProps['trade']['items']; size?: 'xs' | 'sm'; compact?: boolean }) {
+function ItemGrid({ items, size = 'sm', compact = false, onBrainrotClick }: { items: TradeCardProps['trade']['items']; size?: 'xs' | 'sm'; compact?: boolean; onBrainrotClick?: (id: string) => void }) {
   const maxVisible = 6
   const visible = items.slice(0, maxVisible)
   const hidden = Math.max(0, items.length - maxVisible)
@@ -589,14 +591,14 @@ function ItemGrid({ items, size = 'sm', compact = false }: { items: TradeCardPro
       {/* Row 1 - always centered horizontally */}
       <div className="flex justify-center gap-1 sm:gap-2 min-w-0">
         {row1.map((item) => (
-          <CompactItem key={item.id} item={item} size={itemSize} />
+          <CompactItem key={item.id} item={item} size={itemSize} onBrainrotClick={onBrainrotClick} />
         ))}
       </div>
       {/* Row 2 - centered, only if there are items */}
       {hasSecondRow && (
         <div className="flex justify-center gap-1 sm:gap-2 min-w-0">
           {row2.map((item) => (
-            <CompactItem key={item.id} item={item} size={size} />
+            <CompactItem key={item.id} item={item} size={size} onBrainrotClick={onBrainrotClick} />
           ))}
           {hidden > 0 && (
             <div className="flex flex-col items-center gap-1 min-w-0">
@@ -613,7 +615,7 @@ function ItemGrid({ items, size = 'sm', compact = false }: { items: TradeCardPro
 }
 
 // Memoized TradeCard component to prevent unnecessary re-renders
-export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCardProps) {
+export const TradeCard = memo(function TradeCard({ trade, index = 0, onBrainrotClick }: TradeCardProps) {
   // Memoize filtered items to prevent recalculation on every render
   const offerItems = useMemo(
     () => trade.items.filter((i) => i.side === 'OFFER'),
@@ -685,10 +687,10 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
             <div className="flex-1 min-w-0 overflow-hidden">
               {/* XS screens get smaller items */}
               <div className="sm:hidden">
-                <ItemGrid items={offerItems} size="xs" compact={isBothSingleRow} />
+                <ItemGrid items={offerItems} size="xs" compact={isBothSingleRow} onBrainrotClick={onBrainrotClick} />
               </div>
               <div className="hidden sm:block">
-                <ItemGrid items={offerItems} size="sm" compact={isBothSingleRow} />
+                <ItemGrid items={offerItems} size="sm" compact={isBothSingleRow} onBrainrotClick={onBrainrotClick} />
               </div>
               <TotalsDisplay income={offerIncome} value={offerValue.value} hasEstimated={offerValue.hasEstimated} itemBreakdowns={offerValue.itemBreakdowns} align="center" />
             </div>
@@ -702,10 +704,10 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
             <div className="flex-1 min-w-0 overflow-hidden">
               {/* XS screens get smaller items */}
               <div className="sm:hidden">
-                <ItemGrid items={requestItems} size="xs" compact={isBothSingleRow} />
+                <ItemGrid items={requestItems} size="xs" compact={isBothSingleRow} onBrainrotClick={onBrainrotClick} />
               </div>
               <div className="hidden sm:block">
-                <ItemGrid items={requestItems} size="sm" compact={isBothSingleRow} />
+                <ItemGrid items={requestItems} size="sm" compact={isBothSingleRow} onBrainrotClick={onBrainrotClick} />
               </div>
               <TotalsDisplay income={requestIncome} value={requestValue.value} hasEstimated={requestValue.hasEstimated} itemBreakdowns={requestValue.itemBreakdowns} align="center" />
             </div>
@@ -727,7 +729,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
           <div className="flex items-start gap-3">
             {/* Offer Side */}
             <div className="flex-1 min-w-0 overflow-hidden">
-              <ItemGrid items={offerItems} size="sm" />
+              <ItemGrid items={offerItems} size="sm" onBrainrotClick={onBrainrotClick} />
               <TotalsDisplay income={offerIncome} value={offerValue.value} hasEstimated={offerValue.hasEstimated} itemBreakdowns={offerValue.itemBreakdowns} align="center" />
             </div>
 
@@ -738,7 +740,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
 
             {/* Request Side */}
             <div className="flex-1 min-w-0 overflow-hidden">
-              <ItemGrid items={requestItems} size="sm" />
+              <ItemGrid items={requestItems} size="sm" onBrainrotClick={onBrainrotClick} />
               <TotalsDisplay income={requestIncome} value={requestValue.value} hasEstimated={requestValue.hasEstimated} itemBreakdowns={requestValue.itemBreakdowns} align="center" />
             </div>
           </div>
@@ -792,7 +794,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
                   )}
                 </div>
               </div>
-              <IPadItemGrid items={offerItems} />
+              <IPadItemGrid items={offerItems} onBrainrotClick={onBrainrotClick} />
             </div>
 
             {/* Arrow divider - larger for iPad */}
@@ -819,7 +821,7 @@ export const TradeCard = memo(function TradeCard({ trade, index = 0 }: TradeCard
                   )}
                 </div>
               </div>
-              <IPadItemGrid items={requestItems} />
+              <IPadItemGrid items={requestItems} onBrainrotClick={onBrainrotClick} />
             </div>
           </div>
         </div>

@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { TradeItemDisplay, TradeBuilderModal, TotalValueBreakdown, TradeVoting, TradeChat } from '@/components/trading'
 import { useAuth } from '@/components/Providers'
 import { RobloxAvatar } from '@/components/ui'
+import { BrainrotDetailModal } from '@/components/BrainrotDetailModal'
 import { formatIncome } from '@/lib/utils'
 import { calculateTotalValue, calculateTotalIncome } from '@/lib/trade-calculations'
 import type { DemandLevel, TrendDirection } from '@/components/trading/DemandTrendBadge'
@@ -98,6 +99,7 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [requestSuccess, setRequestSuccess] = useState(false)
   const [requestError, setRequestError] = useState<string | null>(null)
+  const [selectedBrainrotId, setSelectedBrainrotId] = useState<string | null>(null)
 
   const fetchTrade = async () => {
     try {
@@ -372,7 +374,7 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
               </h3>
               <div className="space-y-2 flex-1">
                 {offerItems.map((item) => (
-                  <TradeItemDisplay key={item.id} item={item} />
+                  <TradeItemDisplay key={item.id} item={item} onBrainrotClick={setSelectedBrainrotId} />
                 ))}
               </div>
               {/* Totals - pushed to bottom */}
@@ -406,7 +408,7 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
               </h3>
               <div className="space-y-2 flex-1">
                 {requestItems.map((item) => (
-                  <TradeItemDisplay key={item.id} item={item} />
+                  <TradeItemDisplay key={item.id} item={item} onBrainrotClick={setSelectedBrainrotId} />
                 ))}
               </div>
               {/* Totals - pushed to bottom */}
@@ -572,7 +574,7 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
                       <div className="space-y-2">
                         <p className="text-xs font-semibold text-gray-500 uppercase">They Offer</p>
                         {counterOffer.map((item) => (
-                          <TradeItemDisplay key={item.id} item={item} size="sm" />
+                          <TradeItemDisplay key={item.id} item={item} size="sm" onBrainrotClick={setSelectedBrainrotId} />
                         ))}
                       </div>
                       <div className="flex items-center justify-center">
@@ -581,7 +583,7 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
                       <div className="space-y-2">
                         <p className="text-xs font-semibold text-gray-500 uppercase">They Want</p>
                         {counterRequest.map((item) => (
-                          <TradeItemDisplay key={item.id} item={item} size="sm" />
+                          <TradeItemDisplay key={item.id} item={item} size="sm" onBrainrotClick={setSelectedBrainrotId} />
                         ))}
                       </div>
                     </div>
@@ -668,6 +670,12 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
           </div>
         )}
       </div>
+
+      {/* Brainrot Detail Modal */}
+      <BrainrotDetailModal
+        brainrotId={selectedBrainrotId}
+        onClose={() => setSelectedBrainrotId(null)}
+      />
 
       {/* Counter Offer Modal */}
       {showCounterOffer && (
