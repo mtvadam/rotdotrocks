@@ -286,7 +286,6 @@ function CompactItem({ item, size = 'sm' }: { item: TradeCardProps['trade']['ite
                 trend={item.brainrot.trend}
                 size="xs"
                 variant="icon-only"
-                hideIfNormal
                 showTooltip={false}
               />
             </div>

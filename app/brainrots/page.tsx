@@ -5,6 +5,8 @@ import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, TrendingUp, DollarSign, Sparkles, ChevronLeft, ChevronRight, ArrowUpDown, X, Gem, SlidersHorizontal, Grid3X3, LayoutGrid } from 'lucide-react'
 import { brainrotCache as cache, refreshBrainrotCache } from '@/lib/prefetch'
+import { DemandTrendBadge, type DemandLevel, type TrendDirection } from '@/components/trading/DemandTrendBadge'
+import { ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Area, AreaChart } from 'recharts'
 
 interface Brainrot {
   id: string
@@ -15,6 +17,136 @@ interface Brainrot {
   baseIncome: string
   rarity: string | null
   robuxValue: number | null
+  demand?: DemandLevel | null
+  trend?: TrendDirection | null
+}
+
+// Custom tooltip for the price chart
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; payload: { min: number; max: number; listings: number } }>; label?: string }) {
+  if (!active || !payload?.length) return null
+  const d = payload[0]
+  const dateStr = label ? new Date(label + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
+  return (
+    <div className="bg-darkbg-900/95 backdrop-blur-sm border border-darkbg-600 rounded-lg px-3 py-2 shadow-xl text-xs">
+      <p className="text-gray-400 mb-1">{dateStr}</p>
+      <p className="text-yellow-400 font-bold">R${d.value.toLocaleString()}</p>
+      {d.payload.min !== d.payload.max && (
+        <p className="text-gray-500 mt-0.5">Range: R${d.payload.min.toLocaleString()} – R${d.payload.max.toLocaleString()}</p>
+      )}
+      <p className="text-gray-500">{d.payload.listings} listing{d.payload.listings !== 1 ? 's' : ''}</p>
+    </div>
+  )
+}
+
+// Interactive price chart for the brainrot modal
+function PriceHistoryChart({ brainrotId, glowRgb }: { brainrotId: string; glowRgb: string }) {
+  const [data, setData] = useState<{ date: string; value: number; min: number; max: number; listings: number }[] | null>(null)
+  const [demandInfo, setDemandInfo] = useState<{ demand: DemandLevel; trend: TrendDirection } | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    setData(null)
+    fetch(`/api/brainrots/${brainrotId}/price-history`)
+      .then(r => r.json())
+      .then(d => {
+        setData(d.history || [])
+        if (d.demand && d.trend) setDemandInfo({ demand: d.demand, trend: d.trend })
+      })
+      .catch(() => setData([]))
+      .finally(() => setLoading(false))
+  }, [brainrotId])
+
+  if (loading) {
+    return (
+      <div className="mt-4 rounded-xl border border-white/5 px-4 py-6" style={{ background: `rgba(${glowRgb},0.05)` }}>
+        <div className="flex items-center justify-center gap-2 text-gray-500 text-xs">
+          <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+          Loading price history...
+        </div>
+      </div>
+    )
+  }
+
+  if (!data || data.length < 2) {
+    return (
+      <div className="mt-4 rounded-xl border border-white/5 px-4 py-4" style={{ background: `rgba(${glowRgb},0.05)` }}>
+        {demandInfo && (
+          <div className="flex items-center justify-center mb-2">
+            <DemandTrendBadge demand={demandInfo.demand} trend={demandInfo.trend} size="sm" variant="badge" />
+          </div>
+        )}
+        <p className="text-gray-500 text-xs text-center">Not enough price data yet</p>
+      </div>
+    )
+  }
+
+  const firstVal = data[0].value
+  const lastVal = data[data.length - 1].value
+  const change = lastVal - firstVal
+  const changePct = firstVal > 0 ? ((change / firstVal) * 100).toFixed(1) : '0'
+  const isUp = change > 0
+  const isFlat = change === 0
+  const lineColor = isUp ? '#22c55e' : isFlat ? '#6b7280' : '#ef4444'
+
+  return (
+    <div className="mt-4 rounded-xl border border-white/5 px-3 py-3" style={{ background: `rgba(${glowRgb},0.05)` }}>
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-1 px-1">
+        <span className="text-gray-500 text-[10px] uppercase tracking-wider">30d Price</span>
+        <div className="flex items-center gap-2">
+          {demandInfo && (
+            <DemandTrendBadge demand={demandInfo.demand} trend={demandInfo.trend} size="xs" variant="badge" />
+          )}
+          <span className={`text-xs font-bold ${isUp ? 'text-green-400' : isFlat ? 'text-gray-400' : 'text-red-400'}`}>
+            {isUp ? '+' : ''}{changePct}%
+          </span>
+        </div>
+      </div>
+
+      {/* Interactive chart */}
+      <ResponsiveContainer width="100%" height={100}>
+        <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+          <defs>
+            <linearGradient id={`areaGrad-${brainrotId}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={lineColor} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+          <XAxis
+            dataKey="date"
+            tick={{ fontSize: 9, fill: '#6b7280' }}
+            tickFormatter={(d: string) => d.slice(5)}
+            axisLine={false}
+            tickLine={false}
+            interval="preserveStartEnd"
+            minTickGap={40}
+          />
+          <YAxis hide domain={['dataMin - 20', 'dataMax + 20']} />
+          <Tooltip
+            content={<ChartTooltip />}
+            cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
+          />
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke={lineColor}
+            strokeWidth={2}
+            fill={`url(#areaGrad-${brainrotId})`}
+            dot={false}
+            activeDot={{ r: 4, fill: lineColor, stroke: '#0a0a0a', strokeWidth: 2 }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+
+      {/* Current value */}
+      <div className="flex justify-between items-center mt-1 px-1">
+        <span className="text-[10px] text-gray-600">{data.length} days</span>
+        <span className="text-xs font-bold text-yellow-400">R${lastVal.toLocaleString()}</span>
+      </div>
+    </div>
+  )
 }
 
 function formatNumber(numStr: string): string {
@@ -699,24 +831,26 @@ export default function BrainrotsPage() {
                 exit={{ opacity: 0, scale: 0.78, y: 32 }}
                 transition={{ type: 'spring', stiffness: 380, damping: 28 }}
                 onClick={(e) => e.stopPropagation()}
-                className={`relative w-full max-w-sm bg-gradient-to-b from-darkbg-800 to-darkbg-900 rounded-3xl border-2 ${border.border} ${border.animated || ''} overflow-hidden`}
+                className={`relative w-full max-w-sm max-h-[90vh] bg-gradient-to-b from-darkbg-800 to-darkbg-900 rounded-3xl border-2 ${border.border} ${border.animated || ''} overflow-y-auto overflow-x-hidden`}
                 style={{ boxShadow: `0 0 80px rgba(${glowRgb},0.25), 0 0 30px rgba(${glowRgb},0.1), 0 30px 60px rgba(0,0,0,0.6)` }}
               >
-                {/* Close */}
-                <motion.button
-                  whileHover={{ scale: 1.15, rotate: 90 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setSelectedBrainrot(null)}
-                  className="absolute top-3 right-3 z-30 w-8 h-8 rounded-full bg-darkbg-700/80 hover:bg-darkbg-600 border border-white/10 flex items-center justify-center"
-                >
-                  <X className="w-4 h-4 text-gray-400" />
-                </motion.button>
+                {/* Close - sticky so it stays visible when scrolling */}
+                <div className="sticky top-0 z-30 flex justify-end p-3 pointer-events-none">
+                  <motion.button
+                    whileHover={{ scale: 1.15, rotate: 90 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setSelectedBrainrot(null)}
+                    className="pointer-events-auto w-8 h-8 rounded-full bg-darkbg-700/80 hover:bg-darkbg-600 border border-white/10 flex items-center justify-center"
+                  >
+                    <X className="w-4 h-4 text-gray-400" />
+                  </motion.button>
+                </div>
 
                 {/* Top light streak */}
                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
 
-                {/* Image section */}
-                <div className="relative aspect-square">
+                {/* Image section - shorter on mobile to leave room for chart */}
+                <div className="relative aspect-[4/3] sm:aspect-square -mt-10">
                   {tier >= 2 && (
                     <motion.div
                       animate={{ opacity: [0.12, 0.28, 0.12], scale: [0.9, 1.02, 0.9] }}
@@ -796,10 +930,19 @@ export default function BrainrotsPage() {
                       </motion.div>
                     ))}
                   </div>
+
+                  {/* Price History Chart */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.35 }}
+                  >
+                    <PriceHistoryChart brainrotId={selectedBrainrot.id} glowRgb={glowRgb} />
+                  </motion.div>
                 </div>
 
                 {/* Bottom gradient */}
-                <div className="absolute inset-x-0 bottom-0 h-16 pointer-events-none rounded-b-3xl"
+                <div className="sticky inset-x-0 bottom-0 h-16 pointer-events-none rounded-b-3xl -mt-16"
                   style={{ background: `linear-gradient(to top, rgba(${glowRgb},0.06), transparent)` }}
                 />
               </motion.div>

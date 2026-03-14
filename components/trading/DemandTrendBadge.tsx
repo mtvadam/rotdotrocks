@@ -76,7 +76,7 @@ const DEMAND_CONFIG = {
   },
   normal: {
     label: 'Normal',
-    shortLabel: '',
+    shortLabel: 'Stable',
     color: 'text-gray-400',
     bgColor: 'bg-gray-500/10',
     borderColor: 'border-gray-500/20',
@@ -318,12 +318,8 @@ export const DemandTrendBadge = memo(function DemandTrendBadge({
   // Shows: Single icon representing the most notable state
   if (variant === 'icon-only') {
     // For icon-only, prioritize showing the most impactful indicator
-    // If demand is notable, show demand icon. Otherwise show trend icon if notable.
+    // If demand is notable, show demand icon. Otherwise show trend icon.
     const showDemand = demandLower !== 'normal'
-    const showTrend = trendLower !== 'stable' && !showDemand
-
-    if (!showDemand && !showTrend) return null
-
     const activeConfig = showDemand ? demandConfig : trendConfig
     const ActiveIcon = showDemand ? DemandIcon : TrendIcon
 
@@ -475,9 +471,6 @@ export const DemandDot = memo(function DemandDot({
   const demandLower = normalizeDemand(demand)
   const trendLower = normalizeTrend(trend)
   const heatLevel = getHeatLevel(demand, trend)
-
-  // Don't show dot for neutral items
-  if (heatLevel === 'neutral') return null
 
   const dotSize = size === 'xs' ? 'w-1.5 h-1.5' : 'w-2 h-2'
   const colors = {

@@ -23,6 +23,8 @@ export async function GET() {
         baseCost: true,
         baseIncome: true,
         rarity: true,
+        demand: true,
+        trend: true,
         mutationValues: {
           where: {
             mutation: { name: 'Default' }
@@ -45,6 +47,8 @@ export async function GET() {
       baseCost: b.baseCost.toString(),
       baseIncome: b.baseIncome.toString(),
       rarity: b.rarity,
+      demand: b.demand,
+      trend: b.trend,
       robuxValue: b.mutationValues[0]?.robuxValue || null,
     }))
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { fetchAllBrainrotPrices } from '@/lib/price-fetcher'
+import { fetchAllBrainrotPrices, type PriceResult } from '@/lib/price-fetcher'
 import { calculateAllDemand } from '@/lib/demand-calculator'
 
 const CRON_SECRET = process.env.CRON_SECRET
@@ -14,14 +14,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  try {
-    // Step 1: Fetch all prices from Eldorado
-    const results = await fetchAllBrainrotPrices()
+  let snapshotsCreated = 0
 
-    // Step 2: Record price snapshots (not applied to values — requires manual review)
-    const snapshots = results
-      .filter(r => r.robuxPrice !== null)
-      .map(r => ({
+  try {
+    // Save snapshots incrementally as each batch completes
+    // so partial progress is preserved even if the function times out
+    const onBatchComplete = async (batchResults: PriceResult[]) => {
+      const snapshots = batchResults.map(r => ({
         brainrotId: r.brainrotId,
         mutationId: r.mutationId,
         usdPrice: r.usdPrice,
@@ -31,18 +30,23 @@ export async function GET(request: Request) {
         appliedToValues: false,
         source: 'eldorado',
       }))
-
-    if (snapshots.length > 0) {
       await prisma.priceSnapshot.createMany({ data: snapshots })
+      snapshotsCreated += snapshots.length
     }
 
-    // Step 3: Calculate demand/trend based on price history
+    const results = await fetchAllBrainrotPrices({
+      onBatchComplete,
+      batchSize: 10,    // higher concurrency for cron (no UI to block)
+      batchDelay: 200,
+      fetchTimeout: 8000,
+    })
+
+    // Calculate demand/trend based on price history
     const demandResult = await calculateAllDemand()
 
-    // Step 4: Log results to SystemConfig
     const logData = {
       totalFetched: results.length,
-      snapshotsCreated: snapshots.length,
+      snapshotsCreated,
       demandUpdated: demandResult.updated,
       demandSkipped: demandResult.skipped,
       withPrice: results.filter(r => r.robuxPrice !== null).length,
@@ -60,6 +64,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, ...logData })
   } catch (error) {
     console.error('Cron price import error:', error)
-    return NextResponse.json({ error: 'Failed' }, { status: 500 })
+    // Even on error, log how many snapshots were saved
+    console.log(`[cron] Saved ${snapshotsCreated} snapshots before error`)
+    return NextResponse.json({ error: 'Failed', snapshotsSaved: snapshotsCreated }, { status: 500 })
   }
 }

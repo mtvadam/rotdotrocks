@@ -430,7 +430,6 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
               trend={item.brainrot.trend}
               size="sm"
               variant="badge"
-              hideIfNormal
             />
           </div>
         )}

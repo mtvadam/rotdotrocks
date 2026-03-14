@@ -302,7 +302,7 @@ function CalculatorItem({
                 </div>
               )}
               {item.brainrot.demand && item.brainrot.trend && (
-                <DemandTrendBadge demand={item.brainrot.demand} trend={item.brainrot.trend} size="xs" variant="badge" hideIfNormal />
+                <DemandTrendBadge demand={item.brainrot.demand} trend={item.brainrot.trend} size="xs" variant="badge" />
               )}
             </div>
 

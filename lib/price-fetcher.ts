@@ -65,7 +65,8 @@ function getMinListings(rarity: string, mutationName: string): number {
 async function fetchBrainrotPrice(
   brainrotName: string,
   rarity: string,
-  mutation: string = 'default'
+  mutation: string = 'default',
+  signal?: AbortSignal
 ): Promise<{ price: number | null; count: number; error?: string }> {
   const isDefault = mutation.toLowerCase() === 'default'
 
@@ -104,6 +105,7 @@ async function fetchBrainrotPrice(
         'Accept-Language': 'en-US,en;q=0.9',
         'Referer': 'https://www.eldorado.gg/',
       },
+      signal,
     })
 
     if (!response.ok) {
@@ -152,14 +154,29 @@ async function fetchBrainrotPrice(
   }
 }
 
+export interface FetchOptions {
+  onProgress?: (fetched: number, total: number) => void | Promise<void>
+  onBatchComplete?: (results: PriceResult[]) => void | Promise<void>
+  batchSize?: number
+  batchDelay?: number
+  fetchTimeout?: number
+}
+
 /**
  * Fetch prices for all brainrots listed on Eldorado across all mutations.
  * Searches all rarities that have Eldorado listings.
  * Uses batched parallel requests with delays to avoid rate limiting.
  */
 export async function fetchAllBrainrotPrices(
-  onProgress?: (fetched: number, total: number) => void | Promise<void>
+  onProgressOrOpts?: ((fetched: number, total: number) => void | Promise<void>) | FetchOptions
 ): Promise<PriceResult[]> {
+  // Support legacy callback signature
+  const opts: FetchOptions = typeof onProgressOrOpts === 'function'
+    ? { onProgress: onProgressOrOpts }
+    : onProgressOrOpts ?? {}
+
+  const { onProgress, onBatchComplete, batchSize = 5, batchDelay = 250, fetchTimeout = 8000 } = opts
+
   const brainrots = await prisma.brainrot.findMany({
     where: {
       isActive: true,
@@ -184,9 +201,8 @@ export async function fetchAllBrainrotPrices(
     }
   }
 
-  // Fetch in batches of 5 with 250ms delay between batches
-  const BATCH_SIZE = 5
-  const BATCH_DELAY = 250
+  const BATCH_SIZE = batchSize
+  const BATCH_DELAY = batchDelay
 
   // Report total upfront so progress shows immediately
   console.log(`[price-fetcher] ${combinations.length} combinations (${brainrots.length} brainrots × ${mutations.length} mutations)`)
@@ -201,7 +217,7 @@ export async function fetchAllBrainrotPrices(
       batch.map(async ({ brainrot, mutation }) => {
         const eldoradoName = NAME_MAPPINGS[brainrot.name] || brainrot.name
         const rarity = brainrot.rarity || 'Common'
-        const result = await fetchBrainrotPrice(eldoradoName, rarity, mutation.name.toLowerCase())
+        const result = await fetchBrainrotPriceWithTimeout(eldoradoName, rarity, mutation.name.toLowerCase(), fetchTimeout)
         const minListings = getMinListings(rarity, mutation.name)
         const isOutlier = result.count < minListings
 
@@ -221,6 +237,14 @@ export async function fetchAllBrainrotPrices(
 
     results.push(...batchResults)
 
+    // Save incrementally if callback provided
+    if (onBatchComplete) {
+      const withPrices = batchResults.filter(r => r.robuxPrice !== null)
+      if (withPrices.length > 0) {
+        await onBatchComplete(withPrices)
+      }
+    }
+
     if (onProgress) {
       await onProgress(Math.min(i + BATCH_SIZE, combinations.length), combinations.length)
     }
@@ -231,4 +255,22 @@ export async function fetchAllBrainrotPrices(
   }
 
   return results
+}
+
+/** Wrapper that aborts individual fetches that take too long */
+async function fetchBrainrotPriceWithTimeout(
+  brainrotName: string,
+  rarity: string,
+  mutation: string,
+  timeoutMs: number
+): Promise<{ price: number | null; count: number; error?: string }> {
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    const result = await fetchBrainrotPrice(brainrotName, rarity, mutation, controller.signal)
+    clearTimeout(timer)
+    return result
+  } catch {
+    return { price: null, count: 0, error: 'Timeout' }
+  }
 }

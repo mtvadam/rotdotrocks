@@ -92,16 +92,28 @@ export default function PriceSnapshotsPage() {
   // Poll for snapshot progress
   useEffect(() => {
     if (!snapshotRunning) return
+    let maxProgressSince = 0
     const interval = setInterval(async () => {
       try {
-        console.log('[snapshot-poll] fetching progress...')
         const res = await fetch('/api/admin/price-snapshots/trigger')
-        console.log('[snapshot-poll] status:', res.status)
         if (res.ok) {
           const data = await res.json()
-          console.log('[snapshot-poll] data:', JSON.stringify(data))
           if (data.running) {
             setSnapshotProgress({ fetched: data.fetched, total: data.total })
+            // Track how long we've been at max progress (server is finalizing)
+            if (data.fetched >= data.total && data.total > 0) {
+              if (maxProgressSince === 0) maxProgressSince = Date.now()
+              // If stuck at max for >60s, the POST likely finished or timed out — stop polling
+              if (Date.now() - maxProgressSince > 60_000) {
+                setSnapshotRunning(false)
+                setSnapshotProgress(null)
+                setSnapshotMsg('Snapshot complete')
+                fetchBatches()
+                setTimeout(() => setSnapshotMsg(null), 5000)
+              }
+            } else {
+              maxProgressSince = 0
+            }
           } else {
             setSnapshotRunning(false)
             setSnapshotProgress(null)
@@ -109,12 +121,9 @@ export default function PriceSnapshotsPage() {
             fetchBatches()
             setTimeout(() => setSnapshotMsg(null), 5000)
           }
-        } else {
-          const err = await res.text()
-          console.log('[snapshot-poll] error response:', res.status, err)
         }
-      } catch (e) {
-        console.log('[snapshot-poll] fetch error:', e)
+      } catch {
+        // ignore poll errors
       }
     }, 2000)
     return () => clearInterval(interval)
@@ -142,22 +151,26 @@ export default function PriceSnapshotsPage() {
     setSnapshotRunning(true)
     setSnapshotProgress({ fetched: 0, total: 0 })
     setSnapshotMsg(null)
-    try {
-      const res = await fetch('/api/admin/price-snapshots/trigger', { method: 'POST' })
-      const data = await res.json()
-      if (res.ok) {
-        setSnapshotMsg(`Done — ${data.snapshotsCreated} snapshots, ${data.outliers} outliers, ${data.errors} errors`)
-        await fetchBatches()
-      } else {
-        setSnapshotMsg(data.error || 'Failed')
-      }
-    } catch {
-      setSnapshotMsg('Network error')
-    } finally {
-      setSnapshotRunning(false)
-      setSnapshotProgress(null)
-      setTimeout(() => setSnapshotMsg(null), 8000)
-    }
+    // Fire and forget — don't await the POST response since it takes minutes.
+    // Polling handles progress and completion detection.
+    fetch('/api/admin/price-snapshots/trigger', { method: 'POST' })
+      .then(async (res) => {
+        const data = await res.json()
+        if (res.ok) {
+          setSnapshotMsg(`Done — ${data.snapshotsCreated} snapshots, ${data.outliers} outliers, ${data.errors} errors`)
+          await fetchBatches()
+        } else {
+          setSnapshotMsg(data.error || 'Failed')
+        }
+      })
+      .catch(() => {
+        // POST timed out — polling will detect completion via lock check
+      })
+      .finally(() => {
+        setSnapshotRunning(false)
+        setSnapshotProgress(null)
+        setTimeout(() => setSnapshotMsg(null), 8000)
+      })
   }
 
   const fetchBatches = async () => {
