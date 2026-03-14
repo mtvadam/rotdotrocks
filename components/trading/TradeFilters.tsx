@@ -320,7 +320,7 @@ function FilterButton({
             <>
               <div
                 onClick={() => setIsOpen(false)}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
+                className="fixed inset-0 bg-black/50 z-[60]"
               />
               <motion.div
                 ref={panelRef}
@@ -328,7 +328,7 @@ function FilterButton({
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="fixed inset-x-0 bottom-0 bg-darkbg-900 rounded-t-3xl border-t border-darkbg-700 overflow-hidden z-50 max-h-[80vh]"
+                className="fixed inset-x-0 bottom-0 bg-darkbg-900 rounded-t-3xl border-t border-darkbg-700 overflow-hidden z-[61] max-h-[80vh]"
               >
                 <div className="flex justify-center py-3">
                   <div className="w-10 h-1 bg-darkbg-600 rounded-full" />
