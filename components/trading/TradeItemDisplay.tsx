@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { Pencil, X } from 'lucide-react'
-import { formatIncome, getMutationClass, getRarityColorClass } from '@/lib/utils'
+import { formatIncome, getMutationClass, getMutationAbbrev, getRarityColorClass } from '@/lib/utils'
 import { calculateTraitValueMultiplier } from '@/lib/trait-value'
 import { easeOut } from '@/lib/animations'
 import { DemandTrendBadge, type DemandLevel, type TrendDirection } from './DemandTrendBadge'
@@ -88,7 +88,7 @@ interface TradeItemDisplayProps {
   interactive?: boolean
   onEdit?: () => void
   onRemove?: () => void
-  onBrainrotClick?: (brainrotId: string) => void
+  onBrainrotClick?: (brainrotId: string, mutationId?: string) => void
 }
 
 const TraitIcons = memo(function TraitIcons({ traits, maxShow = 3 }: { traits: Array<{ trait: { id: string; name: string; localImage: string | null; multiplier: number } }>; maxShow?: number }) {
@@ -305,7 +305,7 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
           {item.mutation && (
             <div className="animation-always-running absolute -top-1 -right-1 px-1 py-0.5 rounded text-[9px] font-bold overflow-visible">
               <span className={mutationClass}>
-                {item.mutation.name.charAt(0)}
+                {getMutationAbbrev(item.mutation.name)}
               </span>
             </div>
           )}
@@ -354,7 +354,7 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
 
   const handleBrainrotClick = onBrainrotClick ? (e: React.MouseEvent) => {
     e.stopPropagation()
-    onBrainrotClick(item.brainrot.id)
+    onBrainrotClick(item.brainrot.id, item.mutation?.id)
   } : undefined
 
   const clickableClass = onBrainrotClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
@@ -391,7 +391,7 @@ export const TradeItemDisplay = memo(function TradeItemDisplay({
             className="animation-always-running absolute -top-1 -right-1 px-1.5 py-0.5 rounded text-[10px] font-bold overflow-visible"
           >
             <span className={mutationClass}>
-              {item.mutation.name.charAt(0)}
+              {getMutationAbbrev(item.mutation.name)}
             </span>
           </motion.div>
         )}

@@ -41,12 +41,35 @@ export async function GET(request: Request) {
       fetchTimeout: 8000,
     })
 
+    // Update BrainrotMutationValue.robuxValue from latest non-outlier prices
+    // so there's one source of truth across the app
+    const validPrices = results.filter(r => r.robuxPrice != null && r.robuxPrice > 0 && !r.isOutlier)
+    let valuesUpdated = 0
+    if (validPrices.length > 0) {
+      // Group by brainrotId+mutationId, take latest price per combo
+      const latestByKey = new Map<string, number>()
+      for (const r of validPrices) {
+        const key = `${r.brainrotId}:${r.mutationId}`
+        latestByKey.set(key, r.robuxPrice!)
+      }
+      for (const [key, price] of latestByKey) {
+        const [brainrotId, mutationId] = key.split(':')
+        await prisma.brainrotMutationValue.upsert({
+          where: { brainrotId_mutationId: { brainrotId, mutationId } },
+          update: { robuxValue: price },
+          create: { brainrotId, mutationId, robuxValue: price },
+        })
+        valuesUpdated++
+      }
+    }
+
     // Calculate demand/trend based on price history
     const demandResult = await calculateAllDemand()
 
     const logData = {
       totalFetched: results.length,
       snapshotsCreated,
+      valuesUpdated,
       demandUpdated: demandResult.updated,
       demandSkipped: demandResult.skipped,
       withPrice: results.filter(r => r.robuxPrice !== null).length,

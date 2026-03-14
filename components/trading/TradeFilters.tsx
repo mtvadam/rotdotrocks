@@ -285,14 +285,14 @@ function FilterButton({
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         className={`
-          flex items-center gap-1.5 px-3 py-2.5
+          flex items-center gap-1.5 px-2.5 py-2 sm:px-3 sm:py-2.5
           bg-darkbg-800 rounded-xl
           border-2 transition-all duration-200
           ${isOpen || count > 0 ? colorClasses.active : 'border-transparent text-gray-400 hover:text-white hover:border-darkbg-600'}
         `}
       >
         <span className={count > 0 ? colorClasses.icon : ''}>{icon}</span>
-        <span className="text-sm font-medium">{label}</span>
+        <span className="hidden sm:inline text-sm font-medium">{label}</span>
         {count > 0 && (
           <span className={`min-w-[18px] h-[18px] px-1 ${colorClasses.badge} text-white text-[10px] font-bold rounded-full flex items-center justify-center`}>
             {count}

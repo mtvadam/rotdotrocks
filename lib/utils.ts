@@ -72,6 +72,10 @@ export function getMutationClass(name: string): string {
   }
 }
 
+export function getMutationAbbrev(name: string): string {
+  return name.charAt(0)
+}
+
 export interface MutationGradientData {
   gradientColors?: string | null
   gradientDirection?: string | null

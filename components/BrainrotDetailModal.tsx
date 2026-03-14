@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, DollarSign, TrendingUp, Gem } from 'lucide-react'
+import { X, DollarSign, TrendingUp, Gem, Loader2 } from 'lucide-react'
+import { getMutationClass } from '@/lib/utils'
 import { DemandTrendBadge, type DemandLevel, type TrendDirection } from '@/components/trading/DemandTrendBadge'
 import { ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Area, AreaChart } from 'recharts'
 
@@ -116,12 +117,15 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 }
 
 type PricePoint = { date: string; value: number; min: number; max: number; listings: number }
+type MutationOption = { id: string; name: string; multiplier: number }
 
 interface BrainrotDetailModalProps {
   brainrotId: string | null
   onClose: () => void
   /** Pass rarity so the border/glow matches immediately while loading */
   rarity?: string | null
+  /** Pre-select a specific mutation for the price chart */
+  initialMutationId?: string
 }
 
 // Cache brainrot list so we don't refetch every click
@@ -144,17 +148,23 @@ function fetchBrainrotList(): Promise<BrainrotData[]> {
   return brainrotCachePromise
 }
 
-export function BrainrotDetailModal({ brainrotId, onClose, rarity: rarityHint }: BrainrotDetailModalProps) {
+export function BrainrotDetailModal({ brainrotId, onClose, rarity: rarityHint, initialMutationId }: BrainrotDetailModalProps) {
   const [brainrot, setBrainrot] = useState<BrainrotData | null>(null)
   const [priceData, setPriceData] = useState<PricePoint[] | null>(null)
   const [demandInfo, setDemandInfo] = useState<{ demand: DemandLevel; trend: TrendDirection } | null>(null)
   const [loading, setLoading] = useState(true)
+  const [mutations, setMutations] = useState<MutationOption[]>([])
+  const [activeMutationId, setActiveMutationId] = useState<string | null>(null)
+  const [chartLoading, setChartLoading] = useState(false)
 
+  // Initial load: brainrot data + default price history
   useEffect(() => {
     if (!brainrotId) {
       setBrainrot(null)
       setPriceData(null)
       setDemandInfo(null)
+      setMutations([])
+      setActiveMutationId(null)
       return
     }
 
@@ -162,18 +172,40 @@ export function BrainrotDetailModal({ brainrotId, onClose, rarity: rarityHint }:
     setBrainrot(null)
     setPriceData(null)
     setDemandInfo(null)
+    setMutations([])
+    setActiveMutationId(null)
 
-    // Fetch brainrot data and price history in parallel
+    const priceUrl = initialMutationId
+      ? `/api/brainrots/${brainrotId}/price-history?mutationId=${initialMutationId}`
+      : `/api/brainrots/${brainrotId}/price-history`
+
     Promise.all([
       fetchBrainrotList(),
-      fetch(`/api/brainrots/${brainrotId}/price-history`).then(r => r.json()).catch(() => null),
+      fetch(priceUrl).then(r => r.json()).catch(() => null),
     ]).then(([list, priceRes]) => {
       const found = list.find(b => b.id === brainrotId)
       if (found) setBrainrot(found)
       if (priceRes?.history) setPriceData(priceRes.history)
       if (priceRes?.demand && priceRes?.trend) setDemandInfo({ demand: priceRes.demand, trend: priceRes.trend })
+      if (priceRes?.mutations) setMutations(priceRes.mutations)
+      if (priceRes?.activeMutationId) setActiveMutationId(priceRes.activeMutationId)
     }).finally(() => setLoading(false))
-  }, [brainrotId])
+  }, [brainrotId, initialMutationId])
+
+  // Refetch chart when mutation changes (skip initial load)
+  const fetchMutationPrice = (mutId: string) => {
+    if (!brainrotId || mutId === activeMutationId) return
+    setActiveMutationId(mutId)
+    setChartLoading(true)
+    fetch(`/api/brainrots/${brainrotId}/price-history?mutationId=${mutId}`)
+      .then(r => r.json())
+      .then(res => {
+        if (res?.history) setPriceData(res.history)
+        else setPriceData([])
+      })
+      .catch(() => setPriceData([]))
+      .finally(() => setChartLoading(false))
+  }
 
   if (!brainrotId) return null
 
@@ -193,14 +225,6 @@ export function BrainrotDetailModal({ brainrotId, onClose, rarity: rarityHint }:
     tier === 2 ? 'bg-cyan-400' :
     'bg-white'
 
-  const stats = b ? [
-    { icon: <DollarSign className="w-3.5 h-3.5" />, label: 'cost', value: `$${formatNumber(b.baseCost)}`, color: 'text-white' },
-    { icon: <TrendingUp className="w-3.5 h-3.5" />, label: 'income', value: `$${formatNumber(b.baseIncome)}/s`, color: 'text-green-400' },
-    b.robuxValue != null
-      ? { icon: <Gem className="w-3.5 h-3.5" />, label: 'value', value: `R$${b.robuxValue.toLocaleString()}`, color: 'text-yellow-400' }
-      : null,
-  ].filter(Boolean) as { icon: React.ReactNode; label: string; value: string; color: string }[] : []
-
   // Pre-compute price chart data
   const chartInfo = priceData && priceData.length >= 2 ? (() => {
     const firstVal = priceData[0].value
@@ -212,6 +236,22 @@ export function BrainrotDetailModal({ brainrotId, onClose, rarity: rarityHint }:
     const lineColor = isUp ? '#22c55e' : isFlat ? '#6b7280' : '#ef4444'
     return { lastVal, changePct, isUp, isFlat, lineColor }
   })() : null
+
+  // Use latest snapshot price as source of truth, fall back to admin-set value
+  const displayRobuxValue = chartInfo?.lastVal ?? b?.robuxValue
+
+  // Apply mutation multiplier to income
+  const activeMutation = mutations.find(m => m.id === activeMutationId)
+  const mutMultiplier = activeMutation?.multiplier ?? 1
+  const displayIncome = b ? BigInt(Math.round(Number(BigInt(b.baseIncome)) * mutMultiplier)).toString() : '0'
+
+  const stats = b ? [
+    { icon: <DollarSign className="w-3.5 h-3.5" />, label: 'cost', value: `$${formatNumber(b.baseCost)}`, color: 'text-white' },
+    { icon: <TrendingUp className="w-3.5 h-3.5" />, label: 'income', value: `$${formatNumber(displayIncome)}/s`, color: 'text-green-400' },
+    displayRobuxValue != null
+      ? { icon: <Gem className="w-3.5 h-3.5" />, label: 'value', value: `R$${displayRobuxValue.toLocaleString()}`, color: 'text-yellow-400' }
+      : null,
+  ].filter(Boolean) as { icon: React.ReactNode; label: string; value: string; color: string }[] : []
 
   return (
     <AnimatePresence>
@@ -297,9 +337,19 @@ export function BrainrotDetailModal({ brainrotId, onClose, rarity: rarityHint }:
                 <div className="h-px" style={{ background: `linear-gradient(to right, transparent, rgba(${glowRgb},0.5), transparent)` }} />
 
                 <div className="px-6 pt-4 pb-5">
-                  <h2 className="font-black text-xl text-center leading-tight mb-1.5 text-white">
+                  <h2 className="font-black text-xl text-center leading-tight mb-0.5 text-white">
                     {b.name}
                   </h2>
+
+                  {/* Show active mutation name when not Default */}
+                  {(() => {
+                    const activeMut = mutations.find(m => m.id === activeMutationId)
+                    return activeMut && activeMut.name !== 'Default' ? (
+                      <p className={`text-center text-xs font-bold mb-1 animation-always-running ${getMutationClass(activeMut.name)}`}>
+                        {activeMut.name}
+                      </p>
+                    ) : null
+                  })()}
 
                   {b.rarity && (
                     <div className="flex justify-center mb-3">
@@ -324,9 +374,40 @@ export function BrainrotDetailModal({ brainrotId, onClose, rarity: rarityHint }:
                     ))}
                   </div>
 
-                  {/* Price History - already loaded */}
+                  {/* Mutation picker */}
+                  {mutations.length > 1 && (
+                    <div className="flex flex-wrap justify-center gap-1 mt-3">
+                      {mutations.map((m) => {
+                        const isActive = m.id === activeMutationId
+                        const mutClass = getMutationClass(m.name)
+                        return (
+                          <button
+                            key={m.id}
+                            onClick={() => fetchMutationPrice(m.id)}
+                            disabled={chartLoading}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all border ${
+                              isActive
+                                ? 'bg-white/10 border-white/20'
+                                : 'bg-transparent border-transparent hover:bg-white/5'
+                            }`}
+                          >
+                            <span className={isActive ? `animation-always-running ${mutClass}` : 'text-gray-500'}>
+                              {m.name}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Price History */}
                   {chartInfo && priceData ? (
-                    <div className="mt-3 rounded-xl border border-white/5 px-3 py-3" style={{ background: `rgba(${glowRgb},0.05)` }}>
+                    <div className="relative mt-3 rounded-xl border border-white/5 px-3 py-3" style={{ background: `rgba(${glowRgb},0.05)` }}>
+                      {chartLoading && (
+                        <div className="absolute inset-0 z-10 rounded-xl bg-darkbg-900/60 flex items-center justify-center">
+                          <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                        </div>
+                      )}
                       <div className="flex items-center justify-between mb-1 px-1">
                         <span className="text-gray-500 text-[10px] uppercase tracking-wider">30d Price</span>
                         <div className="flex items-center gap-2">
@@ -357,6 +438,10 @@ export function BrainrotDetailModal({ brainrotId, onClose, rarity: rarityHint }:
                         <span className="text-[10px] text-gray-600">{priceData.length} days</span>
                         <span className="text-xs font-bold text-yellow-400">R${chartInfo.lastVal.toLocaleString()}</span>
                       </div>
+                    </div>
+                  ) : chartLoading ? (
+                    <div className="mt-3 rounded-xl border border-white/5 px-3 py-8 flex items-center justify-center" style={{ background: `rgba(${glowRgb},0.05)` }}>
+                      <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
                     </div>
                   ) : priceData && priceData.length < 2 ? (
                     <div className="mt-3 rounded-xl border border-white/5 px-4 py-4" style={{ background: `rgba(${glowRgb},0.05)` }}>

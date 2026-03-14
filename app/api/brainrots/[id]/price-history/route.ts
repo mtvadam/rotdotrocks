@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
-// Public endpoint for brainrot price history (default mutation only, last 30 days)
+// Public endpoint for brainrot price history (last 30 days)
+// ?mutationId=xxx to get history for a specific mutation (defaults to lowest multiplier)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id: brainrotId } = await params
+    const mutationIdParam = request.nextUrl.searchParams.get('mutationId')
 
     const brainrot = await prisma.brainrot.findUnique({
       where: { id: brainrotId },
@@ -21,19 +23,22 @@ export async function GET(
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - 30)
 
-    // Get the default mutation (lowest multiplier)
-    const defaultMutation = await prisma.mutation.findFirst({
+    // Get all active mutations for the picker
+    const allMutations = await prisma.mutation.findMany({
       where: { isActive: true },
       orderBy: { multiplier: 'asc' },
-      select: { id: true, name: true },
+      select: { id: true, name: true, multiplier: true },
     })
+
+    // Determine which mutation to query
+    const targetMutationId = mutationIdParam || allMutations[0]?.id
 
     const rawSnapshots = await prisma.priceSnapshot.findMany({
       where: {
         brainrotId,
         createdAt: { gte: cutoffDate },
         robuxPrice: { not: null, gt: 0 },
-        ...(defaultMutation ? { mutationId: defaultMutation.id } : {}),
+        ...(targetMutationId ? { mutationId: targetMutationId } : {}),
       },
       orderBy: { createdAt: 'asc' },
       select: { robuxPrice: true, listingCount: true, createdAt: true },
@@ -70,6 +75,8 @@ export async function GET(
       history,
       demand: brainrot.demand,
       trend: brainrot.trend,
+      mutations: allMutations,
+      activeMutationId: targetMutationId,
     }, {
       headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
     })

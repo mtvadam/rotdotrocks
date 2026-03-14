@@ -10,7 +10,7 @@ import { BadgeCheck, MessageSquare, MoveRight, ArrowRightLeft } from 'lucide-rea
 import { RobloxAvatar } from '@/components/ui'
 import { getTooltipPosition } from '@/lib/tooltip-position'
 import { easeOut } from '@/lib/animations'
-import { getMutationClass } from '@/lib/utils'
+import { getMutationClass, getMutationAbbrev } from '@/lib/utils'
 import { calculateTraitValueMultiplier } from '@/lib/trait-value'
 import { formatCompactIncome, formatCompactValue, calculateTotalIncome, calculateTotalValue, MONEYMAKER_THRESHOLD, LB_VIABLE_THRESHOLD, TRAIT_STACKED_THRESHOLD } from '@/lib/trade-calculations'
 import { DemandTrendBadge, type DemandLevel, type TrendDirection } from './DemandTrendBadge'
@@ -72,7 +72,7 @@ interface TradeCardProps {
     }
   }
   index?: number
-  onBrainrotClick?: (brainrotId: string) => void
+  onBrainrotClick?: (brainrotId: string, mutationId?: string) => void
 }
 
 // Format Robux value with + for fallback/inherited values
@@ -195,7 +195,7 @@ function TraitIcons({ traits, maxShow = 3, size = 'sm' }: { traits: Array<{ trai
 
 // Compact item display for trade cards - shows image with mutation badge, traits, and hover tooltip
 // size: 'xs' for very small mobile, 'sm' for normal 2-row layouts, 'lg' for single-row centered layouts
-function CompactItem({ item, size = 'sm', onBrainrotClick }: { item: TradeCardProps['trade']['items'][0]; size?: 'xs' | 'sm' | 'lg'; onBrainrotClick?: (id: string) => void }) {
+function CompactItem({ item, size = 'sm', onBrainrotClick }: { item: TradeCardProps['trade']['items'][0]; size?: 'xs' | 'sm' | 'lg'; onBrainrotClick?: (id: string, mutationId?: string) => void }) {
   const traits = item.traits || []
   const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
@@ -234,7 +234,7 @@ function CompactItem({ item, size = 'sm', onBrainrotClick }: { item: TradeCardPr
           setShowTooltip(true)
         }}
         onMouseLeave={() => { setShowTooltip(false); setTooltipPos(null) }}
-        onClick={() => onBrainrotClick?.(item.brainrot.id)}
+        onClick={() => onBrainrotClick?.(item.brainrot.id, item.mutation?.id)}
       >
         <div className={`${sizeClasses} max-w-full rounded-lg bg-darkbg-700 overflow-hidden flex items-center justify-center aspect-square`}>
           {item.brainrot.localImage ? (
@@ -252,8 +252,8 @@ function CompactItem({ item, size = 'sm', onBrainrotClick }: { item: TradeCardPr
         </div>
         {/* Mutation badge - top right, responsive sizing */}
         {item.mutation && (
-          <div className={`animation-always-running absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 lg:-top-2 lg:-right-2 px-1.5 py-0.5 sm:px-2 sm:py-0.5 lg:px-2.5 lg:py-1 rounded sm:rounded-md text-[9px] sm:text-[10px] lg:text-xs font-bold overflow-visible ${getMutationClass(item.mutation.name)}`}>
-            {item.mutation.name.charAt(0)}
+          <div className={`animation-always-running absolute top-0 right-0 px-1 py-0.5 sm:px-1.5 lg:px-2 lg:py-0.5 rounded sm:rounded-md text-[9px] sm:text-[10px] lg:text-xs font-bold ${getMutationClass(item.mutation.name)}`}>
+            {getMutationAbbrev(item.mutation.name)}
           </div>
         )}
       </div>
@@ -330,7 +330,7 @@ function CompactItem({ item, size = 'sm', onBrainrotClick }: { item: TradeCardPr
 // Enhanced iPad item display - larger images with visible name, income, and details
 // Used for the iPad-specific single-column layout (md breakpoint, 768-1024px)
 // size: 'md' for 2-row layouts (72px), 'lg' for single-row centered layouts (100px)
-function IPadEnhancedItem({ item, size = 'md', onBrainrotClick }: { item: TradeCardProps['trade']['items'][0]; size?: 'md' | 'lg'; onBrainrotClick?: (id: string) => void }) {
+function IPadEnhancedItem({ item, size = 'md', onBrainrotClick }: { item: TradeCardProps['trade']['items'][0]; size?: 'md' | 'lg'; onBrainrotClick?: (id: string, mutationId?: string) => void }) {
   const traits = item.traits || []
 
   const formattedIncome = item.calculatedIncome
@@ -357,7 +357,7 @@ function IPadEnhancedItem({ item, size = 'md', onBrainrotClick }: { item: TradeC
   return (
     <div className={`flex flex-col items-center gap-1.5 flex-shrink-0 ${containerClass}`}>
       {/* Image container */}
-      <div className={`relative ${onBrainrotClick ? 'cursor-pointer' : ''}`} onClick={() => onBrainrotClick?.(item.brainrot.id)}>
+      <div className={`relative ${onBrainrotClick ? 'cursor-pointer' : ''}`} onClick={() => onBrainrotClick?.(item.brainrot.id, item.mutation?.id)}>
         <div className={`${imgContainerClass} rounded-xl bg-darkbg-700 overflow-hidden flex items-center justify-center shadow-lg shadow-black/10`}>
           {item.brainrot.localImage ? (
             <Image
@@ -374,8 +374,8 @@ function IPadEnhancedItem({ item, size = 'md', onBrainrotClick }: { item: TradeC
         </div>
         {/* Mutation badge - larger for iPad */}
         {item.mutation && (
-          <div className={`animation-always-running absolute -top-2 -right-2 px-2.5 py-1 rounded-md text-sm font-bold overflow-visible ${getMutationClass(item.mutation.name)}`}>
-            {item.mutation.name.charAt(0)}
+          <div className={`animation-always-running absolute top-0 right-0 px-2 py-0.5 rounded-md text-sm font-bold ${getMutationClass(item.mutation.name)}`}>
+            {getMutationAbbrev(item.mutation.name)}
           </div>
         )}
       </div>
@@ -443,7 +443,7 @@ function IPadEnhancedItem({ item, size = 'md', onBrainrotClick }: { item: TradeC
 // iPad Grid display component - shows items in 3-per-row grid, max 2 rows with enhanced items
 // Always maintains consistent height for 2 rows to align cards in grid
 // Single-row layouts get larger brainrots since there's more vertical space
-function IPadItemGrid({ items, onBrainrotClick }: { items: TradeCardProps['trade']['items']; onBrainrotClick?: (id: string) => void }) {
+function IPadItemGrid({ items, onBrainrotClick }: { items: TradeCardProps['trade']['items']; onBrainrotClick?: (id: string, mutationId?: string) => void }) {
   const maxVisible = 6
   const visible = items.slice(0, maxVisible)
   const hidden = Math.max(0, items.length - maxVisible)
@@ -566,7 +566,7 @@ function TotalsDisplay({
 // Grid display component - shows items in 3-per-row grid, max 2 rows
 // When compact=true (both sides single row), use smaller height
 // Single-row layouts get larger brainrots since there's more vertical space
-function ItemGrid({ items, size = 'sm', compact = false, onBrainrotClick }: { items: TradeCardProps['trade']['items']; size?: 'xs' | 'sm'; compact?: boolean; onBrainrotClick?: (id: string) => void }) {
+function ItemGrid({ items, size = 'sm', compact = false, onBrainrotClick }: { items: TradeCardProps['trade']['items']; size?: 'xs' | 'sm'; compact?: boolean; onBrainrotClick?: (id: string, mutationId?: string) => void }) {
   const maxVisible = 6
   const visible = items.slice(0, maxVisible)
   const hidden = Math.max(0, items.length - maxVisible)

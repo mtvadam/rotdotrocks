@@ -68,14 +68,14 @@ export function Select({ value, onChange, options, className = '', disabled = fa
         }}
         disabled={disabled}
         className={`
-          flex items-center justify-between gap-2 pl-4 pr-3 py-2.5
+          flex items-center justify-between gap-1.5 sm:gap-2 pl-3 sm:pl-4 pr-2.5 sm:pr-3 py-2 sm:py-2.5
           bg-darkbg-800 rounded-xl border-2
           ${isOpen ? 'border-green-500' : 'border-transparent hover:border-darkbg-600'}
-          text-white transition-all duration-200 min-w-[140px]
+          text-white transition-all duration-200 min-w-0 sm:min-w-[140px]
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
       >
-        <span className="text-sm font-medium">{selectedOption?.label}</span>
+        <span className="text-xs sm:text-sm font-medium">{selectedOption?.label}</span>
         <motion.div
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
