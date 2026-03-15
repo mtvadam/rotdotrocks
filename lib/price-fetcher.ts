@@ -1,16 +1,47 @@
 import { prisma } from '@/lib/db'
 
-// Name mappings: DB name -> Eldorado name
-const NAME_MAPPINGS: Record<string, string> = {
-  'Burguro And Fryuro': 'Burguro and Fryuro',
-  'Chimnino': 'Chimino',
+// Eldorado library API – returns all brainrots listed on their marketplace
+interface EldoradoTradeEnv {
+  id: string
+  name: string
+  value: string
+  childTradeEnvironments: EldoradoTradeEnv[]
 }
 
-// All rarities that have listings on Eldorado
-const ELDORADO_RARITIES = [
-  'Secret', 'OG', 'Brainrot God', 'Legendary',
-  'Festive', 'Valentines', 'Admin', 'Taco',
-]
+interface EldoradoLibrary {
+  tradeEnvironments: EldoradoTradeEnv[]
+}
+
+interface EldoradoBrainrot {
+  name: string   // exact name from Eldorado
+  rarity: string // rarity from Eldorado
+}
+
+async function fetchEldoradoBrainrotList(): Promise<EldoradoBrainrot[]> {
+  const res = await fetch('https://www.eldorado.gg/api/library/259/CustomItem', {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      'Accept': 'application/json',
+    },
+  })
+  if (!res.ok) throw new Error(`Eldorado library API: HTTP ${res.status}`)
+  const data: EldoradoLibrary = await res.json()
+
+  const brainrots: EldoradoBrainrot[] = []
+  // tradeEnvironments[0] = "Brainrot" item type
+  const brainrotType = data.tradeEnvironments?.find(te => te.value === 'Brainrot')
+  if (!brainrotType) return brainrots
+
+  // Level 1 = rarities, Level 2 = individual brainrot names
+  for (const rarity of brainrotType.childTradeEnvironments) {
+    for (const brainrot of rarity.childTradeEnvironments) {
+      if (brainrot.value && brainrot.value !== 'Other') {
+        brainrots.push({ name: brainrot.value, rarity: rarity.value })
+      }
+    }
+  }
+  return brainrots
+}
 
 function mutationToSlug(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-')
@@ -53,13 +84,15 @@ export interface PriceResult {
 
 function getMinListings(rarity: string, mutationName: string): number {
   const isRareMutation = !['Default', 'Gold'].includes(mutationName)
-  if (rarity === 'OG') return isRareMutation ? 1 : 3
-  if (rarity === 'Secret') return isRareMutation ? 3 : 10
-  if (rarity === 'Brainrot God') return isRareMutation ? 3 : 8
-  if (rarity === 'Legendary') return isRareMutation ? 5 : 10
-  // Festive, Valentines, Admin, Taco — limited rarities with fewer listings
-  if (['Festive', 'Valentines', 'Admin', 'Taco'].includes(rarity)) return isRareMutation ? 2 : 5
-  return isRareMutation ? 5 : 15
+  const r = rarity.toLowerCase()
+  if (r === 'og') return isRareMutation ? 1 : 3
+  if (r === 'secret') return isRareMutation ? 3 : 10
+  if (r === 'brainrot god' || r === 'god') return isRareMutation ? 3 : 8
+  if (r === 'legendary') return isRareMutation ? 5 : 10
+  if (r === 'mythic') return isRareMutation ? 3 : 8
+  if (r === 'epic') return isRareMutation ? 5 : 10
+  // Event/limited rarities (festive, valentines, admin, taco, etc.)
+  return isRareMutation ? 2 : 5
 }
 
 async function fetchBrainrotPrice(
@@ -177,13 +210,19 @@ export async function fetchAllBrainrotPrices(
 
   const { onProgress, onBatchComplete, batchSize = 5, batchDelay = 250, fetchTimeout = 8000 } = opts
 
-  const brainrots = await prisma.brainrot.findMany({
-    where: {
-      isActive: true,
-      rarity: { in: ELDORADO_RARITIES },
-    },
+  // 1. Fetch brainrot list dynamically from Eldorado
+  let eldoradoList: EldoradoBrainrot[] = []
+  try {
+    eldoradoList = await fetchEldoradoBrainrotList()
+    console.log(`[price-fetcher] Fetched ${eldoradoList.length} brainrots from Eldorado`)
+  } catch (err) {
+    console.error('[price-fetcher] Failed to fetch Eldorado brainrot list, falling back to DB:', err)
+  }
+
+  // 2. Get our DB brainrots and mutations
+  const dbBrainrots = await prisma.brainrot.findMany({
+    where: { isActive: true },
     select: { id: true, name: true, rarity: true },
-    orderBy: [{ rarity: 'asc' }, { name: 'asc' }],
   })
 
   const mutations = await prisma.mutation.findMany({
@@ -191,11 +230,37 @@ export async function fetchAllBrainrotPrices(
     orderBy: { multiplier: 'asc' },
   })
 
+  // 3. Match Eldorado names to DB records
+  // Build lookup: lowercase name -> DB brainrot
+  const dbByName = new Map(dbBrainrots.map(b => [b.name.toLowerCase(), b]))
+
+  type MatchedBrainrot = { id: string; name: string; rarity: string; eldoradoName: string }
+  const matched: MatchedBrainrot[] = []
+
+  if (eldoradoList.length > 0) {
+    for (const eld of eldoradoList) {
+      const db = dbByName.get(eld.name.toLowerCase())
+      if (db) {
+        matched.push({ id: db.id, name: db.name, rarity: eld.rarity, eldoradoName: eld.name })
+      }
+      // If not in our DB, skip — we can't store a snapshot without a brainrotId
+    }
+    console.log(`[price-fetcher] Matched ${matched.length}/${eldoradoList.length} Eldorado brainrots to DB`)
+  } else {
+    // Fallback: use DB brainrots if Eldorado API failed
+    for (const b of dbBrainrots) {
+      if (b.rarity && !['Common', 'Rare'].includes(b.rarity)) {
+        matched.push({ id: b.id, name: b.name, rarity: b.rarity, eldoradoName: b.name })
+      }
+    }
+    console.log(`[price-fetcher] Fallback: using ${matched.length} DB brainrots`)
+  }
+
   const results: PriceResult[] = []
 
   // Build all combinations
-  const combinations: { brainrot: typeof brainrots[0]; mutation: typeof mutations[0] }[] = []
-  for (const brainrot of brainrots) {
+  const combinations: { brainrot: MatchedBrainrot; mutation: typeof mutations[0] }[] = []
+  for (const brainrot of matched) {
     for (const mutation of mutations) {
       combinations.push({ brainrot, mutation })
     }
@@ -204,8 +269,7 @@ export async function fetchAllBrainrotPrices(
   const BATCH_SIZE = batchSize
   const BATCH_DELAY = batchDelay
 
-  // Report total upfront so progress shows immediately
-  console.log(`[price-fetcher] ${combinations.length} combinations (${brainrots.length} brainrots × ${mutations.length} mutations)`)
+  console.log(`[price-fetcher] ${combinations.length} combinations (${matched.length} brainrots × ${mutations.length} mutations)`)
   if (onProgress) {
     await onProgress(0, combinations.length)
   }
@@ -215,10 +279,8 @@ export async function fetchAllBrainrotPrices(
 
     const batchResults = await Promise.all(
       batch.map(async ({ brainrot, mutation }) => {
-        const eldoradoName = NAME_MAPPINGS[brainrot.name] || brainrot.name
-        const rarity = brainrot.rarity || 'Common'
-        const result = await fetchBrainrotPriceWithTimeout(eldoradoName, rarity, mutation.name.toLowerCase(), fetchTimeout)
-        const minListings = getMinListings(rarity, mutation.name)
+        const result = await fetchBrainrotPriceWithTimeout(brainrot.eldoradoName, brainrot.rarity, mutation.name.toLowerCase(), fetchTimeout)
+        const minListings = getMinListings(brainrot.rarity, mutation.name)
         const isOutlier = result.count < minListings
 
         return {
@@ -237,7 +299,6 @@ export async function fetchAllBrainrotPrices(
 
     results.push(...batchResults)
 
-    // Save incrementally if callback provided
     if (onBatchComplete) {
       const withPrices = batchResults.filter(r => r.robuxPrice !== null)
       if (withPrices.length > 0) {
