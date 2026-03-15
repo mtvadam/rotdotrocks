@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin, requireModOrAdmin } from '@/lib/auth'
 import { prisma } from '@/lib/db'
-import { fetchAllBrainrotPrices } from '@/lib/price-fetcher'
+import { fetchAllBrainrotPrices, type PriceResult } from '@/lib/price-fetcher'
 import { calculateAllDemand } from '@/lib/demand-calculator'
 
 export const maxDuration = 300
@@ -80,11 +80,10 @@ export async function POST() {
 
     try {
       console.log('[snapshot-trigger] calling fetchAllBrainrotPrices...')
-      const results = await fetchAllBrainrotPrices(saveProgress)
+      let snapshotsCreated = 0
 
-      const snapshots = results
-        .filter(r => r.robuxPrice !== null)
-        .map(r => ({
+      const onBatchComplete = async (batchResults: PriceResult[]) => {
+        const snapshots = batchResults.map(r => ({
           brainrotId: r.brainrotId,
           mutationId: r.mutationId,
           usdPrice: r.usdPrice,
@@ -94,16 +93,43 @@ export async function POST() {
           appliedToValues: false,
           source: 'eldorado',
         }))
-
-      if (snapshots.length > 0) {
         await prisma.priceSnapshot.createMany({ data: snapshots })
+        snapshotsCreated += snapshots.length
+      }
+
+      const results = await fetchAllBrainrotPrices({
+        onProgress: saveProgress,
+        onBatchComplete,
+        batchSize: 10,
+        batchDelay: 200,
+        fetchTimeout: 8000,
+      })
+
+      // Update robuxValue from latest non-outlier prices (single source of truth)
+      const validPrices = results.filter(r => r.robuxPrice != null && r.robuxPrice > 0 && !r.isOutlier)
+      let valuesUpdated = 0
+      if (validPrices.length > 0) {
+        const latestByKey = new Map<string, number>()
+        for (const r of validPrices) {
+          latestByKey.set(`${r.brainrotId}:${r.mutationId}`, r.robuxPrice!)
+        }
+        for (const [key, price] of latestByKey) {
+          const [brainrotId, mutationId] = key.split(':')
+          await prisma.brainrotMutationValue.upsert({
+            where: { brainrotId_mutationId: { brainrotId, mutationId } },
+            update: { robuxValue: price },
+            create: { brainrotId, mutationId, robuxValue: price },
+          })
+          valuesUpdated++
+        }
       }
 
       const demandResult = await calculateAllDemand()
 
       const logData = {
         totalFetched: results.length,
-        snapshotsCreated: snapshots.length,
+        snapshotsCreated,
+        valuesUpdated,
         demandUpdated: demandResult.updated,
         demandSkipped: demandResult.skipped,
         withPrice: results.filter(r => r.robuxPrice !== null).length,

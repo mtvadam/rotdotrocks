@@ -230,22 +230,78 @@ export async function fetchAllBrainrotPrices(
     orderBy: { multiplier: 'asc' },
   })
 
-  // 3. Match Eldorado names to DB records
-  // Build lookup: lowercase name -> DB brainrot
-  const dbByName = new Map(dbBrainrots.map(b => [b.name.toLowerCase(), b]))
+  // 3. Match Eldorado names to DB records using fuzzy matching
+  // Normalize: lowercase, strip non-alphanumeric, collapse spaces
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim()
+
+  // Build lookup maps
+  const dbByExact = new Map(dbBrainrots.map(b => [b.name.toLowerCase(), b]))
+  const dbByNormalized = new Map(dbBrainrots.map(b => [normalize(b.name), b]))
+
+  // Levenshtein distance for fuzzy matching (minor typos)
+  function levenshtein(a: string, b: string): number {
+    if (a.length === 0) return b.length
+    if (b.length === 0) return a.length
+    const matrix: number[][] = []
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i]
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        const cost = b[i - 1] === a[j - 1] ? 0 : 1
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + cost
+        )
+      }
+    }
+    return matrix[b.length][a.length]
+  }
+
+  function findBestMatch(eldName: string) {
+    // 1. Exact case-insensitive
+    const exact = dbByExact.get(eldName.toLowerCase())
+    if (exact) return exact
+
+    // 2. Normalized match (strips punctuation, collapses spaces)
+    const norm = normalize(eldName)
+    const normalized = dbByNormalized.get(norm)
+    if (normalized) return normalized
+
+    // 3. Fuzzy: find closest match within edit distance threshold
+    // Allow up to 2 edits for names >= 6 chars, 1 for shorter
+    const maxDist = norm.length >= 6 ? 2 : 1
+    let bestDb = null
+    let bestDist = Infinity
+    for (const db of dbBrainrots) {
+      const dist = levenshtein(norm, normalize(db.name))
+      if (dist < bestDist && dist <= maxDist) {
+        bestDist = dist
+        bestDb = db
+      }
+    }
+    return bestDb
+  }
 
   type MatchedBrainrot = { id: string; name: string; rarity: string; eldoradoName: string }
   const matched: MatchedBrainrot[] = []
+  const usedIds = new Set<string>()
 
   if (eldoradoList.length > 0) {
+    const unmatched: string[] = []
     for (const eld of eldoradoList) {
-      const db = dbByName.get(eld.name.toLowerCase())
-      if (db) {
+      const db = findBestMatch(eld.name)
+      if (db && !usedIds.has(db.id)) {
         matched.push({ id: db.id, name: db.name, rarity: eld.rarity, eldoradoName: eld.name })
+        usedIds.add(db.id)
+      } else if (!db) {
+        unmatched.push(eld.name)
       }
-      // If not in our DB, skip — we can't store a snapshot without a brainrotId
     }
     console.log(`[price-fetcher] Matched ${matched.length}/${eldoradoList.length} Eldorado brainrots to DB`)
+    if (unmatched.length > 0) {
+      console.log(`[price-fetcher] Unmatched: ${unmatched.slice(0, 10).join(', ')}${unmatched.length > 10 ? ` (+${unmatched.length - 10} more)` : ''}`)
+    }
   } else {
     // Fallback: use DB brainrots if Eldorado API failed
     for (const b of dbBrainrots) {
