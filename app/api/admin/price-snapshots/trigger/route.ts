@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { fetchAllBrainrotPrices, type PriceResult } from '@/lib/price-fetcher'
 import { calculateAllDemand } from '@/lib/demand-calculator'
 
-export const maxDuration = 300
+export const maxDuration = 900
 
 const PROGRESS_KEY = 'price_import_progress'
 const LOCK_KEY = 'price_import_running'
@@ -101,7 +101,7 @@ export async function POST() {
         onProgress: saveProgress,
         onBatchComplete,
         batchSize: 5,
-        batchDelay: 500,
+        batchDelay: 350,
         fetchTimeout: 8000,
       })
 
