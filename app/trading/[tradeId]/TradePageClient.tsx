@@ -109,7 +109,7 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
 
   const fetchTrade = async () => {
     try {
-      const res = await fetch(`/api/trades/${tradeId}`)
+      const res = await fetch(`/api/trades/${tradeId}?t=${Date.now()}`)
       const data = await res.json()
       if (data.trade) {
         setTrade(data.trade)
