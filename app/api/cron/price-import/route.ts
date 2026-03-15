@@ -36,8 +36,8 @@ export async function GET(request: Request) {
 
     const results = await fetchAllBrainrotPrices({
       onBatchComplete,
-      batchSize: 10,    // higher concurrency for cron (no UI to block)
-      batchDelay: 200,
+      batchSize: 5,
+      batchDelay: 500,
       fetchTimeout: 8000,
     })
 

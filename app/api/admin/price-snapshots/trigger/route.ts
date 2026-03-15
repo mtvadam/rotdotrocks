@@ -100,8 +100,8 @@ export async function POST() {
       const results = await fetchAllBrainrotPrices({
         onProgress: saveProgress,
         onBatchComplete,
-        batchSize: 10,
-        batchDelay: 200,
+        batchSize: 5,
+        batchDelay: 500,
         fetchTimeout: 8000,
       })
 

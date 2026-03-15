@@ -130,16 +130,22 @@ async function fetchBrainrotPrice(
 
   const apiUrl = `https://www.eldorado.gg/api/flexibleOffers?${params.toString()}`
 
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+    'Accept': 'application/json',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://www.eldorado.gg/',
+  }
+
   try {
-    const response = await fetch(apiUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Accept': 'application/json',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': 'https://www.eldorado.gg/',
-      },
-      signal,
-    })
+    let response = await fetch(apiUrl, { headers, signal })
+
+    // Rate limited — wait and retry once
+    if (response.status === 429) {
+      const retryAfter = parseInt(response.headers.get('retry-after') || '30', 10)
+      await new Promise(r => setTimeout(r, retryAfter * 1000))
+      response = await fetch(apiUrl, { headers, signal })
+    }
 
     if (!response.ok) {
       return { price: null, count: 0, error: `HTTP ${response.status}` }
@@ -208,7 +214,7 @@ export async function fetchAllBrainrotPrices(
     ? { onProgress: onProgressOrOpts }
     : onProgressOrOpts ?? {}
 
-  const { onProgress, onBatchComplete, batchSize = 5, batchDelay = 250, fetchTimeout = 8000 } = opts
+  const { onProgress, onBatchComplete, batchSize = 5, batchDelay = 500, fetchTimeout = 8000 } = opts
 
   // 1. Fetch brainrot list dynamically from Eldorado
   let eldoradoList: EldoradoBrainrot[] = []
@@ -300,7 +306,7 @@ export async function fetchAllBrainrotPrices(
     }
     console.log(`[price-fetcher] Matched ${matched.length}/${eldoradoList.length} Eldorado brainrots to DB`)
     if (unmatched.length > 0) {
-      console.log(`[price-fetcher] Unmatched: ${unmatched.slice(0, 10).join(', ')}${unmatched.length > 10 ? ` (+${unmatched.length - 10} more)` : ''}`)
+      console.log(`[price-fetcher] Unmatched: ${unmatched.join(', ')}`)
     }
   } else {
     // Fallback: use DB brainrots if Eldorado API failed
