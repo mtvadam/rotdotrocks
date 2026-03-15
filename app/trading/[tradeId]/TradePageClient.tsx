@@ -698,6 +698,9 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
             traitIds: item.traits?.map((t) => t.trait.id),
             traits: item.traits?.map((t) => t.trait),
             calculatedIncome: item.calculatedIncome || undefined,
+            robuxValue: item.robuxValue,
+            valueFallback: item.valueFallback,
+            valueFallbackSource: item.valueFallbackSource,
           }))}
           initialRequestItems={offerItems.map((item) => ({
             brainrotId: item.brainrot.id,
@@ -707,6 +710,9 @@ export default function TradePageClient({ tradeId }: { tradeId: string }) {
             traitIds: item.traits?.map((t) => t.trait.id),
             traits: item.traits?.map((t) => t.trait),
             calculatedIncome: item.calculatedIncome || undefined,
+            robuxValue: item.robuxValue,
+            valueFallback: item.valueFallback,
+            valueFallbackSource: item.valueFallbackSource,
           }))}
         />
       )}
