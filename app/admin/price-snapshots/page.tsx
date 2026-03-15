@@ -100,11 +100,12 @@ export default function PriceSnapshotsPage() {
           const data = await res.json()
           if (data.running) {
             setSnapshotProgress({ fetched: data.fetched, total: data.total })
-            // Track how long we've been at max progress (server is finalizing)
+            // Track how long we've been at max progress (server is finalizing: saving values, calculating demand)
             if (data.fetched >= data.total && data.total > 0) {
               if (maxProgressSince === 0) maxProgressSince = Date.now()
-              // If stuck at max for >60s, the POST likely finished or timed out — stop polling
-              if (Date.now() - maxProgressSince > 60_000) {
+              setSnapshotMsg('Finalizing...')
+              // If stuck at max for >15s, the POST likely finished — stop polling
+              if (Date.now() - maxProgressSince > 15_000) {
                 setSnapshotRunning(false)
                 setSnapshotProgress(null)
                 setSnapshotMsg('Snapshot complete')
