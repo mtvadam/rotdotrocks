@@ -520,9 +520,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (offerItems.length > 4 || requestItems.length > 4) {
+    if (offerItems.length > 6 || requestItems.length > 6) {
       return NextResponse.json(
-        { error: 'Maximum 4 items per side' },
+        { error: 'Maximum 6 items per side' },
         { status: 400 }
       )
     }

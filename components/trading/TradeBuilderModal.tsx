@@ -351,7 +351,7 @@ export function TradeBuilderModal({ onClose, onSuccess, parentTradeId, initialOf
         animate="animate"
         exit="exit"
         onClick={onClose}
-        className="fixed inset-0 z-40 flex items-start md:items-center justify-center pt-20 md:pt-0 bg-black/40 backdrop-blur-sm will-change-[opacity] overflow-y-auto overflow-x-hidden"
+        className="fixed inset-0 z-[55] flex items-start md:items-center justify-center pt-4 md:pt-0 bg-black/60 backdrop-blur-md will-change-[opacity] overflow-y-auto overflow-x-hidden"
       >
         <motion.div
           variants={modalVariants}
